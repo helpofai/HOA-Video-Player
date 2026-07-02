@@ -1,0 +1,83 @@
+package com.helpofai.videoplayer.feature.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.helpofai.videoplayer.core.data.SettingsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val videoRepository: com.helpofai.videoplayer.core.data.VideoRepository
+) : ViewModel() {
+
+    val defaultPlaybackSpeed = settingsRepository.defaultPlaybackSpeed.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        1.0f
+    )
+
+    val defaultSubtitleLanguage = settingsRepository.defaultSubtitleLanguage.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "Off"
+    )
+
+    val hardwareAcceleration = settingsRepository.hardwareAcceleration.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
+    val dynamicColors = settingsRepository.dynamicColors.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
+    val backgroundPlayback = settingsRepository.backgroundPlayback.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
+
+    fun setPlaybackSpeed(speed: Float) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultPlaybackSpeed(speed)
+        }
+    }
+
+    fun setSubtitleLanguage(language: String) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultSubtitleLanguage(language)
+        }
+    }
+
+    fun setHardwareAcceleration(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHardwareAcceleration(enabled)
+        }
+    }
+
+    fun setDynamicColors(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDynamicColors(enabled)
+        }
+    }
+
+    fun setBackgroundPlayback(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBackgroundPlayback(enabled)
+        }
+    }
+
+    fun clearWatchHistory() {
+        viewModelScope.launch {
+            videoRepository.clearAllWatchHistory()
+        }
+    }
+}

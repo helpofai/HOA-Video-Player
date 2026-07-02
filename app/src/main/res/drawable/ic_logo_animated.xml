@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_logo_static">
+
+    <target android:name="slow_ring">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="18000"
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:repeatCount="infinite"
+                android:interpolator="@android:anim/linear_interpolator" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="fast_ring">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="6000"
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="-360"
+                android:repeatCount="infinite"
+                android:interpolator="@android:anim/linear_interpolator" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="hexagon">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="18000"
+                android:propertyName="rotation"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:repeatCount="infinite"
+                android:interpolator="@android:anim/linear_interpolator" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="play_button">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:duration="2500"
+                    android:propertyName="scaleX"
+                    android:valueFrom="0.95"
+                    android:valueTo="1.08"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"
+                    android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
+                <objectAnimator
+                    android:duration="2500"
+                    android:propertyName="scaleY"
+                    android:valueFrom="0.95"
+                    android:valueTo="1.08"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"
+                    android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

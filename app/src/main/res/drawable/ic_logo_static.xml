@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <group
+        android:name="slow_ring"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:strokeColor="#f093fb"
+            android:strokeWidth="10"
+            android:pathData="M 256 116 A 140 140 0 1 1 255.9 116 Z" />
+    </group>
+
+    <group
+        android:name="fast_ring"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:strokeColor="#00f2fe"
+            android:strokeWidth="4"
+            android:pathData="M 256 136 A 120 120 0 1 1 255.9 136 Z" />
+    </group>
+
+    <group
+        android:name="hexagon"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:strokeColor="#4DFFFFFF"
+            android:strokeWidth="10"
+            android:fillColor="#0AFFFFFF"
+            android:pathData="M 256 156 L 342 206 L 342 306 L 256 356 L 169 306 L 169 206 Z" />
+        <path
+            android:strokeColor="#2DFFFFFF"
+            android:strokeWidth="5"
+            android:pathData="M 256 166 L 334 211 L 334 301 L 256 346 L 178 301 L 178 211 Z" />
+    </group>
+
+    <group
+        android:name="play_button"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:fillColor="#c084fc"
+            android:pathData="M 230 206 C 220 200 210 206 210 218 L 210 294 C 210 306 220 312 230 306 L 298 268 C 308 262 308 250 298 244 Z" />
+    </group>
+</vector>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidPlay Changelog</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .release {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .release:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .release-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .version {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.latest {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .date {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .category-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.75rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .category-title.new { color: var(--success); }
+        .category-title.improved { color: var(--primary); }
+        .category-title.fixed { color: var(--warning); }
+        
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+        }
+
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            line-height: 1.2;
+        }
+
+        /* SVG Icons */
+        .icon {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>VidPlay</h1>
+            <p>Release Notes & Changelog</p>
+        </div>
+
+        <!-- v1.1.0 Release -->
+        <div class="release">
+            <div class="release-header">
+                <div class="version">
+                    v1.1.0 
+                    <span class="badge latest">Latest</span>
+                </div>
+                <div class="date">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    June 2026
+                </div>
+            </div>
+
+            <div class="category-title new">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                New Features
+            </div>
+            <ul>
+                <li><strong>Custom Crash Reporter:</strong> Added a global crash interceptor. If the app fails, you are greeted with a recovery screen offering 1-click GitHub reporting, WhatsApp log sharing, and clipboard copy functionality.</li>
+                <li><strong>A-B Repeat Mode:</strong> You can now set point A and point B on the timeline to infinitely loop a specific segment of video.</li>
+                <li><strong>Permanent Bookmarks/Chapters:</strong> Integrated Room Database to permanently save timestamps and chapters for local videos.</li>
+                <li><strong>Video Adjustments Panel:</strong> Added robust video modifiers including aspect ratio resize (Fit, Fill, Zoom), mirroring, flipping, and 360-degree rotation.</li>
+                <li><strong>Auto Playlist Progression:</strong> Hitting the "Next" or "Prev" button now intelligently jumps to the neighboring video file in the current folder directory.</li>
+            </ul>
+
+            <div class="category-title improved">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                Improvements
+            </div>
+            <ul>
+                <li><strong>Compact Player Controls:</strong> Completely overhauled the bottom controller layout. Merged the timeline slider, duration, and action icons (Play/Pause, Next, Prev) into a single space-efficient row.</li>
+                <li><strong>Icon Uniformity:</strong> Shrunk the Play/Pause icon to precisely match the size (36dp) of the surrounding Prev/Next controls for a sleeker aesthetic.</li>
+                <li><strong>Auto-Hide UI:</strong> The playback controls and top toolbar now automatically disappear after 4 seconds of playback to preserve immersion.</li>
+                <li><strong>Glassmorphism Upgrade:</strong> Replaced flat backgrounds with 80% opaque blurred backgrounds across menus, sheets, and dialogs.</li>
+                <li><strong>Android 16 Support:</strong> Target SDK bumped to 36 with full Edge-to-Edge compliance.</li>
+            </ul>
+
+            <div class="category-title fixed">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Bug Fixes
+            </div>
+            <ul>
+                <li><strong>Slider Crash:</strong> Resolved a critical `IllegalArgumentException` crash caused when the video scrubber attempted to reach out-of-bounds timestamps.</li>
+                <li><strong>Status Bar Artifacts:</strong> Fixed an issue where the app title "HOAVideo Player" was appearing over the video. App now utilizes complete fullscreen immersive mode.</li>
+                <li><strong>PiP Transition:</strong> Fixed a bug where returning from Picture-in-Picture mode occasionally distorted the aspect ratio.</li>
+            </ul>
+        </div>
+
+        <!-- v1.0.0 Release -->
+        <div class="release">
+            <div class="release-header">
+                <div class="version">
+                    v1.0.0
+                </div>
+                <div class="date">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    May 2026
+                </div>
+            </div>
+
+            <div class="category-title new">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                Initial Release
+            </div>
+            <ul>
+                <li>Built core application architecture using Jetpack Compose and MVVM.</li>
+                <li>Implemented Media3 ExoPlayer for rock-solid video decoding.</li>
+                <li>Added folder-level video browsing and permission requests.</li>
+                <li>Introduced basic gesture controls for volume and brightness.</li>
+            </ul>
+        </div>
+
+    </div>
+</body>
+</html>

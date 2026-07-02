@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+    <defs>
+        <!-- Background Gradient -->
+        <radialGradient id="bgGrad" cx="50%" cy="50%" r="75%">
+            <stop offset="0%" stop-color="#1e1b4b" />
+            <stop offset="60%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#020617" />
+        </radialGradient>
+
+        <!-- Play Button Gradient -->
+        <linearGradient id="playGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="40%" stop-color="#f8fafc" />
+            <stop offset="70%" stop-color="#818cf8" />
+            <stop offset="100%" stop-color="#c084fc" />
+        </linearGradient>
+
+        <!-- Outer Dynamic Ring Gradient -->
+        <linearGradient id="ringGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00f2fe" />
+            <stop offset="50%" stop-color="#4facfe" />
+            <stop offset="100%" stop-color="#f093fb" />
+        </linearGradient>
+
+        <!-- Nebula Glow Gradients -->
+        <radialGradient id="nebula1">
+            <stop offset="0%" stop-color="rgba(240, 147, 251, 0.45)" />
+            <stop offset="100%" stop-color="rgba(240, 147, 251, 0)" />
+        </radialGradient>
+        <radialGradient id="nebula2">
+            <stop offset="0%" stop-color="rgba(0, 242, 254, 0.45)" />
+            <stop offset="100%" stop-color="rgba(0, 242, 254, 0)" />
+        </radialGradient>
+
+        <!-- Filters for Depth and Light -->
+        <filter id="heavy-blur" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="45" />
+        </filter>
+        
+        <filter id="glow-light" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        
+        <!-- Properly Bounded Clean Shadow (No square clipping) -->
+        <filter id="clean-shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="15" stdDeviation="15" flood-color="#000000" flood-opacity="0.8"/>
+        </filter>
+
+        <!-- 3D Bevel/Emboss Filter for the Play Button -->
+        <filter id="bevel-3d" x="-20%" y="-20%" width="140%" height="140%">
+            <!-- Soft drop shadow -->
+            <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000000" flood-opacity="0.6" result="shadow"/>
+            
+            <!-- 3D Lighting effect (Specularity) to make it look like a physical gem/button -->
+            <feSpecularLighting in="SourceGraphic" result="specOut" specularExponent="30" lighting-color="#ffffff">
+                <fePointLight x="200" y="100" z="200"/>
+            </feSpecularLighting>
+            <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut"/>
+            <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litPaint"/>
+            
+            <feMerge>
+                <feMergeNode in="shadow"/>
+                <feMergeNode in="litPaint"/>
+            </feMerge>
+        </filter>
+    </defs>
+
+    <style>
+        .spin-slow { transform-origin: 256px 256px; animation: spin 18s linear infinite; }
+        .spin-fast { transform-origin: 256px 256px; animation: spin 6s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+        .spin-constant { transform-origin: 256px 256px; animation: spin 8s linear infinite; }
+        .spin-reverse { transform-origin: 256px 256px; animation: spin-reverse 25s linear infinite; }
+        .pulse-soft { transform-origin: 256px 256px; animation: pulse 2.5s ease-in-out infinite alternate; }
+        .orbit-1 { transform-origin: 256px 256px; animation: spin 7s linear infinite; }
+        .orbit-2 { transform-origin: 256px 256px; animation: spin-reverse 11s linear infinite; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
+        @keyframes pulse { 0% { transform: scale(0.95); } 100% { transform: scale(1.08); } }
+    </style>
+
+    <!-- Deep Obsidian/Indigo Background -->
+    <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+
+    <!-- Ethereal Nebula Clouds (Animated Blurs) -->
+    <g class="spin-slow">
+        <circle cx="160" cy="180" r="150" fill="url(#nebula1)" filter="url(#heavy-blur)" />
+    </g>
+    <g class="spin-reverse">
+        <circle cx="350" cy="340" r="160" fill="url(#nebula2)" filter="url(#heavy-blur)" />
+    </g>
+
+    <!-- Outer Tech Data Ring -->
+    <circle class="spin-reverse" cx="256" cy="256" r="185" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" />
+    <circle class="spin-slow" cx="256" cy="256" r="165" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="40 10 5 10" />
+
+    <!-- Dynamic Audio / Energy Rings -->
+    <circle class="spin-constant" cx="256" cy="256" r="140" fill="none" stroke="url(#ringGrad)" stroke-width="10" stroke-dasharray="15 35 90 40 220 50" stroke-linecap="round" filter="url(#glow-light)" />
+    <circle class="spin-fast" cx="256" cy="256" r="120" fill="none" stroke="#00f2fe" stroke-width="4" stroke-dasharray="0 30" stroke-linecap="round" opacity="0.9" />
+
+    <!-- Orbiting Glowing Orbs -->
+    <g class="orbit-1">
+        <circle cx="256" cy="116" r="6" fill="#f093fb" filter="url(#glow-light)" />
+    </g>
+    <g class="orbit-2">
+        <circle cx="256" cy="421" r="8" fill="#00f2fe" filter="url(#glow-light)" />
+    </g>
+
+    <!-- Futuristic Center Glass Hexagon -->
+    <g class="spin-slow" filter="url(#clean-shadow)">
+        <polygon points="256,156 342,206 342,306 256,356 169,306 169,206" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.3)" stroke-width="2" />
+        <!-- Inner Hexagon Detail -->
+        <polygon points="256,166 334,211 334,301 256,346 178,301 178,211" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+    </g>
+
+    <!-- 3D Beveled Play Button (Cleaned up, no blocky box extrusion) -->
+    <g class="pulse-soft">
+        <path d="M 230 206 C 220 200 210 206 210 218 L 210 294 C 210 306 220 312 230 306 L 298 268 C 308 262 308 250 298 244 Z" fill="url(#playGrad)" filter="url(#bevel-3d)" />
+    </g>
+</svg>

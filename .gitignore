@@ -1,0 +1,45 @@
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Gradle files
+.gradle/
+build/
+app/build/
+
+# IDE files (Android Studio)
+.idea/
+*.iml
+*.iws
+.project
+
+# Mac system files
+.DS_Store
+
+# Log Files
+*.log
+
+# NDK
+obj/
+.cxx/
+
+# User-specific & Caches
+/captures/
+.externalNativeBuild/
+.navigation/
+.transforms/
+
+# Testing
+/build/reports/
+/build/test-results/
+
+# Keystore files (WARNING: Never commit production keystores!)
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
