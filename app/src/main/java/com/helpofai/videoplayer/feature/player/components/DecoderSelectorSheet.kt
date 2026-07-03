@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
 
 data class DecoderOption(
     val code: String,
@@ -43,9 +46,16 @@ fun DecoderSelectorSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color(0xFF1E1E1E),
+        containerColor = Color(0x66000000), // Transparent dark
         contentColor = Color.White
     ) {
+        val view = LocalView.current
+        LaunchedEffect(view) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()

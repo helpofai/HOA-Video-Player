@@ -18,6 +18,16 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 import com.helpofai.videoplayer.core.theme.VideoPlayerTheme
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
+
 import android.net.Uri
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -64,10 +74,59 @@ class MainActivity : ComponentActivity() {
             VideoPlayerTheme(dynamicColor = useDynamicColors) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = Color.Black
                 ) {
-                    val navController = rememberNavController()
-                    NavHost(navController = navController, startDestination = startDestination) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Premium Glassmorphism Background
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF0F0C29), 
+                                            Color(0xFF302B63), 
+                                            Color(0xFF0F0C29)
+                                        )
+                                    )
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .size(300.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0x406C5CE7), Color.Transparent)
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(350.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0x4000CEC9), Color.Transparent)
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(250.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0x40FD79A8), Color.Transparent)
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+
+                        val navController = rememberNavController()
+                        NavHost(navController = navController, startDestination = startDestination) {
                         composable("splash") {
                             AnimatedSplashScreen(
                                 onSplashFinished = {
@@ -109,7 +168,9 @@ class MainActivity : ComponentActivity() {
                                 onVideoClick = { video ->
                                     val encodedUri = Uri.encode(video.uri.toString())
                                     val encodedPath = Uri.encode(video.path)
-                                    navController.navigate("player/$encodedUri?path=$encodedPath")
+                                    com.helpofai.videoplayer.core.ads.AdManager.showInterstitialAd(this@MainActivity) {
+                                        navController.navigate("player/$encodedUri?path=$encodedPath")
+                                    }
                                 },
                                 onSettingsClick = {
                                     navController.navigate("settings")
@@ -133,6 +194,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             PlayerScreen()
                         }
+                    }
                     }
                 }
             }

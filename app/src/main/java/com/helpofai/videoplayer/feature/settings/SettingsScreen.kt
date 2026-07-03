@@ -27,8 +27,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.helpofai.videoplayer.core.data.PrivacyRepository
+import com.helpofai.videoplayer.feature.settings.components.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
+import androidx.compose.animation.graphics.res.animatedVectorResource
+import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
+import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import coil.imageLoader
 
 @OptIn(ExperimentalMaterial3Api::class, coil.annotation.ExperimentalCoilApi::class)
@@ -72,142 +76,157 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
-                SectionHeader("Playback")
-                SwitchSettingItem(
-                    title = "Hardware Acceleration",
-                    subtitle = "Use device GPU for smoother playback. Disable if experiencing glitches.",
-                    checked = hardwareAccelEnabled,
-                    onCheckedChange = { viewModel.setHardwareAcceleration(it) }
-                )
-                HorizontalDivider()
-                val bgPlaybackEnabled by viewModel.backgroundPlayback.collectAsState()
-                SwitchSettingItem(
-                    title = "Background Playback",
-                    subtitle = "Continue playing audio when app is in background.",
-                    checked = bgPlaybackEnabled,
-                    onCheckedChange = { viewModel.setBackgroundPlayback(it) }
-                )
-                HorizontalDivider()
-                SettingItem(
-                    title = "Default Playback Speed",
-                    subtitle = "${defaultSpeed}x",
-                    onClick = { showSpeedDialog = true }
-                )
-                HorizontalDivider()
-                SwitchSettingItem(
-                    title = "Auto-Play Next Video",
-                    subtitle = "Automatically play the next video in the folder when the current one finishes.",
-                    checked = autoPlayEnabled,
-                    onCheckedChange = { autoPlayEnabled = it }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-
-            item {
-                SectionHeader("Appearance")
-                val dynamicColorsEnabled by viewModel.dynamicColors.collectAsState()
-                SwitchSettingItem(
-                    title = "Dynamic Colors (Material You)",
-                    subtitle = "Extract colors from your wallpaper to theme the app. (Requires Android 12+)",
-                    checked = dynamicColorsEnabled,
-                    onCheckedChange = { viewModel.setDynamicColors(it) }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-
-            item {
-                SectionHeader("Subtitles")
-                SettingItem(
-                    title = "Subtitle Engine",
-                    subtitle = subtitleEngine,
-                    onClick = {
-                        subtitleEngine = if (subtitleEngine == "Advanced Auto-Detect") "ExoPlayer Default" else "Advanced Auto-Detect"
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(modifier = Modifier.size(96.dp)) {
+                        @OptIn(androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi::class)
+                        val image = androidx.compose.animation.graphics.vector.AnimatedImageVector.animatedVectorResource(id = com.helpofai.videoplayer.R.drawable.ic_logo_animated)
+                        var atEnd by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) { atEnd = true }
+                        
+                        @OptIn(androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi::class)
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter(image, atEnd = atEnd),
+                            contentDescription = "Logo",
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                )
-                HorizontalDivider()
-                SettingItem(
-                    title = "Default Subtitle Language",
-                    subtitle = defaultSubtitle,
-                    onClick = { showSubtitleDialog = true }
-                )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "HOA Video Player",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Advanced Version 1.1.0",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item {
+                SettingsCategoryCard("Playback") {
+                    SettingsSwitchItem(
+                        title = "Hardware Acceleration",
+                        subtitle = "Use device GPU for smoother playback.",
+                        checked = hardwareAccelEnabled,
+                        onCheckedChange = { viewModel.setHardwareAcceleration(it) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    val bgPlaybackEnabled by viewModel.backgroundPlayback.collectAsState()
+                    SettingsSwitchItem(
+                        title = "Background Playback",
+                        subtitle = "Continue playing audio when in background.",
+                        checked = bgPlaybackEnabled,
+                        onCheckedChange = { viewModel.setBackgroundPlayback(it) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        title = "Default Playback Speed",
+                        subtitle = "${defaultSpeed}x",
+                        onClick = { showSpeedDialog = true }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        title = "Auto-Play Next Video",
+                        subtitle = "Play the next video automatically.",
+                        checked = autoPlayEnabled,
+                        onCheckedChange = { autoPlayEnabled = it }
+                    )
+                }
+            }
 
             item {
-                SectionHeader("Privacy & Security")
-                SwitchSettingItem(
-                    title = "App Privacy Lock",
-                    subtitle = "Require a PIN (1234) to open the app.",
-                    checked = isLocked,
-                    onCheckedChange = { 
-                        if (it) {
-                            privacyRepository.setPin("1234")
-                        } else {
-                            privacyRepository.removePin()
+                SettingsCategoryCard("Appearance") {
+                    val dynamicColorsEnabled by viewModel.dynamicColors.collectAsState()
+                    SettingsSwitchItem(
+                        title = "Dynamic Colors (Material You)",
+                        subtitle = "Extract colors from your wallpaper.",
+                        checked = dynamicColorsEnabled,
+                        onCheckedChange = { viewModel.setDynamicColors(it) }
+                    )
+                }
+            }
+
+            item {
+                SettingsCategoryCard("Subtitles") {
+                    SettingsItem(
+                        title = "Subtitle Engine",
+                        subtitle = subtitleEngine,
+                        onClick = {
+                            subtitleEngine = if (subtitleEngine == "Advanced Auto-Detect") "ExoPlayer Default" else "Advanced Auto-Detect"
                         }
-                        isLocked = it
-                    }
-                )
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        title = "Default Language",
+                        subtitle = defaultSubtitle,
+                        onClick = { showSubtitleDialog = true }
+                    )
+                }
             }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item {
+                SettingsCategoryCard("Privacy & Security") {
+                    SettingsSwitchItem(
+                        title = "App Privacy Lock",
+                        subtitle = "Require a PIN to open the app.",
+                        checked = isLocked,
+                        onCheckedChange = { 
+                            if (it) {
+                                privacyRepository.setPin("1234")
+                            } else {
+                                privacyRepository.removePin()
+                            }
+                            isLocked = it
+                        }
+                    )
+                }
+            }
 
             item {
-                SectionHeader("Data")
-                SettingItem(
-                    title = "Clear Watch History",
-                    subtitle = "Remove resume positions for all videos.",
-                    onClick = { viewModel.clearWatchHistory() }
-                )
-                HorizontalDivider()
-                SettingItem(
-                    title = "Clear Cache",
-                    subtitle = "Free up space used by video thumbnails.",
-                    onClick = { 
-                        context.imageLoader.diskCache?.clear()
-                        context.imageLoader.memoryCache?.clear()
-                        java.io.File(context.cacheDir, "smart_thumbnails").deleteRecursively()
-                    }
-                )
+                SettingsCategoryCard("Data Management") {
+                    SettingsItem(
+                        title = "Clear Watch History",
+                        subtitle = "Remove all resume positions.",
+                        onClick = { viewModel.clearWatchHistory() }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        title = "Clear Cache",
+                        subtitle = "Free up thumbnail storage space.",
+                        onClick = { 
+                            context.imageLoader.diskCache?.clear()
+                            context.imageLoader.memoryCache?.clear()
+                            java.io.File(context.cacheDir, "smart_thumbnails").deleteRecursively()
+                        }
+                    )
+                }
             }
             
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            
             item {
-                SectionHeader("About & Legal")
-                SettingItemWithIcon(
-                    title = "Changelog",
-                    subtitle = "See what's new in this version",
-                    icon = Icons.Default.History,
-                    onClick = { selectedHtmlFile = "changelog.html" }
-                )
-                HorizontalDivider()
-                SettingItemWithIcon(
-                    title = "Privacy Policy",
-                    subtitle = "Read our privacy guidelines",
-                    icon = Icons.Default.Policy,
-                    onClick = { selectedHtmlFile = "privacy.html" }
-                )
-            }
-            
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-            
-            item {
-                SectionHeader("App Information")
-                SettingItemWithIcon(
-                    title = "HOA Video Player Advanced",
-                    subtitle = "Version 1.1.0 (Build 2026.06.30)",
-                    icon = Icons.Default.Info,
-                    onClick = { }
-                )
+                SettingsCategoryCard("About & Legal") {
+                    SettingsItemWithIcon(
+                        title = "Changelog",
+                        subtitle = "See what's new in this version",
+                        icon = Icons.Default.History,
+                        onClick = { selectedHtmlFile = "changelog.html" }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsItemWithIcon(
+                        title = "Privacy Policy",
+                        subtitle = "Read our privacy guidelines",
+                        icon = Icons.Default.Policy,
+                        onClick = { selectedHtmlFile = "privacy.html" }
+                    )
+                }
             }
             
             item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -218,7 +237,7 @@ fun SettingsScreen(
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
         AlertDialog(
             onDismissRequest = { showSpeedDialog = false },
-            containerColor = Color(0xCC1E293B), // 80% Transparent
+            containerColor = Color(0x66000000), // 40% Opaque Glassmorphism
             title = { Text("Playback Speed", color = Color.White) },
             text = {
                 Column {
@@ -249,7 +268,7 @@ fun SettingsScreen(
         val languages = listOf("Off", "en", "es", "fr", "de", "hi", "zh")
         AlertDialog(
             onDismissRequest = { showSubtitleDialog = false },
-            containerColor = Color(0xCC1E293B), // 80% Transparent
+            containerColor = Color(0x66000000), // 40% Opaque Glassmorphism
             title = { Text("Default Subtitle Language", color = Color.White) },
             text = {
                 Column {
@@ -277,137 +296,9 @@ fun SettingsScreen(
     }
     
     if (selectedHtmlFile != null) {
-        HtmlBottomSheet(
+        SettingsHtmlDialog(
             fileName = selectedHtmlFile!!,
             onDismissRequest = { selectedHtmlFile = null }
         )
-    }
-}
-
-@Composable
-fun HtmlBottomSheet(fileName: String, onDismissRequest: () -> Unit) {
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF1E293B))
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(
-                        onClick = onDismissRequest,
-                        modifier = Modifier.size(36.dp).background(Color.White.copy(alpha = 0.1f), androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.Close, 
-                            contentDescription = "Close", 
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                AndroidView(
-                    factory = { context ->
-                        WebView(context).apply {
-                            settings.javaScriptEnabled = true
-                            webViewClient = WebViewClient()
-                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                            loadUrl("file:///android_asset/$fileName")
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-}
-
-@Composable
-fun SwitchSettingItem(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-fun SettingItem(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp)
-    ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-fun SettingItemWithIcon(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(40.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                .padding(8.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }

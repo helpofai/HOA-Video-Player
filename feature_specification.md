@@ -12,7 +12,7 @@ This document describes a fully offline professional Android video player. No cl
 
 _MANDATORY ARCHITECTURE & NAMING CONVENTIONS (CRITICAL)_
 
-To maintain a professional, industry-grade,   and do not havy any files lightweight codebase, this project uses a **Modular Domain-Driven Architecture**. Every file must be self-descriptive and include its feature/folder name in the filename.
+To maintain a professional, industry-grade, and do not havy any files lightweight codebase, this project uses a **Modular Domain-Driven Architecture**. Every file must be self-descriptive and include its feature/folder name in the filename.
 
 **1. Explicit Feature Naming Mandate**
 Every filename MUST include the name of the feature (folder) it belongs to. This prevents confusion during search and prevents class name collisions.
@@ -214,24 +214,24 @@ Every filename MUST include the name of the feature (folder) it belongs to. This
 _This document describes advanced on-device intelligence features that require no backend, cloud service, user account, or external API. Features rely on local metadata analysis, heuristics, Media3, FFmpeg, Android system capabilities, and optional lightweight on-device machine learning models._
 
 1. Smart Scene Detection
-   Analyze frame changes, color histograms, motion, and transitions to detect scene boundaries. Generate scene markers, previews, and allow instant navigation between scenes.
+   Analyze frame changes, color histograms, motion, and transitions to detect scene boundaries. Generate scene markers, previews, and allow instant navigation between scenes. (Implemented)
 2. Automatic Chapter Generator
    Create chapters automatically by using FFmpeg scene detection heuristics. Users can view and navigate chapters via the Bookmarks sheet. (Implemented)
-3. Smart Resume Engine
+3. Smart Resume Engine(Implemented)
    Store playback position, playback speed, subtitle, audio track, zoom level, last watched time, and estimated remaining time. Display Continue Watching cards.
 4. Intelligent Thumbnail Engine (Implemented)
    Extract many candidate frames and score them by sharpness, brightness, face visibility, blur, and composition to choose the best thumbnail.
-5. Video Quality Analyzer
+5. Video Quality Analyzer (Implemented)
    Calculate a quality score using resolution, bitrate, codec, FPS, HDR support, and audio quality. Present a detailed health report.
-6. Video Health Report
+6. Video Health Report (Implemented)
    Detect damaged containers, unreadable frames, missing audio, subtitle issues, unsupported codecs, and playback failures.
 7. Smart Content Classification
    Categorize videos into Movies, TV Shows, Anime, Tutorials, Lectures, Screen Recordings, Camera Videos, Gameplay, Music Videos, Family Videos, etc., using local metadata and filename analysis. (Implemented)
-8. Smart Playlist Generator
+8. Smart Playlist Generator (Implemented)
    Automatically build playlists such as Recently Added, Continue Watching, Favorites, 4K, HDR, Kids, Travel, Music, and Short Videos.
-9. Local Recommendation Engine
+9. Local Recommendation Engine (Implemented)
    Recommend content using only watch history, folder relationships, duration, playback habits, and favorites. No internet required.
-10. Watching Habit Analysis
+10. Watching Habit Analysis (Implemented)
     Analyze preferred viewing times, average session length, genres, playback speed, subtitle usage, and frequently visited folders.
 11. Storage Prediction
     Estimate storage consumption trends and predict when storage may become full. Suggest cleanup opportunities.
@@ -255,13 +255,13 @@ _This document describes advanced on-device intelligence features that require n
     Generate visual, audio, and metadata fingerprints for reliable identification even if filenames change.
 21. Folder Health Dashboard
     Report folder size, duplicates, corrupted files, storage usage, and health score.
-22. Intelligent Timeline
+22. Intelligent Timeline (Implemented)
     Overlay chapters, bookmarks, subtitle markers, scene changes, screenshots, and playback history on the seek bar.
 23. Storage Dashboard
     Provide storage analytics by folder, category, resolution, duplicates, and unused content. (Implemented)
 24. Adaptive Interface
     Reorder home sections and shortcuts based on local usage patterns while keeping all data on-device.
-25. Smart Decoder Selection
+25. Smart Decoder Selection (Implemented)
     Automatically choose the best decoder based on codec support, battery usage, device capability, and playback stability.
-26. Offline Learning Engine
+26. Offline Learning Engine (Implemented)
     Learn user preferences such as subtitle language, playback speed, brightness, volume, aspect ratio, decoder preference, and sleep timer entirely on-device.

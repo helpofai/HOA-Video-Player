@@ -8,8 +8,11 @@ import androidx.media3.common.MediaItem
 import com.helpofai.videoplayer.core.data.VideoRepository
 import com.helpofai.videoplayer.core.ffmpeg.FFmpegManager
 import com.helpofai.videoplayer.core.playback.VideoPlayer
-import com.helpofai.videoplayer.core.scanner.ScannerSmartChapterGenerator
+import com.helpofai.videoplayer.feature.scenedetection.SceneDetectionEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -20,7 +23,9 @@ import kotlinx.coroutines.isActive
 import javax.inject.Inject
 
 import com.helpofai.videoplayer.core.playback.AudioEffectManager
-
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     val videoPlayer: VideoPlayer,
@@ -28,14 +33,32 @@ class PlayerViewModel @Inject constructor(
     private val repository: VideoRepository,
     private val settingsRepository: com.helpofai.videoplayer.core.data.SettingsRepository,
     private val ffmpegManager: FFmpegManager,
-    private val smartChapterGenerator: ScannerSmartChapterGenerator,
+    private val sceneDetectionEngine: SceneDetectionEngine,
+    private val qualityAnalyzerEngine: com.helpofai.videoplayer.feature.qualityanalyzer.QualityAnalyzerEngine,
+    val learningEngine: com.helpofai.videoplayer.feature.learning.OfflineLearningEngine,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    // Legacy Resume Prompt state
+    var showResumePrompt by mutableStateOf(false)
+        private set
+    var resumePosition: Long = 0L
+        private set
+    var lastSavedPosition: Long = 0L
+        private set
+        
+    // Mid-Roll Ads State
+    private val shownAdsMap = mutableSetOf<Int>()
+    private val _showMidRollAdEvent = MutableSharedFlow<Unit>()
+    val showMidRollAdEvent = _showMidRollAdEvent.asSharedFlow()
 
     var currentVideoPath: String? = null
         private set
         
     private val _currentPathFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+        
+    private val _videoMetadata = kotlinx.coroutines.flow.MutableStateFlow<com.helpofai.videoplayer.core.database.entities.VideoMetadataEntity?>(null)
+    val videoMetadata = _videoMetadata.asStateFlow()
         
     private val _playlist = kotlinx.coroutines.flow.MutableStateFlow<List<com.helpofai.videoplayer.core.model.Video>>(emptyList())
     val playlist = _playlist.asStateFlow()
@@ -46,11 +69,16 @@ class PlayerViewModel @Inject constructor(
         else kotlinx.coroutines.flow.flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _abRepeatStart = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    private val _abRepeatStart = MutableStateFlow<Long?>(null)
     val abRepeatStart = _abRepeatStart.asStateFlow()
-
-    private val _abRepeatEnd = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    
+    private val _abRepeatEnd = MutableStateFlow<Long?>(null)
     val abRepeatEnd = _abRepeatEnd.asStateFlow()
+    
+    private val _zoomLevel = MutableStateFlow(1.0f)
+    val zoomLevel = _zoomLevel.asStateFlow()
+    
+    var lastZoomLevel: Float = 1.0f
     
     private var abRepeatJob: kotlinx.coroutines.Job? = null
 
@@ -73,8 +101,18 @@ class PlayerViewModel @Inject constructor(
                 val fileName = currentVideoPath?.let { java.io.File(it).name } ?: "Video"
                 
                 val meta = currentVideoPath?.let { repository.getMetadata(it) }
+                _videoMetadata.value = meta
                 _abRepeatStart.value = meta?.abRepeatStart
                 _abRepeatEnd.value = meta?.abRepeatEnd
+                
+                if (meta != null && meta.lastPlayedPosition > 0L) {
+                    val duration = meta.totalDuration
+                    // Do not prompt if watched till the very end (within 5 seconds)
+                    if (duration == 0L || meta.lastPlayedPosition < duration - 5000L) {
+                        resumePosition = meta.lastPlayedPosition
+                        // We will show the prompt in observePlaybackState when the video is actually ready
+                    }
+                }
                 
                 if (meta?.externalSubtitleUri != null) {
                     val extUri = Uri.parse(meta.externalSubtitleUri)
@@ -95,11 +133,11 @@ class PlayerViewModel @Inject constructor(
 
                 videoPlayer.prepare(mediaItem)
                 
-                val speed = settingsRepository.defaultPlaybackSpeed.first()
+                val speed = learningEngine.getPreferredPlaybackSpeed()
                 videoPlayer.player.setPlaybackSpeed(speed)
                 
-                val subtitleLang = settingsRepository.defaultSubtitleLanguage.first()
-                if (subtitleLang != "Off") {
+                val subtitleLang = learningEngine.getPreferredSubtitleLanguage()
+                if (subtitleLang != null && subtitleLang != "Off") {
                     videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
                         .buildUpon()
                         .setPreferredTextLanguage(subtitleLang)
@@ -125,9 +163,21 @@ class PlayerViewModel @Inject constructor(
         }
         
         startABRepeatLoop()
+        startMidRollAdChecker()
         observePlaybackState()
     }
     
+    fun onResumeAccepted() {
+        if (resumePosition > 0L) {
+            videoPlayer.player.seekTo(resumePosition)
+        }
+        showResumePrompt = false
+    }
+
+    fun onResumeDismissed() {
+        showResumePrompt = false
+    }
+
     private fun startABRepeatLoop() {
         abRepeatJob?.cancel()
         abRepeatJob = viewModelScope.launch {
@@ -144,10 +194,49 @@ class PlayerViewModel @Inject constructor(
         }
     }
     
+    private fun startMidRollAdChecker() {
+        viewModelScope.launch {
+            while (isActive) {
+                if (videoPlayer.player.isPlaying) {
+                    val duration = videoPlayer.player.duration
+                    if (duration > 30 * 60 * 1000L) { // > 30 mins
+                        val currentPos = videoPlayer.player.currentPosition
+                        val milestone50 = (duration * 0.5).toLong()
+                        val milestone90 = (duration * 0.9).toLong()
+                        
+                        if (currentPos >= milestone50 && !shownAdsMap.contains(50)) {
+                            shownAdsMap.add(50)
+                            _showMidRollAdEvent.emit(Unit)
+                        } else if (currentPos >= milestone90 && !shownAdsMap.contains(90)) {
+                            shownAdsMap.add(90)
+                            _showMidRollAdEvent.emit(Unit)
+                        }
+                    }
+                }
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+    }
+    
+    private var hasShownResumePromptForCurrentVideo = false
+    
     private fun observePlaybackState() {
         viewModelScope.launch {
             videoPlayer.playbackState.collect { state ->
-                if (state.playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                if (state.playbackState == androidx.media3.common.Player.STATE_READY && !hasShownResumePromptForCurrentVideo) {
+                    hasShownResumePromptForCurrentVideo = true
+                    if (resumePosition > 0L) {
+                        showResumePrompt = true
+                        
+                        // Auto-hide after 10 seconds
+                        viewModelScope.launch {
+                            kotlinx.coroutines.delay(10000)
+                            if (showResumePrompt) {
+                                showResumePrompt = false
+                            }
+                        }
+                    }
+                } else if (state.playbackState == androidx.media3.common.Player.STATE_ENDED) {
                     playNextVideo()
                 }
             }
@@ -210,7 +299,10 @@ class PlayerViewModel @Inject constructor(
             // Record current playback position before switching
             currentVideoPath?.let { oldPath ->
                 val position = videoPlayer.player.currentPosition
-                repository.recordPlayback(oldPath, position)
+                val speed = videoPlayer.player.playbackParameters.speed
+                val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
+                val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
+                repository.recordPlayback(oldPath, position, speed, audioLang, subLang, lastZoomLevel)
             }
             
             currentVideoPath = path
@@ -222,8 +314,20 @@ class PlayerViewModel @Inject constructor(
             val fileName = java.io.File(path).name
             
             val meta = repository.getMetadata(path)
+            _videoMetadata.value = meta
             _abRepeatStart.value = meta?.abRepeatStart
             _abRepeatEnd.value = meta?.abRepeatEnd
+            
+            showResumePrompt = false
+            hasShownResumePromptForCurrentVideo = false
+            resumePosition = 0L
+            
+            if (meta != null && meta.lastPlayedPosition > 0L) {
+                val duration = meta.totalDuration
+                if (duration == 0L || meta.lastPlayedPosition < duration - 5000L) {
+                    resumePosition = meta.lastPlayedPosition
+                }
+            }
             
             if (meta?.externalSubtitleUri != null) {
                 val extUri = Uri.parse(meta.externalSubtitleUri)
@@ -244,20 +348,33 @@ class PlayerViewModel @Inject constructor(
                 
             videoPlayer.prepare(mediaItem)
             
-            val speed = settingsRepository.defaultPlaybackSpeed.first()
+            if (meta != null && meta.lastPlayedPosition > 0L) {
+                videoPlayer.player.seekTo(meta.lastPlayedPosition)
+            }
+            
+            _zoomLevel.value = meta?.zoomLevel ?: 1.0f
+            
+            val speed = meta?.playbackSpeed ?: learningEngine.getPreferredPlaybackSpeed()
             videoPlayer.player.setPlaybackSpeed(speed)
             
-            val subtitleLang = settingsRepository.defaultSubtitleLanguage.first()
-            if (subtitleLang != "Off") {
+            val subtitleLang = meta?.subtitleTrackLanguage ?: learningEngine.getPreferredSubtitleLanguage()
+            if (subtitleLang != "Off" && subtitleLang != null) {
                 videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
                     .buildUpon()
                     .setPreferredTextLanguage(subtitleLang)
                     .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false)
                     .build()
-            } else {
+            } else if (subtitleLang == "Off" || subtitleLang == null) {
                 videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
                     .buildUpon()
                     .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true)
+                    .build()
+            }
+            
+            if (meta?.audioTrackLanguage != null) {
+                videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
+                    .buildUpon()
+                    .setPreferredAudioLanguage(meta.audioTrackLanguage)
                     .build()
             }
             
@@ -338,8 +455,13 @@ class PlayerViewModel @Inject constructor(
         // Save playback position
         currentVideoPath?.let { path ->
             val position = videoPlayer.player.currentPosition
-            viewModelScope.launch {
-                repository.recordPlayback(path, position)
+            val speed = videoPlayer.player.playbackParameters.speed
+            val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
+            val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
+            
+            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+            kotlinx.coroutines.GlobalScope.launch {
+                repository.recordPlayback(path, position, speed, audioLang, subLang, lastZoomLevel)
             }
         }
         videoPlayer.release()
@@ -378,8 +500,31 @@ class PlayerViewModel @Inject constructor(
         val path = currentVideoPath ?: return
         viewModelScope.launch {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onStart() }
-            val success = smartChapterGenerator.generateChapters(path)
+            val success = sceneDetectionEngine.generateScenes(path)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onComplete(success) }
         }
+    }
+
+    private val _qualityReport = MutableStateFlow<com.helpofai.videoplayer.feature.qualityanalyzer.QualityReport?>(null)
+    val qualityReport = _qualityReport.asStateFlow()
+    
+    private val _isAnalyzingQuality = MutableStateFlow(false)
+    val isAnalyzingQuality = _isAnalyzingQuality.asStateFlow()
+
+    fun analyzeVideoQuality() {
+        val path = currentVideoPath ?: return
+        viewModelScope.launch {
+            _isAnalyzingQuality.value = true
+            _qualityReport.value = null
+            
+            val report = qualityAnalyzerEngine.analyze(path)
+            
+            _qualityReport.value = report
+            _isAnalyzingQuality.value = false
+        }
+    }
+    
+    fun clearQualityReport() {
+        _qualityReport.value = null
     }
 }

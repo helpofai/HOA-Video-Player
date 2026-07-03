@@ -25,6 +25,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 
 @Composable
 private fun getAnimatedRainbowColor(): Color {
@@ -44,6 +47,8 @@ private fun getAnimatedRainbowColor(): Color {
 fun ThinRainbowSeekBar(
     value: Float,
     max: Float,
+    bookmarks: List<Long>,
+    lastPlayedPosition: Long?,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -52,9 +57,9 @@ fun ThinRainbowSeekBar(
     
     val currentProgress = if (max > 0f) (dragPosition ?: value) / max else 0f
     
-    Box(
+    Canvas(
         modifier = modifier
-            .height(24.dp) // Touch target size
+            .height(24.dp)
             .fillMaxWidth()
             .pointerInput(max) {
                 detectTapGestures { offset ->
@@ -81,40 +86,72 @@ fun ThinRainbowSeekBar(
                         dragPosition = null
                     }
                 )
-            },
-        contentAlignment = Alignment.CenterStart
+            }
     ) {
-        // Background track (very thin)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(Color.White.copy(alpha = 0.3f))
+        val trackHeight = 2.dp.toPx()
+        val thumbRadius = 4.dp.toPx()
+        val centerY = size.height / 2f
+        
+        // Background track
+        drawLine(
+            color = Color.White.copy(alpha = 0.3f),
+            start = Offset(0f, centerY),
+            end = Offset(size.width, centerY),
+            strokeWidth = trackHeight,
+            cap = StrokeCap.Round
         )
         
-        // Active track (rainbow, thin)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(currentProgress.coerceIn(0f, 1f))
-                .height(2.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(rainbowColor)
-        )
-        
-        // Thumb (small dot, same rainbow color)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(currentProgress.coerceIn(0f, 1f))
-                .wrapContentWidth(Alignment.End)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(rainbowColor)
+        // Last played history region
+        if (lastPlayedPosition != null && max > 0) {
+            val historyFraction = (lastPlayedPosition / max).coerceIn(0f, 1f)
+            drawLine(
+                color = Color.LightGray.copy(alpha = 0.5f),
+                start = Offset(0f, centerY),
+                end = Offset(size.width * historyFraction, centerY),
+                strokeWidth = trackHeight,
+                cap = StrokeCap.Round
+            )
+            // History Marker
+            drawLine(
+                color = Color.Yellow.copy(alpha = 0.8f),
+                start = Offset(size.width * historyFraction, centerY - 6.dp.toPx()),
+                end = Offset(size.width * historyFraction, centerY + 6.dp.toPx()),
+                strokeWidth = 2.dp.toPx()
             )
         }
+        
+        // Bookmarks & Scenes Marker
+        if (max > 0) {
+            bookmarks.forEach { timeMs ->
+                val fraction = (timeMs.toFloat() / max).coerceIn(0f, 1f)
+                val x = size.width * fraction
+                drawLine(
+                    color = Color.White,
+                    start = Offset(x, centerY - 4.dp.toPx()),
+                    end = Offset(x, centerY + 4.dp.toPx()),
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+        
+        // Active track
+        val activeWidth = size.width * currentProgress
+        if (activeWidth > 0f) {
+            drawLine(
+                color = rainbowColor,
+                start = Offset(0f, centerY),
+                end = Offset(activeWidth, centerY),
+                strokeWidth = trackHeight,
+                cap = StrokeCap.Round
+            )
+        }
+        
+        // Thumb
+        drawCircle(
+            color = rainbowColor,
+            radius = thumbRadius,
+            center = Offset(activeWidth, centerY)
+        )
     }
 }
 
@@ -125,6 +162,8 @@ fun PlayerBottomController(
     currentPosition: Long,
     duration: Long,
     isLandscape: Boolean,
+    bookmarks: List<Long> = emptyList(),
+    lastPlayedPosition: Long? = null,
     onPlayPauseClick: () -> Unit,
     onSeek: (Long) -> Unit,
     onNextClick: () -> Unit,
@@ -196,6 +235,8 @@ fun PlayerBottomController(
                 ThinRainbowSeekBar(
                     value = sliderValue,
                     max = duration.coerceAtLeast(1).toFloat(),
+                    bookmarks = bookmarks,
+                    lastPlayedPosition = lastPlayedPosition,
                     onSeek = { 
                         sliderValue = it
                         onSeek(it.toLong())

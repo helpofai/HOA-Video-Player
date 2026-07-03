@@ -22,6 +22,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
+
+@Composable
+fun AnimatedIconButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color = Color.White,
+    isActive: Boolean = false
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else if (isActive) 1.15f else 1f,
+        animationSpec = tween(150),
+        label = "iconScale"
+    )
+    
+    val actualTint = if (isActive) MaterialTheme.colorScheme.primary else tint
+
+    IconButton(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        modifier = Modifier.scale(scale)
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = actualTint)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -35,6 +68,7 @@ fun PlayerTopToolbar(
     onLoopClick: () -> Unit,
     onInfoClick: () -> Unit,
     onRotateClick: () -> Unit,
+    onVideoEnhancerClick: () -> Unit,
     onVideoAdjustmentsClick: () -> Unit,
     abRepeatState: String,
     onABRepeatClick: () -> Unit,
@@ -42,8 +76,8 @@ fun PlayerTopToolbar(
     onSubtitlesClick: () -> Unit,
     onScreenshotClick: () -> Unit,
     onMoreClick: () -> Unit,
-    decoderMode: String = "HW",
-    onDecoderClick: () -> Unit = {},
+    isToolsExpanded: Boolean,
+    onToolsExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -58,7 +92,6 @@ fun PlayerTopToolbar(
         ) + fadeOut(animationSpec = tween(150)),
         modifier = modifier
     ) {
-        var isToolsExpanded by remember { mutableStateOf(false) }
         
         Box(
             modifier = Modifier
@@ -105,37 +138,38 @@ fun PlayerTopToolbar(
                         modifier = Modifier
                             .weight(1f)
                             .basicMarquee(iterations = Int.MAX_VALUE)
+                            .padding(end = 8.dp)
                     )
+                    
+                    // Quick access most required icons when collapsed
+                    AnimatedIconButton(onClick = onAudioClick, icon = Icons.Default.Audiotrack, contentDescription = "Audio")
+                    AnimatedIconButton(onClick = onSubtitlesClick, icon = Icons.Default.Subtitles, contentDescription = "Subtitles")
+                    AnimatedIconButton(onClick = onVideoEnhancerClick, icon = Icons.Default.AutoFixHigh, contentDescription = "Video Enhancer")
+                    AnimatedIconButton(onClick = onVideoAdjustmentsClick, icon = Icons.Default.AspectRatio, contentDescription = "Adjustments")
+                    
                 } else {
                     Row(
                         modifier = Modifier
                             .weight(1f)
                             .horizontalScroll(rememberScrollState()),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        IconButton(onClick = onLockClick) {
-                            Icon(Icons.Default.Lock, contentDescription = "Lock", tint = Color.White)
-                        }
-                        IconButton(onClick = onSpeedClick) {
-                            Icon(Icons.Default.Speed, contentDescription = "Speed", tint = Color.White)
-                        }
-                        IconButton(onClick = onEqClick) {
-                            Icon(Icons.Default.GraphicEq, contentDescription = "Equalizer", tint = Color.White)
-                        }
-                        IconButton(onClick = onLoopClick) {
-                            Icon(Icons.Default.Repeat, contentDescription = "Loop", tint = Color.White)
-                        }
-                        IconButton(onClick = onAudioClick) {
-                            Icon(Icons.Default.Audiotrack, contentDescription = "Audio", tint = Color.White)
-                        }
-                        IconButton(onClick = onSubtitlesClick) {
-                            Icon(Icons.Default.Subtitles, contentDescription = "Subtitles", tint = Color.White)
-                        }
-                        IconButton(onClick = onScreenshotClick) {
-                            Icon(Icons.Default.PhotoCamera, contentDescription = "Screenshot", tint = Color.White)
-                        }
+                        AnimatedIconButton(onClick = onLockClick, icon = Icons.Default.Lock, contentDescription = "Lock")
+                        AnimatedIconButton(onClick = onSpeedClick, icon = Icons.Default.Speed, contentDescription = "Speed")
+                        AnimatedIconButton(onClick = onEqClick, icon = Icons.Default.GraphicEq, contentDescription = "Equalizer")
+                        AnimatedIconButton(onClick = onLoopClick, icon = Icons.Default.Repeat, contentDescription = "Loop")
+                        AnimatedIconButton(onClick = onAudioClick, icon = Icons.Default.Audiotrack, contentDescription = "Audio")
+                        AnimatedIconButton(onClick = onSubtitlesClick, icon = Icons.Default.Subtitles, contentDescription = "Subtitles")
+                        AnimatedIconButton(onClick = onScreenshotClick, icon = Icons.Default.PhotoCamera, contentDescription = "Screenshot")
+                        
                         Box(modifier = Modifier.clickable { onABRepeatClick() }.padding(8.dp), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.SyncAlt, contentDescription = "AB Repeat", tint = if (abRepeatState.isNotEmpty()) MaterialTheme.colorScheme.primary else Color.White)
+                            AnimatedIconButton(
+                                onClick = onABRepeatClick, 
+                                icon = Icons.Default.SyncAlt, 
+                                contentDescription = "AB Repeat", 
+                                isActive = abRepeatState.isNotEmpty()
+                            )
                             if (abRepeatState.isNotEmpty()) {
                                 Text(
                                     text = abRepeatState,
@@ -145,49 +179,34 @@ fun PlayerTopToolbar(
                                 )
                             }
                         }
-                        IconButton(onClick = onRotateClick) {
-                            Icon(Icons.Default.ScreenRotation, contentDescription = "Rotate", tint = Color.White)
-                        }
-                        IconButton(onClick = onVideoAdjustmentsClick) {
-                            Icon(Icons.Default.AspectRatio, contentDescription = "Adjustments", tint = Color.White)
-                        }
+                        AnimatedIconButton(onClick = onRotateClick, icon = Icons.Default.ScreenRotation, contentDescription = "Rotate")
+                        AnimatedIconButton(onClick = onVideoEnhancerClick, icon = Icons.Default.AutoFixHigh, contentDescription = "Video Enhancer")
+                        AnimatedIconButton(onClick = onVideoAdjustmentsClick, icon = Icons.Default.AspectRatio, contentDescription = "Adjustments")
+                        
                         val context = androidx.compose.ui.platform.LocalContext.current
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            IconButton(onClick = {
-                                val activity = context as? android.app.Activity
-                                val params = android.app.PictureInPictureParams.Builder()
-                                    .setAspectRatio(android.util.Rational(16, 9))
-                                    .build()
-                                activity?.enterPictureInPictureMode(params)
-                            }) {
-                                Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Mini Player", tint = Color.White)
-                            }
+                            AnimatedIconButton(
+                                onClick = {
+                                    val activity = context as? android.app.Activity
+                                    val params = android.app.PictureInPictureParams.Builder()
+                                        .setAspectRatio(android.util.Rational(16, 9))
+                                        .build()
+                                    activity?.enterPictureInPictureMode(params)
+                                },
+                                icon = Icons.Default.PictureInPictureAlt,
+                                contentDescription = "Mini Player"
+                            )
                         }
-                        IconButton(onClick = onInfoClick) {
-                            Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.White)
-                        }
+                        AnimatedIconButton(onClick = onInfoClick, icon = Icons.Default.Info, contentDescription = "Info")
                     }
                 }
 
-                // Decoder Mode Selector (HW, HW+, SW)
-                Text(
-                    text = decoderMode,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    modifier = Modifier
-                        .clickable { onDecoderClick() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-
                 // Expand/Collapse Tools Toggle
-                IconButton(onClick = { isToolsExpanded = !isToolsExpanded }) {
-                    Icon(
-                        if (isToolsExpanded) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = if (isToolsExpanded) "Collapse Tools" else "Expand Tools",
-                        tint = Color.White
-                    )
-                }
+                AnimatedIconButton(
+                    onClick = { onToolsExpandedChange(!isToolsExpanded) },
+                    icon = if (isToolsExpanded) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = if (isToolsExpanded) "Collapse Tools" else "Expand Tools"
+                )
 
                 Box {
                     IconButton(onClick = onMoreClick) {

@@ -29,7 +29,11 @@ class VideoRepository @Inject constructor(
                     isFavorite = meta?.isFavorite ?: false,
                     lastPlayedPosition = meta?.lastPlayedPosition ?: 0L,
                     playCount = meta?.playCount ?: 0,
-                    category = MediaSmartCategorizer.categorizeVideo(video.title, video.path, video.duration)
+                    lastPlayedTimestamp = meta?.lastPlayedTimestamp ?: 0L,
+                    category = MediaSmartCategorizer.categorizeVideo(video.title, video.path, video.duration),
+                    playbackSpeed = meta?.playbackSpeed ?: 1.0f,
+                    subtitleTrackLanguage = meta?.subtitleTrackLanguage,
+                    audioTrackLanguage = meta?.audioTrackLanguage
                 )
             }.sortedByDescending { it.dateAdded }
         }
@@ -45,17 +49,37 @@ class VideoRepository @Inject constructor(
         }
     }
     
-    suspend fun recordPlayback(path: String, position: Long) {
+    suspend fun recordPlayback(
+        path: String,
+        position: Long,
+        speed: Float = 1.0f,
+        audioTrack: String? = null,
+        subtitleTrack: String? = null,
+        zoomLevel: Float = 1.0f
+    ) {
         var meta = videoDao.getMetadataByPath(path)
         if (meta == null) {
-            meta = VideoMetadataEntity(path = path, lastPlayedPosition = position, playCount = 1, lastPlayedTimestamp = System.currentTimeMillis())
+            meta = VideoMetadataEntity(
+                path = path, 
+                lastPlayedPosition = position, 
+                playCount = 1, 
+                lastPlayedTimestamp = System.currentTimeMillis(),
+                playbackSpeed = speed,
+                audioTrackLanguage = audioTrack,
+                subtitleTrackLanguage = subtitleTrack,
+                zoomLevel = zoomLevel
+            )
             videoDao.insertMetadata(meta)
         } else {
             val updatedPlayCount = if (position == 0L) meta.playCount + 1 else meta.playCount
             videoDao.updateMetadata(meta.copy(
                 lastPlayedPosition = position,
                 playCount = updatedPlayCount,
-                lastPlayedTimestamp = System.currentTimeMillis()
+                lastPlayedTimestamp = System.currentTimeMillis(),
+                playbackSpeed = speed,
+                audioTrackLanguage = audioTrack,
+                subtitleTrackLanguage = subtitleTrack,
+                zoomLevel = zoomLevel
             ))
         }
     }

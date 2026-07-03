@@ -22,11 +22,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
 import com.helpofai.videoplayer.core.model.Video
 
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.basicMarquee
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -46,6 +49,7 @@ fun PlayerMorePopup(
     onVideoSelect: (String) -> Unit,
     onReorderPlaylist: (Int, Int) -> Unit,
     onBookmarksClick: () -> Unit,
+    onQualityAnalyzerClick: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
     // We'll manage states for toggles locally to make the UI look functional
@@ -76,6 +80,13 @@ fun PlayerMorePopup(
             decorFitsSystemWindows = false
         )
     ) {
+        val view = LocalView.current
+        LaunchedEffect(view) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+            }
+        }
+        
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -86,7 +97,7 @@ fun PlayerMorePopup(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(360.dp)
-                    .background(Color(0xE6000000)) // Transparent 90% dark background
+                    .background(Color(0x66000000)) // Transparent 40% dark background
                     .clickable(enabled = false) {} // block clicks
             ) {
                 if (showQueue) {
@@ -204,7 +215,7 @@ fun PlayerMorePopup(
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Row(
@@ -248,10 +259,10 @@ fun PlayerMorePopup(
                             ToolItem(Icons.Default.AspectRatio, "Aspect Ratio") {},
                             ToolItem(Icons.Default.DisplaySettings, "Display Settings") {},
                             ToolItem(Icons.Default.Bookmarks, "Bookmarks") { onBookmarksClick() },
-                            ToolItem(Icons.Default.ContentCut, "Cut") {},
+                            ToolItem(Icons.Default.AutoAwesomeMotion, "Smart Scenes") { onBookmarksClick() },
+                            ToolItem(Icons.Default.HighQuality, "Quality Analyzer") { onQualityAnalyzerClick() },
                             ToolItem(Icons.Default.Favorite, "Favourite") {},
                             ToolItem(Icons.Default.PlaylistAdd, "Add to Playlist") {},
-                            ToolItem(Icons.Default.Info, "Information") {},
                             ToolItem(Icons.Default.Share, "Share") {},
                             ToolItem(Icons.Default.Cast, "Network Stream") {}
                         )

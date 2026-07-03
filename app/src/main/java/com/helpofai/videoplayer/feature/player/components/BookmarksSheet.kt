@@ -14,8 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogWindowProvider
 
 import com.helpofai.videoplayer.core.database.entities.BookmarkEntity
 
@@ -33,9 +36,16 @@ fun BookmarksSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color(0xCC000000), // 80% Transparent
+        containerColor = Color(0x66000000), // Transparent dark
         contentColor = Color.White
     ) {
+        val view = LocalView.current
+        LaunchedEffect(view) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()

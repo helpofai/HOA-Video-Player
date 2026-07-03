@@ -14,5 +14,9 @@ data class VideoMetadataEntity(
     val lastPlayedTimestamp: Long = 0L,
     val abRepeatStart: Long? = null,
     val abRepeatEnd: Long? = null,
-    val externalSubtitleUri: String? = null
+    val externalSubtitleUri: String? = null,
+    val playbackSpeed: Float = 1.0f,
+    val subtitleTrackLanguage: String? = null,
+    val audioTrackLanguage: String? = null,
+    val zoomLevel: Float = 1.0f
 )

@@ -40,7 +40,7 @@ fun VideoPlayerTheme(
     dynamicColor: Boolean = true, // Dynamic color is available on Android 12+
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
+    val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -48,6 +48,13 @@ fun VideoPlayerTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    
+    // Force global glassmorphism aesthetics
+    val colorScheme = baseColorScheme.copy(
+        background = androidx.compose.ui.graphics.Color.Transparent,
+        surface = androidx.compose.ui.graphics.Color(0x66000000), // 40% opaque dark
+        surfaceVariant = androidx.compose.ui.graphics.Color(0x4D000000) // 30% opaque dark
+    )
     
     val view = LocalView.current
     if (!view.isInEditMode) {

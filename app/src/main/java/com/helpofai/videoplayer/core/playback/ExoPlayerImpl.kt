@@ -35,8 +35,7 @@ class ExoPlayerImpl @Inject constructor(
     private var progressJob: Job? = null
 
     private fun initializePlayer(): ExoPlayer {
-        val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
-            .setEnableDecoderFallback(true) // Enables software decoding fallback if hardware fails
+        val renderersFactory = com.helpofai.videoplayer.feature.player.decoder.SmartDecoderEngine.getOptimalRenderersFactory(context)
 
         val newPlayer = ExoPlayer.Builder(context, renderersFactory).build().apply {
             setAudioAttributes(AudioAttributes.DEFAULT, true)

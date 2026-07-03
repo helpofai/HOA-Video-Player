@@ -11,6 +11,8 @@ class VideoPlayerApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         
+        com.helpofai.videoplayer.core.ads.AdManager.init(this)
+        
         Thread.setDefaultUncaughtExceptionHandler { _, exception ->
             val stackTrace = android.util.Log.getStackTraceString(exception)
             val pm = packageManager

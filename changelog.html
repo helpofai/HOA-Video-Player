@@ -23,7 +23,7 @@
             color: var(--text-main);
             line-height: 1.6;
             margin: 0;
-            padding: 2rem;
+            padding: .5rem;
             display: flex;
             justify-content: center;
         }
@@ -57,8 +57,8 @@
         .release {
             background-color: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 2rem;
+            border-radius: 10px;
+            padding: 1rem;
             margin-bottom: 2rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -166,12 +166,60 @@
             <p>Release Notes & Changelog</p>
         </div>
 
+        <!-- v2.1.0 Release -->
+        <div class="release">
+            <div class="release-header">
+                <div class="version">
+                    v2.1.0
+                    <span class="badge latest">Latest</span>
+                </div>
+                <div class="date">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    July 2026
+                </div>
+            </div>
+
+            <div class="category-title new">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                New Features
+            </div>
+            <ul>
+                <li><strong>Smart Video Resume:</strong> When re-opening a previously watched video, a sleek popup appears showing your last position with a "Continue" button. Auto-hides after 10 seconds. Triggers only after the video is fully loaded.</li>
+                <li><strong>Video Enhancer (AI Profiles):</strong> Added offline AI-style color profiles — Cinematic, HDR Boost, Vivid, Dark Detail, and more — with real-time color matrix overlays on the player.</li>
+                <li><strong>Separate Audio &amp; Subtitle Tracks:</strong> The track selector now splits Audio and Subtitle into dedicated panels with proper icon separation.</li>
+                <li><strong>Buffering Performance Overlay:</strong> When loading large/high-quality files, a real-time processing popup shows encoding, decoding, and codec metadata.</li>
+                <li><strong>Smart Playlists Redesign:</strong> Completely rebuilt the Playlists page with a professional layout — stats row, featured hero card, 2-column grid, themed accent colors, multi-thumbnail mosaics, and press animations.</li>
+            </ul>
+
+            <div class="category-title improved">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                Improvements
+            </div>
+            <ul>
+                <li><strong>Playlist Card UI:</strong> New multi-thumbnail mosaic (2×2 grid), accent color icon badge, play-all FAB, total duration display, and spring press animation.</li>
+                <li><strong>Playlist Detail View:</strong> Themed header banner with playlist icon, video count, description, and a "Play" button when entering a playlist.</li>
+                <li><strong>Player Top Toolbar:</strong> Added Magic Wand icon for Video Enhancer in both collapsed and expanded toolbar states.</li>
+                <li><strong>Transparent Backgrounds:</strong> Applied radial gradient dark-transparent backgrounds across all screens for a consistent glassmorphism look.</li>
+                <li><strong>Play Icon Size:</strong> Reduced the play icon size in the pause-state ad popup to avoid visual clutter.</li>
+            </ul>
+
+            <div class="category-title fixed">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Bug Fixes
+            </div>
+            <ul>
+                <li><strong>Pinch-to-Zoom Gesture Conflict:</strong> Fixed a critical bug where zooming the video with two fingers would hijack single-finger swipe gestures (volume, brightness, seek). Zoom now exclusively responds to multi-touch.</li>
+                <li><strong>Panning Speed Bug:</strong> Removed a broken scale multiplier that caused the zoomed video to move too fast when panning.</li>
+                <li><strong>Resume Button Not Working:</strong> Fixed the "Continue" button starting from 0:00 by deferring the seek until the player reaches STATE_READY.</li>
+                <li><strong>Subtitle Rendering:</strong> Fixed subtitles not displaying by explicitly enabling subtitleView visibility and applying drop-shadow styling.</li>
+            </ul>
+        </div>
+
         <!-- v1.1.0 Release -->
         <div class="release">
             <div class="release-header">
                 <div class="version">
-                    v1.1.0 
-                    <span class="badge latest">Latest</span>
+                    v1.1.0
                 </div>
                 <div class="date">
                     <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -208,7 +256,7 @@
                 Bug Fixes
             </div>
             <ul>
-                <li><strong>Slider Crash:</strong> Resolved a critical `IllegalArgumentException` crash caused when the video scrubber attempted to reach out-of-bounds timestamps.</li>
+                <li><strong>Slider Crash:</strong> Resolved a critical <code>IllegalArgumentException</code> crash caused when the video scrubber attempted to reach out-of-bounds timestamps.</li>
                 <li><strong>Status Bar Artifacts:</strong> Fixed an issue where the app title "HOAVideo Player" was appearing over the video. App now utilizes complete fullscreen immersive mode.</li>
                 <li><strong>PiP Transition:</strong> Fixed a bug where returning from Picture-in-Picture mode occasionally distorted the aspect ratio.</li>
             </ul>

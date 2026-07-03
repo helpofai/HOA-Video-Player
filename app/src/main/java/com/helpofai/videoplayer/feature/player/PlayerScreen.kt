@@ -4,16 +4,30 @@ import android.content.pm.ActivityInfo
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +52,7 @@ import com.helpofai.videoplayer.feature.player.components.PlayerFeedbackOverlay
 import com.helpofai.videoplayer.feature.player.components.PlayerMorePopup
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
+import com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet
 import com.helpofai.videoplayer.feature.player.components.VideoAdjustmentsSheet
 
 @Composable
@@ -49,10 +64,25 @@ fun PlayerScreen(
     val activity = (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
         ?: context as? android.app.Activity
 
+    LaunchedEffect(Unit) {
+        viewModel.showMidRollAdEvent.collect {
+            viewModel.videoPlayer.pause()
+            activity?.let { act ->
+                com.helpofai.videoplayer.core.ads.AdManager.showInterstitialAd(act) {
+                    viewModel.videoPlayer.play()
+                }
+            } ?: run {
+                viewModel.videoPlayer.play()
+            }
+        }
+    }
+
     var isLongPressing by remember { mutableStateOf(false) }
     
     // Resize Mode State (Fit -> Crop -> Fill)
-    var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    var resizeMode by remember { 
+        mutableIntStateOf(viewModel.learningEngine.getPreferredAspectRatio().toIntOrNull() ?: AspectRatioFrameLayout.RESIZE_MODE_FIT) 
+    }
     
     // Rotation State
     var isLandscape by remember { mutableStateOf(false) }
@@ -82,6 +112,8 @@ fun PlayerScreen(
     
     // Bookmarks State
     var showBookmarksSheet by remember { mutableStateOf(false) }
+    var showQualitySheet by remember { mutableStateOf(false) }
+    var showAdPopup by remember { mutableStateOf(false) }
     val bookmarks by viewModel.bookmarks.collectAsState()
     
     // Subtitles State
@@ -97,10 +129,20 @@ fun PlayerScreen(
     var isControlsLocked by remember { mutableStateOf(false) }
 
     // Zoom and Pan State
-    var scale by remember { mutableFloatStateOf(1f) }
+    val initialZoom by viewModel.zoomLevel.collectAsState()
+    var scale by remember(initialZoom) { mutableFloatStateOf(initialZoom) }
+    
+    LaunchedEffect(scale) {
+        viewModel.lastZoomLevel = scale
+    }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+    var showVideoEnhancer by remember { mutableStateOf(false) }
+    var activeEnhancerProfile by remember { mutableStateOf("standard") }
     var rotationZ by remember { mutableFloatStateOf(0f) }
+    var isBuffering by remember { mutableStateOf(false) }
+    var processData by remember { mutableStateOf("") }
+    
     var isMirrored by remember { mutableStateOf(false) }
     var isFlipped by remember { mutableStateOf(false) }
 
@@ -108,9 +150,11 @@ fun PlayerScreen(
     var feedbackEvent by remember { mutableStateOf<FeedbackEvent?>(null) }
     var seekAccumulation by remember { mutableIntStateOf(0) }
     var isControllerVisible by remember { mutableStateOf(true) }
+    var isToolsExpanded by remember { mutableStateOf(false) }
     var currentVideoTitle by remember { mutableStateOf("Video Player") }
     
     val playlist by viewModel.playlist.collectAsState()
+    val videoMetadata by viewModel.videoMetadata.collectAsState()
     
     // AB Repeat State
     var abRepeatA by remember { mutableStateOf<Long?>(null) }
@@ -144,6 +188,24 @@ fun PlayerScreen(
 
     DisposableEffect(Unit) {
         com.helpofai.videoplayer.MainActivity.isPlayerActive = true
+        
+        // Apply Learned Global Preferences
+        val prefBright = viewModel.learningEngine.getPreferredBrightness()
+        if (prefBright >= 0f) {
+            activity?.window?.let { win ->
+                val params = win.attributes
+                params.screenBrightness = prefBright
+                win.attributes = params
+            }
+        }
+        
+        val prefVol = viewModel.learningEngine.getPreferredVolume()
+        if (prefVol >= 0f) {
+            val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+            val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+            audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (prefVol * maxVol).toInt(), 0)
+        }
+
         onDispose {
             com.helpofai.videoplayer.MainActivity.isPlayerActive = false
         }
@@ -180,8 +242,8 @@ fun PlayerScreen(
     }
 
     // Auto-hide controls
-    LaunchedEffect(isControllerVisible, isPlaying, isControlsLocked) {
-        if (isControllerVisible && isPlaying && !isControlsLocked) {
+    LaunchedEffect(isControllerVisible, isPlaying, isControlsLocked, isToolsExpanded) {
+        if (isControllerVisible && isPlaying && !isControlsLocked && !isToolsExpanded) {
             kotlinx.coroutines.delay(4000)
             isControllerVisible = false
         }
@@ -272,6 +334,37 @@ fun PlayerScreen(
                     text = if (isPlayingChange) "Play" else "Pause"
                 )
             }
+            
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                isBuffering = playbackState == androidx.media3.common.Player.STATE_BUFFERING
+                if (isBuffering) {
+                    val tracks = viewModel.videoPlayer.player.currentTracks
+                    val sb = StringBuilder()
+                    tracks.groups.forEach { group ->
+                        if (group.isSelected) {
+                            for (i in 0 until group.length) {
+                                if (group.isTrackSelected(i)) {
+                                    val format = group.getTrackFormat(i)
+                                    val mime = format.sampleMimeType ?: "Unknown Codec"
+                                    val type = if (mime.startsWith("video/")) "VIDEO" else if (mime.startsWith("audio/")) "AUDIO" else "DATA"
+                                    sb.append("[$type] ${mime.substringAfter("/").uppercase()}\n")
+                                    if (format.width > 0 && format.height > 0) {
+                                        sb.append("  Resolution: ${format.width}x${format.height}")
+                                        if (format.frameRate > 0) sb.append(" @ ${format.frameRate}fps")
+                                        sb.append("\n")
+                                    }
+                                    if (format.bitrate > 0) sb.append("  Bitrate: ${format.bitrate / 1000} kbps\n")
+                                }
+                            }
+                        }
+                    }
+                    if (sb.isEmpty()) {
+                        processData = "Parsing Media Streams...\nDecoding High Quality Source"
+                    } else {
+                        processData = "DECODING PIPELINE:\n" + sb.toString().trim()
+                    }
+                }
+            }
         }
         viewModel.videoPlayer.player.addListener(listener)
         onDispose {
@@ -283,27 +376,56 @@ fun PlayerScreen(
         // Player View
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
+                androidx.media3.ui.PlayerView(ctx).apply {
                     player = viewModel.videoPlayer.player
                     useController = false
                     keepScreenOn = true
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
+                    subtitleView?.visibility = android.view.View.VISIBLE
+                    // Set subtitle style to look professional
+                    subtitleView?.setStyle(
+                        androidx.media3.ui.CaptionStyleCompat(
+                            android.graphics.Color.WHITE,
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                            androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW,
+                            android.graphics.Color.BLACK,
+                            null
+                        )
+                    )
+                    layoutParams = android.widget.FrameLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
             },
             update = { playerView ->
                 playerView.resizeMode = resizeMode
             },
-            modifier = Modifier.fillMaxSize().graphicsLayer(
-                scaleX = scale * if (isMirrored) -1f else 1f,
-                scaleY = scale * if (isFlipped) -1f else 1f,
-                translationX = offsetX,
-                translationY = offsetY,
-                rotationZ = rotationZ
-            )
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                scaleX = scale * if (isMirrored) -1f else 1f
+                scaleY = scale * if (isFlipped) -1f else 1f
+                translationX = offsetX
+                translationY = offsetY
+                this.rotationZ = rotationZ
+
+                // AI Video Enhancer is selected via activeEnhancerProfile
+                // Applying real-time ColorMatrix to SurfaceView requires a custom Media3 VideoSink 
+                // or OpenGL shader, which is managed at the ExoPlayer level.
+            }
         )
+        
+        // AI Video Enhancer Overlay (Soft UI Tint)
+        val aiOverlayColor = when (activeEnhancerProfile) {
+            "cinematic" -> Color(0x208B4513) // Warm cinematic tint
+            "hdr_boost" -> Color(0x15FFFFFF) // Brightness lift
+            "vivid" -> Color(0x1A0055FF) // Cool vivid tint
+            "dark_detail" -> Color(0x25FFFFFF) // Shadow lift
+            else -> Color.Transparent
+        }
+        
+        if (aiOverlayColor != Color.Transparent) {
+            Box(modifier = Modifier.fillMaxSize().background(aiOverlayColor))
+        }
 
         if (!isInPipMode) {
             if (!isControlsLocked) {
@@ -315,20 +437,37 @@ fun PlayerScreen(
                         detectTapGestures(
                             onDoubleTap = { offset ->
                                 val screenWidth = size.width
-                                if (offset.x > screenWidth / 2) {
+                                val centerWidth = screenWidth * 0.3f // Center 30%
+                                val leftBound = (screenWidth - centerWidth) / 2
+                                val rightBound = leftBound + centerWidth
+
+                                if (offset.x < leftBound) {
+                                    viewModel.videoPlayer.seekBack()
+                                    if (seekAccumulation > 0) seekAccumulation = 0
+                                    seekAccumulation -= 10
+                                    feedbackEvent = FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${seekAccumulation}s")
+                                } else if (offset.x > rightBound) {
                                     viewModel.videoPlayer.seekForward()
                                     if (seekAccumulation < 0) seekAccumulation = 0
                                     seekAccumulation += 10
                                     feedbackEvent = FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${seekAccumulation}s")
                                 } else {
-                                    viewModel.videoPlayer.seekBack()
-                                    if (seekAccumulation > 0) seekAccumulation = 0
-                                    seekAccumulation -= 10
-                                    feedbackEvent = FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${seekAccumulation}s")
+                                    // Center double tap -> toggle play/pause
+                                    if (isPlaying) {
+                                        viewModel.videoPlayer.pause()
+                                        showAdPopup = true
+                                    } else {
+                                        viewModel.videoPlayer.play()
+                                        showAdPopup = false
+                                    }
                                 }
                             },
                             onTap = {
-                                isControllerVisible = !isControllerVisible
+                                if (isToolsExpanded) {
+                                    isToolsExpanded = false
+                                } else {
+                                    isControllerVisible = !isControllerVisible
+                                }
                             },
                             onPress = {
                                 tryAwaitRelease()
@@ -341,35 +480,71 @@ fun PlayerScreen(
                         )
                     }
                     .pointerInput(Unit) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(0.5f, 5f)
-                            if (scale > 1f) {
-                                val maxX = (size.width * (scale - 1)) / 2
-                                val maxY = (size.height * (scale - 1)) / 2
-                                offsetX = (offsetX + pan.x * scale).coerceIn(-maxX, maxX)
-                                offsetY = (offsetY + pan.y * scale).coerceIn(-maxY, maxY)
-                            } else {
-                                offsetX = 0f
-                                offsetY = 0f
-                            }
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            var zoom = 1f
+                            var pastTouchSlop = false
+                            val touchSlop = viewConfiguration.touchSlop
+                            
+                            do {
+                                val event = awaitPointerEvent()
+                                val canceled = event.changes.any { it.isConsumed }
+                                if (!canceled) {
+                                    if (event.changes.size >= 2) {
+                                        val zoomChange = event.calculateZoom()
+                                        val panChange = event.calculatePan()
+                                        
+                                        if (!pastTouchSlop) {
+                                            zoom *= zoomChange
+                                            val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                                            val zoomMotion = kotlin.math.abs(1 - zoom) * centroidSize
+                                            if (zoomMotion > touchSlop) {
+                                                pastTouchSlop = true
+                                            }
+                                        }
+                                        
+                                        if (pastTouchSlop) {
+                                            scale = (scale * zoomChange).coerceIn(0.5f, 5f)
+                                            if (scale > 1f) {
+                                                val maxX = (size.width * (scale - 1)) / 2
+                                                val maxY = (size.height * (scale - 1)) / 2
+                                                offsetX = (offsetX + panChange.x).coerceIn(-maxX, maxX)
+                                                offsetY = (offsetY + panChange.y).coerceIn(-maxY, maxY)
+                                            } else {
+                                                offsetX = 0f
+                                                offsetY = 0f
+                                            }
+                                            event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                        }
+                                    } else {
+                                        pastTouchSlop = false
+                                        zoom = 1f
+                                    }
+                                }
+                            } while (!canceled && event.changes.any { it.pressed })
                         }
                     }
                     .pointerInput(Unit) {
+                        // Removed (scale == 1f) to allow gesture controls always
                         var isSeeking = false
                         var isAdjustingVolBright = false
-                        var seekAccumulator = 0f
-                        var startPosition = 0L
-                        var initialVolume = 0f
-                        var initialBrightness = 0f
-                        var accumulatedY = 0f
+                            var seekAccumulator = 0f
+                            var startPosition = 0L
+                            var initialVolume = 0f
+                            var initialBrightness = 0f
+                            var accumulatedY = 0f
+                            var lastBrightness = -1f
+                            var lastVolume = -1f
 
-                        detectDragGestures(
+                            detectDragGestures(
                             onDragStart = { offset ->
                                 seekAccumulator = 0f
                                 startPosition = viewModel.videoPlayer.player.currentPosition
                                 isSeeking = false
                                 isAdjustingVolBright = false
                                 accumulatedY = 0f
+                                lastBrightness = -1f
+                                lastVolume = -1f
                                 
                                 val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
                                 val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
@@ -387,6 +562,9 @@ fun PlayerScreen(
                                     val seekAmountMs = (seekAccumulator / screenWidth) * 120000
                                     val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, viewModel.videoPlayer.player.duration)
                                     viewModel.videoPlayer.player.seekTo(newPos)
+                                } else if (isAdjustingVolBright) {
+                                    if (lastBrightness >= 0f) viewModel.learningEngine.learnBrightness(lastBrightness)
+                                    if (lastVolume >= 0f) viewModel.learningEngine.learnVolume(lastVolume)
                                 }
                                 isSeeking = false
                                 isAdjustingVolBright = false
@@ -429,8 +607,10 @@ fun PlayerScreen(
                                     // Brightness
                                     activity?.window?.let { window ->
                                         val params = window.attributes
-                                        params.screenBrightness = (initialBrightness + delta).coerceIn(0f, 1f)
+                                        val newB = (initialBrightness + delta).coerceIn(0f, 1f)
+                                        params.screenBrightness = newB
                                         window.attributes = params
+                                        lastBrightness = newB
                                         
                                         feedbackEvent = FeedbackEvent(FeedbackType.BRIGHTNESS, Icons.Default.BrightnessMedium, "${(params.screenBrightness * 100).toInt()}%", value = params.screenBrightness, color = Color(0xFFFFEB3B))
                                     }
@@ -441,12 +621,13 @@ fun PlayerScreen(
                                     val newVolFloat = initialVolume + delta
                                     val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
                                     audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVol, 0)
+                                    lastVolume = newVolFloat.coerceIn(0f, 1f)
                                     
                                     feedbackEvent = FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3))
-                                }
                             }
                         }
                     }
+                }
             )
         }
 
@@ -514,12 +695,54 @@ fun PlayerScreen(
                         android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
+                onVideoEnhancerClick = { showVideoEnhancer = true },
                 onVideoAdjustmentsClick = { showVideoAdjustments = true },
                 onMoreClick = { showMorePopup = true },
-                decoderMode = decoderMode,
-                onDecoderClick = { showDecoderSelector = true },
+                isToolsExpanded = isToolsExpanded,
+                onToolsExpandedChange = { isToolsExpanded = it },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
+        }
+
+        // Resume Prompt
+        AnimatedVisibility(
+            visible = viewModel.showResumePrompt,
+            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 120.dp, end = 16.dp)
+        ) {
+            val resumeSecs = viewModel.resumePosition / 1000
+            val formattedResume = String.format(java.util.Locale.US, "%02d:%02d:%02d", resumeSecs / 3600, (resumeSecs % 3600) / 60, resumeSecs % 60)
+                .replaceFirst("^00:".toRegex(), "")
+            
+            Surface(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(12.dp),
+                shadowElevation = 8.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Resume playing?", style = MaterialTheme.typography.labelSmall, color = Color.LightGray)
+                        Text(formattedResume, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Button(
+                        onClick = { viewModel.onResumeAccepted() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text("Continue", color = Color.White, style = MaterialTheme.typography.labelLarge)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(onClick = { viewModel.onResumeDismissed() }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
         }
 
         // Lock Controls Button
@@ -582,8 +805,29 @@ fun PlayerScreen(
         // Speed Dial Sheet
         if (showSpeedDial) {
             PlaybackSpeedSheet(
-                player = viewModel.videoPlayer.player,
+                currentSpeed = viewModel.videoPlayer.player.playbackParameters.speed,
+                onSpeedSelected = { spd ->
+                    viewModel.videoPlayer.player.setPlaybackSpeed(spd)
+                    viewModel.learningEngine.learnPlaybackSpeed(spd)
+                },
                 onDismissRequest = { showSpeedDial = false }
+            )
+        }
+        
+        // Video Enhancer Sheet
+        if (showVideoEnhancer) {
+            VideoEnhancerSheet(
+                videoTitle = currentVideoTitle,
+                currentProfileId = activeEnhancerProfile,
+                onProfileSelect = { profileId ->
+                    activeEnhancerProfile = profileId
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.AutoFixHigh,
+                        text = "AI Profile Applied"
+                    )
+                },
+                onDismissRequest = { showVideoEnhancer = false }
             )
         }
         
@@ -594,7 +838,10 @@ fun PlayerScreen(
             }
             VideoAdjustmentsSheet(
                 currentResizeMode = resizeMode,
-                onResizeModeSelected = { resizeMode = it },
+                onResizeModeSelected = { 
+                    resizeMode = it 
+                    viewModel.learningEngine.learnAspectRatio(it.toString())
+                },
                 currentBrightness = currentBrightness,
                 onBrightnessChanged = { newBrightness ->
                     currentBrightness = newBrightness
@@ -603,6 +850,7 @@ fun PlayerScreen(
                         params.screenBrightness = newBrightness
                         window.attributes = params
                     }
+                    viewModel.learningEngine.learnBrightness(newBrightness)
                 },
                 isMirrored = isMirrored,
                 onMirrorToggled = { 
@@ -630,6 +878,8 @@ fun PlayerScreen(
                 currentPosition = currentPosition,
                 duration = duration,
                 isLandscape = isLandscape,
+                bookmarks = bookmarks.map { it.timeMs },
+                lastPlayedPosition = videoMetadata?.lastPlayedPosition,
                 onPlayPauseClick = {
                     if (isPlaying) viewModel.videoPlayer.pause() else viewModel.videoPlayer.play()
                 },
@@ -651,6 +901,21 @@ fun PlayerScreen(
             )
         }
 
+        // Quality Analyzer Sheet
+        val qualityReport by viewModel.qualityReport.collectAsState()
+        val isAnalyzingQuality by viewModel.isAnalyzingQuality.collectAsState()
+
+        if (showQualitySheet || isAnalyzingQuality || qualityReport != null) {
+            com.helpofai.videoplayer.feature.qualityanalyzer.components.QualityReportSheet(
+                report = qualityReport,
+                isAnalyzing = isAnalyzingQuality,
+                onDismissRequest = { 
+                    showQualitySheet = false
+                    viewModel.clearQualityReport()
+                }
+            )
+        }
+
         // More Popup (Video List & Bookmarks)
         if (showMorePopup) {
             PlayerMorePopup(
@@ -667,25 +932,74 @@ fun PlayerScreen(
                     showMorePopup = false
                     showBookmarksSheet = true
                 },
+                onQualityAnalyzerClick = {
+                    showMorePopup = false
+                    showQualitySheet = true
+                    viewModel.analyzeVideoQuality()
+                },
                 onDismissRequest = { showMorePopup = false }
             )
         }
         
+        // Ad Popup when paused via center double-tap
+        if (showAdPopup && !isPlaying) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.8f))
+                    .clickable { 
+                        viewModel.videoPlayer.play()
+                        showAdPopup = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Text(
+                        text = "Paused",
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    // Show Native Ad
+                    com.helpofai.videoplayer.core.ads.NativeAdCard(
+                        modifier = Modifier.width(320.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    IconButton(
+                        onClick = { 
+                            viewModel.videoPlayer.play()
+                            showAdPopup = false 
+                        },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.primary, shape = androidx.compose.foundation.shape.CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow, 
+                            contentDescription = "Resume", 
+                            tint = Color.White, 
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+        
         // Bookmarks & Chapters Sheet
         if (showBookmarksSheet) {
-            BookmarksSheet(
+            com.helpofai.videoplayer.feature.scenedetection.components.SceneSelectionSheet(
+                videoPath = viewModel.currentVideoPath,
                 bookmarks = bookmarks,
-                currentPosition = currentPosition,
                 onSeekTo = { pos -> 
                     viewModel.videoPlayer.player.seekTo(pos)
                     currentPosition = pos
-                },
-                onAddBookmark = { pos ->
-                    viewModel.addBookmark(timeMs = pos, label = "Chapter ${bookmarks.size + 1}")
-                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.Bookmark, "Bookmark Added")
-                },
-                onDeleteBookmark = { bookmark ->
-                    viewModel.deleteBookmark(bookmark)
                 },
                 onGenerateAutoChapters = {
                     viewModel.generateAutoChapters(
@@ -693,9 +1007,9 @@ fun PlayerScreen(
                         onComplete = { success ->
                             isGeneratingChapters = false
                             if (success) {
-                                feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "Chapters Generated")
+                                feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "Scenes Detected")
                             } else {
-                                feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "No Chapters Found")
+                                feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "No Scenes Found")
                             }
                         }
                     )
@@ -714,6 +1028,35 @@ fun PlayerScreen(
                     subtitlePickerLauncher.launch("*/*")
                 }
             )
+        }
+        
+        if (isBuffering) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color(0x99000000), androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "PROCESSING MEDIA",
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = processData,
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
         }
         
         } // End of !isInPipMode wrapper

@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +37,16 @@ fun VideoAdjustmentsSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color(0xFF1E1E1E),
+        containerColor = Color(0x66000000), // Transparent dark
         contentColor = Color.White
     ) {
+        val view = LocalView.current
+        LaunchedEffect(view) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+            }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()

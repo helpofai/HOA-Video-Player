@@ -13,7 +13,11 @@ data class Video(
     val isFavorite: Boolean = false,
     val lastPlayedPosition: Long = 0L,
     val playCount: Int = 0,
-    val category: String = "General"
+    val lastPlayedTimestamp: Long = 0L,
+    val category: String = "General",
+    val playbackSpeed: Float = 1.0f,
+    val subtitleTrackLanguage: String? = null,
+    val audioTrackLanguage: String? = null
 ) {
     val formattedDuration: String
         get() {

@@ -55,8 +55,6 @@ fun TrackSelectorBottomSheet(
     onDismissRequest: () -> Unit,
     onLoadExternalSubtitle: () -> Unit = {}
 ) {
-    var selectedTab by remember { mutableStateOf(initialTab) } // 0 = Audio, 1 = Subtitles
-    
     // Stub states for advanced features
     var useSwDecoder by remember { mutableStateOf(false) }
     var avSyncDelay by remember { mutableStateOf(0f) }
@@ -70,24 +68,21 @@ fun TrackSelectorBottomSheet(
         dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.7f)) }
     ) {
         Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)) {
-            // Tabs
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.primary,
-                divider = {}
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("Audio", fontWeight = FontWeight.Bold, color = if(selectedTab==0) MaterialTheme.colorScheme.primary else Color.White) },
-                    icon = { Icon(Icons.Default.Audiotrack, contentDescription = null, tint = if(selectedTab==0) MaterialTheme.colorScheme.primary else Color.White) }
+                Icon(
+                    imageVector = if (initialTab == 0) Icons.Default.Audiotrack else Icons.Default.Subtitles,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
                 )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Subtitles", fontWeight = FontWeight.Bold, color = if(selectedTab==1) MaterialTheme.colorScheme.primary else Color.White) },
-                    icon = { Icon(Icons.Default.Subtitles, contentDescription = null, tint = if(selectedTab==1) MaterialTheme.colorScheme.primary else Color.White) }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = if (initialTab == 0) "Audio Tracks & Features" else "Subtitles & Features",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
             }
 
@@ -99,7 +94,7 @@ fun TrackSelectorBottomSheet(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                if (selectedTab == 0) {
+                if (initialTab == 0) {
                     // ================= AUDIO TAB =================
                     item {
                         SectionHeader("Audio Tracks")

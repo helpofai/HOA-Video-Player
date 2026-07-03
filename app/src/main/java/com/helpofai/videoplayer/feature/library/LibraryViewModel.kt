@@ -14,10 +14,32 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class SortOption(val label: String) {
+    DATE_ADDED_DESC("Date Added (Newest)"), 
+    DATE_ADDED_ASC("Date Added (Oldest)"), 
+    NAME_ASC("Name (A-Z)"), 
+    NAME_DESC("Name (Z-A)"), 
+    SIZE_DESC("Size (Largest)"), 
+    SIZE_ASC("Size (Smallest)"), 
+    DURATION_DESC("Duration (Longest)"), 
+    DURATION_ASC("Duration (Shortest)")
+}
+
+enum class FilterOption(val label: String) {
+    ALL("All Videos"), 
+    FAVORITES("Favorites"), 
+    UNWATCHED("Unwatched"), 
+    SHORT_VIDEOS("Short Clips (<5m)"), 
+    LONG_VIDEOS("Long Videos (>30m)")
+}
+
 data class LibraryState(
+    val allVideos: List<Video> = emptyList(),
     val videos: List<Video> = emptyList(),
     val isLoading: Boolean = false,
-    val permissionGranted: Boolean = false
+    val permissionGranted: Boolean = false,
+    val sortOption: SortOption = SortOption.DATE_ADDED_DESC,
+    val filterOption: FilterOption = FilterOption.ALL
 )
 
 @HiltViewModel
@@ -40,12 +62,61 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    private fun applySortAndFilter(all: List<Video>, sort: SortOption, filter: FilterOption): List<Video> {
+        var result = all
+        
+        result = when (filter) {
+            FilterOption.ALL -> result
+            FilterOption.FAVORITES -> result.filter { it.isFavorite }
+            FilterOption.UNWATCHED -> result.filter { it.playCount == 0 }
+            FilterOption.SHORT_VIDEOS -> result.filter { it.duration in 1..299999 } // < 5 mins
+            FilterOption.LONG_VIDEOS -> result.filter { it.duration >= 1800000 } // >= 30 mins
+        }
+        
+        result = when (sort) {
+            SortOption.DATE_ADDED_DESC -> result.sortedByDescending { it.dateAdded }
+            SortOption.DATE_ADDED_ASC -> result.sortedBy { it.dateAdded }
+            SortOption.NAME_ASC -> result.sortedBy { it.title.lowercase() }
+            SortOption.NAME_DESC -> result.sortedByDescending { it.title.lowercase() }
+            SortOption.SIZE_DESC -> result.sortedByDescending { it.size }
+            SortOption.SIZE_ASC -> result.sortedBy { it.size }
+            SortOption.DURATION_DESC -> result.sortedByDescending { it.duration }
+            SortOption.DURATION_ASC -> result.sortedBy { it.duration }
+        }
+        
+        return result
+    }
+
+    fun updateSortOption(option: SortOption) {
+        _state.update { 
+            it.copy(
+                sortOption = option,
+                videos = applySortAndFilter(it.allVideos, option, it.filterOption)
+            )
+        }
+    }
+
+    fun updateFilterOption(option: FilterOption) {
+        _state.update { 
+            it.copy(
+                filterOption = option,
+                videos = applySortAndFilter(it.allVideos, it.sortOption, option)
+            )
+        }
+    }
+
     fun loadVideos() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
                 repository.getVideosWithMetadata().collectLatest { videos ->
-                    _state.update { it.copy(videos = videos, isLoading = false) }
+                    _state.update { 
+                        it.copy(
+                            allVideos = videos,
+                            videos = applySortAndFilter(videos, it.sortOption, it.filterOption), 
+                            isLoading = false
+                        ) 
+                    }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
@@ -56,14 +127,13 @@ class LibraryViewModel @Inject constructor(
     fun toggleFavorite(video: Video) {
         viewModelScope.launch {
             repository.toggleFavorite(video.path, !video.isFavorite)
-            // No need to manually update state, as it will flow from DB
         }
     }
 
     fun deleteVideo(video: Video) {
         viewModelScope.launch {
             if (repository.deleteVideo(video)) {
-                loadVideos() // Rescan media to update the list
+                loadVideos()
             }
         }
     }
@@ -71,7 +141,7 @@ class LibraryViewModel @Inject constructor(
     fun renameVideo(video: Video, newName: String) {
         viewModelScope.launch {
             if (repository.renameVideo(video, newName)) {
-                loadVideos() // Rescan media to update the list
+                loadVideos()
             }
         }
     }
@@ -96,7 +166,7 @@ class LibraryViewModel @Inject constructor(
     
     fun analyzeStorage() {
         viewModelScope.launch {
-            _storageReport.value = storageAnalyzer.analyze(_state.value.videos)
+            _storageReport.value = storageAnalyzer.analyze(_state.value.allVideos)
         }
     }
     

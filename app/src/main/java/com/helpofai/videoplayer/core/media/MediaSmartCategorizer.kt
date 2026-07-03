@@ -4,6 +4,9 @@ import java.util.Locale
 
 object MediaSmartCategorizer {
 
+    private val cameraRegex = Regex(".*\\d{8}_\\d{6}.*")
+    private val tvShowRegex = Regex(".*(s\\d{1,2}e\\d{1,2}|season\\s*\\d+|episode\\s*\\d+|\\[\\d+x\\d+\\]).*")
+
     fun categorizeVideo(title: String, path: String, durationMs: Long): String {
         val lowerPath = path.lowercase(Locale.getDefault())
         val lowerTitle = title.lowercase(Locale.getDefault())
@@ -19,7 +22,7 @@ object MediaSmartCategorizer {
         // 2. Camera / Family Videos
         if (lowerPath.contains("dcim") || lowerPath.contains("camera") || 
             lowerTitle.startsWith("vid_") || lowerTitle.startsWith("img_") || 
-            lowerTitle.startsWith("pxl_") || lowerTitle.matches(Regex(".*\\d{8}_\\d{6}.*"))) {
+            lowerTitle.startsWith("pxl_") || lowerTitle.matches(cameraRegex)) {
             return "Camera Videos"
         }
 
@@ -52,7 +55,6 @@ object MediaSmartCategorizer {
         }
 
         // 7. TV Shows
-        val tvShowRegex = Regex(".*(s\\d{1,2}e\\d{1,2}|season\\s*\\d+|episode\\s*\\d+|\\[\\d+x\\d+\\]).*")
         if (lowerTitle.matches(tvShowRegex) || lowerPath.contains("tv shows") || lowerPath.contains("series")) {
             return "TV Shows"
         }
