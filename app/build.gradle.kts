@@ -117,6 +117,9 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     implementation(libs.reorderable)
     
+    // FFmpegKit (video processing) — local AAR + JARs in app/libs/
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+    
     // Google Mobile Ads (AdMob)
     implementation("com.google.android.gms:play-services-ads:23.1.0")
 }

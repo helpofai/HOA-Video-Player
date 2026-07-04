@@ -1,28 +1,4 @@
-package com.arthenica.ffmpegkit
-
-/**
- * Mock class to replace the deprecated and removed FFmpegKit Maven Central dependency.
- * To actually use FFmpeg, download the AAR from: https://github.com/arthenica/ffmpeg-kit/releases
- * place it in the app/libs/ folder, and remove this package.
- */
-class FFmpegKit {
-    companion object {
-        fun execute(command: String): Session {
-            // Mock execution
-            return Session()
-        }
-    }
-}
-
-class Session {
-    val returnCode = ReturnCode()
-    val allLogsAsString = "Mock logs"
-}
-
-class ReturnCode {
-    companion object {
-        fun isSuccess(returnCode: ReturnCode): Boolean {
-            return true
-        }
-    }
-}
+// DELETED: This mock stub is no longer needed.
+// The real FFmpegKit AAR is now pulled from Maven Central:
+//   io.github.trongnhan136:ffmpeg-kit-min-gpl:7.1.5
+// Delete this entire directory: app/src/main/java/com/arthenica/
