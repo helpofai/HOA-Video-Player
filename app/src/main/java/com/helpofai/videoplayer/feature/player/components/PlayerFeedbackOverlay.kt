@@ -63,7 +63,7 @@ fun PlayerFeedbackOverlay(
     // Auto-dismiss logic
     var isVisible by remember(feedback.id) { mutableStateOf(true) }
     
-    LaunchedEffect(feedback.id, isLongPressing) {
+    LaunchedEffect(feedback.id, feedback.text, isLongPressing) {
         isVisible = true
         if (!isLongPressing) {
             delay(if (feedback.type == FeedbackType.PLAY_PAUSE) 400 else 800)

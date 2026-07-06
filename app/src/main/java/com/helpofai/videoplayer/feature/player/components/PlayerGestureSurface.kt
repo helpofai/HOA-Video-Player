@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -118,6 +120,24 @@ fun PlayerGestureSurface(
                                 if (pastTouchSlop) {
                                     val newScale = (scale * zoomChange).coerceIn(0.5f, 5f)
                                     onScaleChange(newScale)
+                                    
+                                    val zoomPercent = (newScale * 100).toInt()
+                                    val zoomText = when {
+                                        newScale == 1.0f -> "Zoom: Fit (100%)"
+                                        newScale > 1.0f -> "Zoom: ${zoomPercent}%"
+                                        else -> "Zoom: Minimized (${zoomPercent}%)"
+                                    }
+                                    
+                                    onFeedbackEvent(
+                                        FeedbackEvent(
+                                            type = FeedbackType.ZOOM,
+                                            icon = if (zoomChange >= 1f) Icons.Default.ZoomIn else Icons.Default.ZoomOut,
+                                            text = zoomText,
+                                            color = Color(0xFF4CAF50),
+                                            id = 9999L // Stable ID to prevent toast animation flickering
+                                        )
+                                    )
+
                                     if (newScale > 1f) {
                                         val maxX = (size.width * (newScale - 1)) / 2
                                         val maxY = (size.height * (newScale - 1)) / 2
@@ -301,29 +321,43 @@ fun PlayerGestureSurface(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
-                        val screenWidth = size.width
-                        val centerWidth = screenWidth * 0.3f // Center 30%
-                        val leftBound = (screenWidth - centerWidth) / 2
-                        val rightBound = leftBound + centerWidth
-
-                        if (offset.x < leftBound) {
-                            viewModel.videoPlayer.seekBack()
-                            val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
-                            onSeekAccumulationChange(newSeek)
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
-                        } else if (offset.x > rightBound) {
-                            viewModel.videoPlayer.seekForward()
-                            val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
-                            onSeekAccumulationChange(newSeek)
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
+                        if (scale != 1.0f) {
+                            // Professional Reset Zoom Gesture
+                            onScaleChange(1.0f)
+                            onOffsetChange(0f, 0f)
+                            onFeedbackEvent(
+                                FeedbackEvent(
+                                    type = FeedbackType.ZOOM,
+                                    icon = Icons.Default.ZoomIn,
+                                    text = "Zoom: Fit (100%)",
+                                    color = Color(0xFF4CAF50)
+                                )
+                            )
                         } else {
-                            // Center double tap -> toggle play/pause
-                            if (isPlaying) {
-                                viewModel.videoPlayer.pause()
-                                onPlayPauseToggle(true) // show ad popup
+                            val screenWidth = size.width
+                            val centerWidth = screenWidth * 0.3f // Center 30%
+                            val leftBound = (screenWidth - centerWidth) / 2
+                            val rightBound = leftBound + centerWidth
+
+                            if (offset.x < leftBound) {
+                                viewModel.videoPlayer.seekBack()
+                                val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
+                                onSeekAccumulationChange(newSeek)
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
+                            } else if (offset.x > rightBound) {
+                                viewModel.videoPlayer.seekForward()
+                                val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
+                                onSeekAccumulationChange(newSeek)
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
                             } else {
-                                viewModel.videoPlayer.play()
-                                onPlayPauseToggle(false)
+                                // Center double tap -> toggle play/pause
+                                if (isPlaying) {
+                                    viewModel.videoPlayer.pause()
+                                    onPlayPauseToggle(true) // show ad popup
+                                } else {
+                                    viewModel.videoPlayer.play()
+                                    onPlayPauseToggle(false)
+                                }
                             }
                         }
                     },
