@@ -5,8 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -14,8 +19,15 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 import com.helpofai.videoplayer.core.theme.VideoPlayerTheme
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
 
 import android.net.Uri
 import androidx.navigation.NavType
@@ -32,6 +44,7 @@ import com.helpofai.videoplayer.feature.privacy.PinScreen
 import com.helpofai.videoplayer.feature.permissions.PermissionScreen
 import com.helpofai.videoplayer.feature.permissions.hasRequiredPermissions
 import com.helpofai.videoplayer.feature.splash.AnimatedSplashScreen
+import com.helpofai.videoplayer.core.ads.AdManager
 import com.helpofai.videoplayer.core.ads.InterstitialAdTrigger
 import com.helpofai.videoplayer.core.model.Video
 import androidx.compose.runtime.remember
@@ -71,6 +84,53 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         // Premium Glassmorphism Background
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF0F0C29), 
+                                            Color(0xFF302B63), 
+                                            Color(0xFF0F0C29)
+                                        )
+                                    )
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .size(300.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0x406C5CE7), Color.Transparent)
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(350.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0x4000CEC9), Color.Transparent)
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .size(250.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(Color(0x40FD79A8), Color.Transparent)
+                                    ),
+                                    shape = CircleShape
+                                )
+                        )
+
                         val navController = rememberNavController()
                         NavHost(navController = navController, startDestination = startDestination) {
                         composable("splash") {

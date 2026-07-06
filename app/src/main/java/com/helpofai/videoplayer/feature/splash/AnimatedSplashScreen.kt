@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.splash
 
+import android.webkit.WebView
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import kotlinx.coroutines.delay
 
@@ -22,16 +24,16 @@ import kotlinx.coroutines.delay
 fun AnimatedSplashScreen(onSplashFinished: () -> Unit) {
     var progress by remember { mutableStateOf(0f) }
     
-    // Simulate loading progress
+    // Simulate loading progress from 0 to 100%
     LaunchedEffect(Unit) {
-        val totalTime = 800L // 0.8 seconds loading
+        val totalTime = 2500L // 2.5 seconds loading
         val interval = 25L
         val steps = totalTime / interval
         for (i in 0..steps) {
             progress = i.toFloat() / steps.toFloat()
             delay(interval)
         }
-        delay(100) // Brief pause at 100%
+        delay(300) // Brief pause at 100%
         onSplashFinished()
     }
 

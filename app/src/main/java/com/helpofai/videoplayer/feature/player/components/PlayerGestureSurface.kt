@@ -3,6 +3,7 @@ package com.helpofai.videoplayer.feature.player.components
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
+import android.view.ViewConfiguration
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroidSize
@@ -51,7 +52,44 @@ fun PlayerGestureSurface(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { offset ->
+                        val screenWidth = size.width
+                        val centerWidth = screenWidth * 0.3f // Center 30%
+                        val leftBound = (screenWidth - centerWidth) / 2
+                        val rightBound = leftBound + centerWidth
 
+                        if (offset.x < leftBound) {
+                            viewModel.videoPlayer.seekBack()
+                            val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
+                            onSeekAccumulationChange(newSeek)
+                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
+                        } else if (offset.x > rightBound) {
+                            viewModel.videoPlayer.seekForward()
+                            val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
+                            onSeekAccumulationChange(newSeek)
+                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
+                        } else {
+                            // Center double tap -> toggle play/pause
+                            if (isPlaying) {
+                                viewModel.videoPlayer.pause()
+                                onPlayPauseToggle(true) // show ad popup
+                            } else {
+                                viewModel.videoPlayer.play()
+                                onPlayPauseToggle(false)
+                            }
+                        }
+                    },
+                    onTap = {
+                        if (isToolsExpanded) {
+                            onToolsExpandedChange(false)
+                        } else {
+                            onControllerVisibilityChange(!isControllerVisible)
+                        }
+                    },
+                )
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -261,44 +299,6 @@ fun PlayerGestureSurface(
                         }
                     }
                 }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { offset ->
-                        val screenWidth = size.width
-                        val centerWidth = screenWidth * 0.3f // Center 30%
-                        val leftBound = (screenWidth - centerWidth) / 2
-                        val rightBound = leftBound + centerWidth
-
-                        if (offset.x < leftBound) {
-                            viewModel.videoPlayer.seekBack()
-                            val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
-                            onSeekAccumulationChange(newSeek)
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
-                        } else if (offset.x > rightBound) {
-                            viewModel.videoPlayer.seekForward()
-                            val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
-                            onSeekAccumulationChange(newSeek)
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
-                        } else {
-                            // Center double tap -> toggle play/pause
-                            if (isPlaying) {
-                                viewModel.videoPlayer.pause()
-                                onPlayPauseToggle(true) // show ad popup
-                            } else {
-                                viewModel.videoPlayer.play()
-                                onPlayPauseToggle(false)
-                            }
-                        }
-                    },
-                    onTap = {
-                        if (isToolsExpanded) {
-                            onToolsExpandedChange(false)
-                        } else {
-                            onControllerVisibilityChange(!isControllerVisible)
-                        }
-                    },
-                )
             }
     )
 }

@@ -4,7 +4,16 @@ import android.content.pm.ActivityInfo
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.layout.*
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
@@ -24,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -35,11 +45,18 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.helpofai.videoplayer.feature.player.components.FeedbackEvent
 import com.helpofai.videoplayer.feature.player.components.FeedbackType
+import com.helpofai.videoplayer.feature.player.components.BookmarksSheet
 import com.helpofai.videoplayer.feature.player.components.PlayerBottomController
+import com.helpofai.videoplayer.feature.player.components.DecoderSelectorSheet
 import com.helpofai.videoplayer.feature.player.components.PlayerFeedbackOverlay
 import com.helpofai.videoplayer.feature.player.components.CircularSpeedWheel
+import com.helpofai.videoplayer.feature.player.components.resolveSpeedIndex
+import com.helpofai.videoplayer.feature.player.components.SPEED_OPTIONS
+import com.helpofai.videoplayer.feature.player.components.PlayerMorePopup
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
+import com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet
+import com.helpofai.videoplayer.feature.player.components.VideoAdjustmentsSheet
 
 @Composable
 fun PlayerScreen(

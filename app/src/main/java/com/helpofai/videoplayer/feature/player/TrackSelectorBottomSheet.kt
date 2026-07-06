@@ -26,6 +26,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import java.util.Locale
 
+import androidx.compose.ui.draw.blur
 
 fun getLanguageName(code: String): String {
     if (code.equals("und", ignoreCase = true) || code.isBlank()) return "Unknown Language"
