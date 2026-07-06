@@ -17,15 +17,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import javax.inject.Inject
 
 import com.helpofai.videoplayer.core.playback.AudioEffectManager
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     val videoPlayer: VideoPlayer,
