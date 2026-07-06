@@ -63,22 +63,53 @@ fun LibraryHomeTab(
         AdAfterHero()
     }
 
-    // 1.5 Continue Watching (Smart Resume)
-    val continueWatching = state.videos.filter { it.lastPlayedPosition > 0 && it.duration > 0 && it.lastPlayedPosition < it.duration - 5000 }.sortedByDescending { it.lastPlayedTimestamp }.take(5)
-    if (continueWatching.isNotEmpty()) {
-        LibrarySectionTitle("Continue Watching")
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+    // 1.5 Resume Playback (Folder Context)
+    val lastPlayedVideo = state.videos.filter { it.lastPlayedPosition > 0 }.maxByOrNull { it.lastPlayedTimestamp }
+    if (lastPlayedVideo != null) {
+        val resumeFolder = java.io.File(lastPlayedVideo.path).parentFile?.name ?: "Internal Storage"
+        val resumeVideos = state.videos.filter { 
+            (java.io.File(it.path).parentFile?.name ?: "Internal Storage") == resumeFolder 
+        }.sortedByDescending { it.lastPlayedTimestamp }.take(10) // Limit to 10
+
+        LibrarySectionTitle("Resume Playback")
+        androidx.compose.material3.Text(
+            text = "From $resumeFolder",
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+        )
+        val listCols = if (isTablet) 2 else 1
+        val chunkedContinue = resumeVideos.chunked(listCols)
+
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(continueWatching) { video ->
-                ContinueWatchingCard(
-                    video = video,
-                    onClick = { onVideoClick(video) }
-                )
+            chunkedContinue.forEach { rowVideos ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowVideos.forEach { video ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            LibraryCompactVideoListItem(
+                                video = video,
+                                onClick = { onVideoClick(video) },
+                                onFavoriteClick = { onFavoriteClick(video) },
+                                onRenameClick = { onRenameClick(video) },
+                                onDeleteClick = { onDeleteClick(video) },
+                                onShareClick = { onShareClick(video) }
+                            )
+                        }
+                    }
+                    val emptySlots = listCols - rowVideos.size
+                    for (i in 0 until emptySlots) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
-        AdAfterContinueWatching()
+        AdAfterResumePlayback()
     }
 
     // 1.8 Recommended For You (Newest Folder)
@@ -155,43 +186,7 @@ fun LibraryHomeTab(
         AdAfterFavorites()
     }
 
-    // 4. Resume Playback
-    val legacyContinueWatching = state.videos.filter { it.lastPlayedPosition > 0 }.sortedByDescending { it.lastPlayedPosition }
-    if (legacyContinueWatching.isNotEmpty()) {
-        LibrarySectionTitle("Resume Playback")
-        val listCols = if (isTablet) 2 else 1
-        val chunkedContinue = legacyContinueWatching.take(if (isTablet) 4 else 3).chunked(listCols)
-
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            chunkedContinue.forEach { rowVideos ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowVideos.forEach { video ->
-                        Box(modifier = Modifier.weight(1f)) {
-                            LibraryCompactVideoListItem(
-                                video = video,
-                                onClick = { onVideoClick(video) },
-                                onFavoriteClick = { onFavoriteClick(video) },
-                                onRenameClick = { onRenameClick(video) },
-                                onDeleteClick = { onDeleteClick(video) },
-                                onShareClick = { onShareClick(video) }
-                            )
-                        }
-                    }
-                    val emptySlots = listCols - rowVideos.size
-                    for (i in 0 until emptySlots) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-        AdAfterResumePlayback()
-    }
+    // Sections reorganized.
 
     // 5. Large Files
     val largeFiles = state.videos.sortedByDescending { it.size }.take(10)

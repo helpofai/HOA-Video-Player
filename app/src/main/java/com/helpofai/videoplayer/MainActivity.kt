@@ -220,7 +220,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             PlayerScreen(
                                 onNavigateBack = {
-                                    // Show Ad on BACK instead of on play
+                                    // Disable PiP before showing ad because launching the Ad Activity triggers onUserLeaveHint
+                                    isPlayerActive = false
                                     com.helpofai.videoplayer.core.ads.AdManager.showInterstitialAd(this@MainActivity) {
                                         navController.popBackStack()
                                     }
