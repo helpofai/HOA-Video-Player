@@ -41,6 +41,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
@@ -90,9 +91,19 @@ fun PlayerGestureSurface(
     val onFeedbackEvent by rememberUpdatedState(onFeedbackEvent)
     val onLongPressStateChange by rememberUpdatedState(onLongPressStateChange)
 
+    var activePointers by remember { mutableIntStateOf(0) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        activePointers = event.changes.count { it.pressed }
+                    }
+                }
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -230,6 +241,7 @@ fun PlayerGestureSurface(
 
                 detectDragGestures(
                     onDragStart = { offset ->
+                        if (activePointers > 1) return@detectDragGestures
                         seekAccumulator = 0f
                         startPosition = viewModel.videoPlayer.player.currentPosition
                         isSeeking = false
@@ -249,6 +261,11 @@ fun PlayerGestureSurface(
                         }
                     },
                     onDragEnd = {
+                        if (activePointers > 1) {
+                            isSeeking = false
+                            isAdjustingVolBright = false
+                            return@detectDragGestures
+                        }
                         if (isSeeking) {
                             val screenWidth = size.width
                             val seekAmountMs = (seekAccumulator / screenWidth) * 120000
@@ -265,8 +282,14 @@ fun PlayerGestureSurface(
                     onDragCancel = {
                         isSeeking = false
                         isAdjustingVolBright = false
+                        onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L)) // Clear OSD immediately
                     }
                 ) { change, dragAmount ->
+                    if (activePointers > 1) {
+                        isSeeking = false
+                        isAdjustingVolBright = false
+                        return@detectDragGestures
+                    }
                     change.consume()
                     val screenWidth = size.width
                     val screenHeight = size.height
