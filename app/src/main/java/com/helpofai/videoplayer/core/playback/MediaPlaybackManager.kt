@@ -75,12 +75,15 @@ class MediaPlaybackManager @Inject constructor(
         }
     }
 
-    suspend fun recordPlaybackState(path: String, lastZoomLevel: Float) = withContext(Dispatchers.IO) {
+    suspend fun recordPlaybackState(path: String, lastZoomLevel: Float) {
         val position = videoPlayer.player.currentPosition
         val speed = videoPlayer.player.playbackParameters.speed
         val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
         val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
-        repository.recordPlayback(path, position, speed, audioLang, subLang, lastZoomLevel)
+        
+        withContext(Dispatchers.IO) {
+            repository.recordPlayback(path, position, speed, audioLang, subLang, lastZoomLevel)
+        }
     }
 
     private suspend fun findSubtitlesForVideo(videoPath: String): List<MediaItem.SubtitleConfiguration> = withContext(Dispatchers.IO) {
