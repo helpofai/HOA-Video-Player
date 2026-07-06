@@ -62,7 +62,7 @@ data class LibraryState(
     val videos: List<Video> = emptyList(),
     val isLoading: Boolean = false,
     val permissionGranted: Boolean = false,
-    val sortOption: SortOption = SortOption.DATE_ADDED_DESC,
+    val sortOption: SortOption = SortOption.NAME_ASC,
     val filterOption: FilterOption = FilterOption.ALL,
     val folderViewMode: String = "list"
 )

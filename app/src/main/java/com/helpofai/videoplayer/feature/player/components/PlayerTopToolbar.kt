@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.scale
@@ -129,6 +130,11 @@ fun PlayerTopToolbar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { /* Consume tap to prevent hiding UI */ }
+                        )
+                    }
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

@@ -65,6 +65,7 @@ class VideoPlayerApplication : Application(), ImageLoaderFactory {
             .components {
                 add(VideoFrameDecoder.Factory())
             }
+            .dispatcher(kotlinx.coroutines.Dispatchers.IO.limitedParallelism(2))
             .crossfade(true)
             .build()
     }
