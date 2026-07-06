@@ -42,7 +42,9 @@ class MediaScanner @Inject constructor(
             MediaStore.Video.Media.DURATION,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.DATE_ADDED,
-            MediaStore.Video.Media.DATA
+            MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.WIDTH,
+            MediaStore.Video.Media.HEIGHT
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -60,6 +62,8 @@ class MediaScanner @Inject constructor(
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            val widthColumn = cursor.getColumnIndex(MediaStore.Video.Media.WIDTH)
+            val heightColumn = cursor.getColumnIndex(MediaStore.Video.Media.HEIGHT)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -68,6 +72,8 @@ class MediaScanner @Inject constructor(
                 val size = cursor.getLong(sizeColumn)
                 val dateAdded = cursor.getLong(dateAddedColumn)
                 val path = cursor.getString(dataColumn) ?: ""
+                val width = if (widthColumn != -1) cursor.getInt(widthColumn) else 0
+                val height = if (heightColumn != -1) cursor.getInt(heightColumn) else 0
 
                 val contentUri = android.content.ContentUris.withAppendedId(
                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
@@ -82,7 +88,9 @@ class MediaScanner @Inject constructor(
                         duration = duration,
                         size = size,
                         dateAdded = dateAdded,
-                        path = path
+                        path = path,
+                        width = width,
+                        height = height
                     )
                 )
             }

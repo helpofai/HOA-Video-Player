@@ -39,7 +39,9 @@ data class Video(
     val category: String = "General",
     val playbackSpeed: Float = 1.0f,
     val subtitleTrackLanguage: String? = null,
-    val audioTrackLanguage: String? = null
+    val audioTrackLanguage: String? = null,
+    val width: Int = 0,
+    val height: Int = 0
 ) {
     val formattedDuration: String
         get() {

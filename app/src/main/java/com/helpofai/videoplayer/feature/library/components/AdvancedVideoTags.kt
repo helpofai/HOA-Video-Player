@@ -47,19 +47,37 @@ fun AdvancedVideoTags(
     video: Video,
     modifier: Modifier = Modifier
 ) {
+    // 1. Status Tags (New, Continue, Viewed)
     val isNew = video.playCount == 0
-    val isViewed = video.playCount > 0
-    val is4K = video.size > 800_000_000L
-    val isHDR = video.size > 1_500_000_000L
+    val isViewed = video.playCount > 0 && video.lastPlayedPosition >= video.duration * 0.95
+    val isContinue = video.playCount > 0 && video.lastPlayedPosition > 0 && video.lastPlayedPosition < video.duration * 0.95
+
+    // 2. Resolution Tags (8K, 4K, 1080p, 720p, SD)
+    val maxRes = maxOf(video.width, video.height)
+    val is8K = maxRes >= 7680
+    val is4K = maxRes >= 3840 && maxRes < 7680
+    val is1080p = maxRes >= 1920 && maxRes < 3840
+    val is720p = maxRes >= 1280 && maxRes < 1920
+    val isSD = maxRes > 0 && maxRes < 1280
+
+    // 3. Format Tags (HDR, UHD, FHD)
+    val isHDR = video.title.contains("hdr", ignoreCase = true) || video.size > 2_000_000_000L
 
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // --- Status Badge ---
         if (isNew) {
             BadgeTag(
                 text = "NEW",
                 gradient = Brush.linearGradient(listOf(Color(0xFFFF0055), Color(0xFFFF5500)))
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        } else if (isContinue) {
+            BadgeTag(
+                text = "CONTINUE",
+                gradient = Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF0072FF)))
             )
             Spacer(modifier = Modifier.width(4.dp))
         } else if (isViewed) {
@@ -71,20 +89,41 @@ fun AdvancedVideoTags(
             Spacer(modifier = Modifier.width(4.dp))
         }
 
-        if (is4K) {
+        // --- Resolution Badge ---
+        if (is8K) {
             BadgeTag(
-                text = "4K",
-                gradient = Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF0072FF)))
+                text = "8K UHD",
+                gradient = Brush.linearGradient(listOf(Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121)))
             )
             Spacer(modifier = Modifier.width(4.dp))
-        } else if (video.size > 200_000_000L) {
+        } else if (is4K) {
             BadgeTag(
-                text = "HD",
-                gradient = Brush.linearGradient(listOf(Color(0xFF00C6FF), Color(0xFF0072FF)))
+                text = "4K UHD",
+                gradient = Brush.linearGradient(listOf(Color(0xFF11998E), Color(0xFF38EF7D)))
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        } else if (is1080p) {
+            BadgeTag(
+                text = "1080p FHD",
+                gradient = Brush.linearGradient(listOf(Color(0xFF4CA1AF), Color(0xFFC4E0E5))),
+                textColor = Color(0xFF020617)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        } else if (is720p) {
+            BadgeTag(
+                text = "720p HD",
+                gradient = Brush.linearGradient(listOf(Color(0xFF3A7BD5), Color(0xFF3A6073)))
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        } else if (isSD) {
+            BadgeTag(
+                text = "SD",
+                gradient = Brush.linearGradient(listOf(Color(0xFF4B79A1), Color(0xFF283E51)))
             )
             Spacer(modifier = Modifier.width(4.dp))
         }
 
+        // --- HDR Badge ---
         if (isHDR) {
             BadgeTag(
                 text = "HDR",
@@ -104,15 +143,15 @@ fun BadgeTag(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
             .then(
                 if (outlineOnly) {
-                    Modifier.border(1.dp, gradient, RoundedCornerShape(4.dp))
+                    Modifier.border(1.dp, gradient, RoundedCornerShape(6.dp))
                 } else {
                     Modifier.background(gradient)
                 }
             )
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -120,7 +159,7 @@ fun BadgeTag(
             color = if (outlineOnly) Color.LightGray else textColor,
             fontSize = 9.sp,
             fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.8.sp
         )
     }
 }
