@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Native Ad Layout — HOA Video Player
+    ─────────────────────────────────────────────────────────────────────────────
+    AdMob REQUIREMENT: Every asset view registered on NativeAdView
+    (headlineView, bodyView, callToActionView, iconView, mediaView, advertiserView,
+    starRatingView, priceView, storeView) MUST be a descendant of the NativeAdView
+    root element. Placing any of them outside causes the validation error:
+    "Advertiser assets outside native ad view".
+
+    This layout uses com.google.android.gms.ads.nativead.NativeAdView as the
+    ROOT element. All asset views are direct or indirect children of it,
+    satisfying the AdMob containment requirement unconditionally.
+    ─────────────────────────────────────────────────────────────────────────────
+-->
+<com.google.android.gms.ads.nativead.NativeAdView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/native_ad_view"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <!--
+        Single LinearLayout container.  All asset views live inside this container,
+        which is itself inside the NativeAdView — keeping every asset in bounds.
+    -->
+    <LinearLayout
+        android:id="@+id/ad_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#1E293B"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
+
+        <!-- ── Row 1: Icon + Headline/Advertiser + "Ad" badge ──────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!--
+                ASSET: iconView
+                Must be INSIDE NativeAdView → it is (inside the LinearLayout which
+                is inside the NativeAdView root).
+            -->
+            <ImageView
+                android:id="@+id/ad_icon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="Ad icon"
+                android:scaleType="centerCrop"
+                android:background="#2D3748"
+                android:padding="2dp" />
+
+            <!-- Headline + Advertiser stacked column -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingEnd="8dp">
+
+                <!--
+                    ASSET: headlineView
+                    Always present for native ads.
+                -->
+                <TextView
+                    android:id="@+id/ad_headline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+
+                <!--
+                    ASSET: advertiserView
+                    Optional — hidden by code when absent.
+                -->
+                <TextView
+                    android:id="@+id/ad_advertiser"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textColor="#B0BEC5"
+                    android:textSize="11sp"
+                    android:layout_marginTop="2dp" />
+
+            </LinearLayout>
+
+            <!-- "Ad" disclosure badge — NOT an asset view, just a label -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ad"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:background="#7C3AED"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp" />
+
+        </LinearLayout>
+
+        <!-- ── Media View ─────────────────────────────────────────────────── -->
+        <!--
+            ASSET: mediaView
+            The SDK renders the primary image or video here.
+            Hidden by code if mediaContent is null.
+        -->
+        <com.google.android.gms.ads.nativead.MediaView
+            android:id="@+id/ad_media"
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- ── Body text ──────────────────────────────────────────────────── -->
+        <!--
+            ASSET: bodyView
+            Optional description text. Hidden when absent.
+        -->
+        <TextView
+            android:id="@+id/ad_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="#CFD8DC"
+            android:textSize="12sp"
+            android:lineSpacingMultiplier="1.3"
+            android:layout_marginBottom="12dp" />
+
+        <!-- ── Row 2: Stars + Price + CTA Button ─────────────────────────── -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!--
+                ASSET: starRatingView
+                Optional — only present for app-install ads.
+            -->
+            <RatingBar
+                android:id="@+id/ad_stars"
+                style="?android:attr/ratingBarStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:numStars="5"
+                android:stepSize="0.5"
+                android:isIndicator="true"
+                android:progressTint="#7C3AED" />
+
+            <!--
+                ASSET: priceView
+                Optional — price string for paid apps.
+            -->
+            <TextView
+                android:id="@+id/ad_price"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#B0BEC5"
+                android:textSize="11sp"
+                android:paddingStart="8dp" />
+
+            <!--
+                ASSET: callToActionView
+                Near-always present. Set INVISIBLE (not GONE) when absent
+                to maintain consistent row height.
+            -->
+            <Button
+                android:id="@+id/ad_call_to_action"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textAllCaps="false"
+                android:backgroundTint="#7C3AED"
+                android:textColor="#FFFFFF"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.gms.ads.nativead.NativeAdView>

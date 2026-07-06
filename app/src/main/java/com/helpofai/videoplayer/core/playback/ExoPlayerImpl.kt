@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +32,7 @@ class ExoPlayerImpl @Inject constructor(
     private val _playbackState = MutableStateFlow(PlaybackState())
     override val playbackState = _playbackState.asStateFlow()
 
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var progressJob: Job? = null
 
     private fun initializePlayer(): ExoPlayer {
@@ -71,7 +72,7 @@ class ExoPlayerImpl @Inject constructor(
                         )
                     }
                 }
-                delay(1000)
+                delay(500)
             }
         }
     }

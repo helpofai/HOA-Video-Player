@@ -2,11 +2,13 @@ package com.helpofai.videoplayer.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.helpofai.videoplayer.core.data.SettingsRepository
 import com.helpofai.videoplayer.core.data.VideoRepository
 import com.helpofai.videoplayer.core.ffmpeg.FFmpegManager
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.core.scanner.ScannerStorageAnalyzer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -39,14 +41,16 @@ data class LibraryState(
     val isLoading: Boolean = false,
     val permissionGranted: Boolean = false,
     val sortOption: SortOption = SortOption.DATE_ADDED_DESC,
-    val filterOption: FilterOption = FilterOption.ALL
+    val filterOption: FilterOption = FilterOption.ALL,
+    val folderViewMode: String = "list"
 )
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val repository: VideoRepository,
     private val ffmpegManager: FFmpegManager,
-    private val storageAnalyzer: ScannerStorageAnalyzer
+    private val storageAnalyzer: ScannerStorageAnalyzer,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryState())
@@ -54,6 +58,16 @@ class LibraryViewModel @Inject constructor(
     
     private val _storageReport = MutableStateFlow<ScannerStorageAnalyzer.StorageReport?>(null)
     val storageReport = _storageReport.asStateFlow()
+
+    private var loadJob: Job? = null
+    
+    init {
+        viewModelScope.launch {
+            settingsRepository.folderViewMode.collect { mode ->
+                _state.update { it.copy(folderViewMode = mode) }
+            }
+        }
+    }
 
     fun onPermissionResult(granted: Boolean) {
         _state.update { it.copy(permissionGranted = granted) }
@@ -106,19 +120,21 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun loadVideos() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
                 repository.getVideosWithMetadata().collectLatest { videos ->
-                    _state.update { 
+                    _state.update {
                         it.copy(
                             allVideos = videos,
-                            videos = applySortAndFilter(videos, it.sortOption, it.filterOption), 
+                            videos = applySortAndFilter(videos, it.sortOption, it.filterOption),
                             isLoading = false
-                        ) 
+                        )
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Error loading videos", e)
                 _state.update { it.copy(isLoading = false) }
             }
         }
@@ -172,5 +188,12 @@ class LibraryViewModel @Inject constructor(
     
     fun clearStorageReport() {
         _storageReport.value = null
+    }
+
+    fun updateFolderViewMode(mode: String) {
+        _state.update { it.copy(folderViewMode = mode) }
+        viewModelScope.launch {
+            settingsRepository.setFolderViewMode(mode)
+        }
     }
 }

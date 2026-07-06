@@ -49,6 +49,9 @@ import com.helpofai.videoplayer.feature.player.components.BookmarksSheet
 import com.helpofai.videoplayer.feature.player.components.PlayerBottomController
 import com.helpofai.videoplayer.feature.player.components.DecoderSelectorSheet
 import com.helpofai.videoplayer.feature.player.components.PlayerFeedbackOverlay
+import com.helpofai.videoplayer.feature.player.components.CircularSpeedWheel
+import com.helpofai.videoplayer.feature.player.components.resolveSpeedIndex
+import com.helpofai.videoplayer.feature.player.components.SPEED_OPTIONS
 import com.helpofai.videoplayer.feature.player.components.PlayerMorePopup
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
@@ -79,45 +82,34 @@ fun PlayerScreen(
 
     var isLongPressing by remember { mutableStateOf(false) }
     
+    // Long-Press Speed Selector State
+    var longPressSelectorVisible by remember { mutableStateOf(false) }
+    var longPressCenterX by remember { mutableFloatStateOf(0f) }
+    var longPressCenterY by remember { mutableFloatStateOf(0f) }
+    var longPressFingerX by remember { mutableFloatStateOf(0f) }
+    var longPressFingerY by remember { mutableFloatStateOf(0f) }
+    var selectedSpeedIndex by remember { mutableIntStateOf(-1) }
+    var savedSpeedBeforeBoost by remember { mutableFloatStateOf(1.0f) }
+    val longPressBoostSpeed by viewModel.longPressBoostSpeed.collectAsState()
+     
     // Resize Mode State (Fit -> Crop -> Fill)
     var resizeMode by remember { 
-        mutableIntStateOf(viewModel.learningEngine.getPreferredAspectRatio().toIntOrNull() ?: AspectRatioFrameLayout.RESIZE_MODE_FIT) 
+        mutableIntStateOf(viewModel.preferencesUseCase.getPreferredAspectRatio().toIntOrNull() ?: AspectRatioFrameLayout.RESIZE_MODE_FIT) 
     }
     
     // Rotation State
     var isLandscape by remember { mutableStateOf(false) }
     
+    // Dialog State
+    var activeDialog by remember { androidx.compose.runtime.mutableStateOf<com.helpofai.videoplayer.feature.player.components.PlayerDialogType?>(null) }
+    
     // Subtitles/Audio State
-    var showTrackSelector by remember { mutableStateOf(false) }
     var trackSelectorInitialTab by remember { mutableIntStateOf(0) }
 
     // Decoder State
     var decoderMode by remember { mutableStateOf("HW") }
-    var showDecoderSelector by remember { mutableStateOf(false) }
     
-    // Info Dialog State
-    var showInfoDialog by remember { mutableStateOf(false) }
-    
-    // Equalizer State
-    var showEqualizer by remember { mutableStateOf(false) }
-    
-    // Speed Dial State
-    var showSpeedDial by remember { mutableStateOf(false) }
-    
-    // Video Adjustments State
-    var showVideoAdjustments by remember { mutableStateOf(false) }
-    
-    // More Popup State
-    var showMorePopup by remember { mutableStateOf(false) }
-    
-    // Bookmarks State
-    var showBookmarksSheet by remember { mutableStateOf(false) }
-    var showQualitySheet by remember { mutableStateOf(false) }
-    var showAdPopup by remember { mutableStateOf(false) }
     val bookmarks by viewModel.bookmarks.collectAsState()
-    
-    // Subtitles State
-    var showSubtitlesSheet by remember { mutableStateOf(false) }
 
     // Auto Chapters State
     var isGeneratingChapters by remember { mutableStateOf(false) }
@@ -190,7 +182,7 @@ fun PlayerScreen(
         com.helpofai.videoplayer.MainActivity.isPlayerActive = true
         
         // Apply Learned Global Preferences
-        val prefBright = viewModel.learningEngine.getPreferredBrightness()
+        val prefBright = viewModel.preferencesUseCase.getPreferredBrightness()
         if (prefBright >= 0f) {
             activity?.window?.let { win ->
                 val params = win.attributes
@@ -199,7 +191,7 @@ fun PlayerScreen(
             }
         }
         
-        val prefVol = viewModel.learningEngine.getPreferredVolume()
+        val prefVol = viewModel.preferencesUseCase.getPreferredVolume()
         if (prefVol >= 0f) {
             val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
             val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
@@ -295,17 +287,6 @@ fun PlayerScreen(
         insetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
     }
 
-    // Effect for long-press speed boost
-    DisposableEffect(isLongPressing) {
-        if (isLongPressing) {
-            viewModel.videoPlayer.setPlaybackSpeed(2.0f)
-        } else {
-            viewModel.videoPlayer.setPlaybackSpeed(1.0f)
-        }
-        onDispose {
-            viewModel.videoPlayer.setPlaybackSpeed(1.0f)
-        }
-    }
 
     // Auto-rotate and Play/Pause feedback
     DisposableEffect(viewModel.videoPlayer.player) {
@@ -430,206 +411,37 @@ fun PlayerScreen(
         if (!isInPipMode) {
             if (!isControlsLocked) {
             // Gesture Overlay Layer (Double tap, Long press, Swipe, Zoom)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onDoubleTap = { offset ->
-                                val screenWidth = size.width
-                                val centerWidth = screenWidth * 0.3f // Center 30%
-                                val leftBound = (screenWidth - centerWidth) / 2
-                                val rightBound = leftBound + centerWidth
-
-                                if (offset.x < leftBound) {
-                                    viewModel.videoPlayer.seekBack()
-                                    if (seekAccumulation > 0) seekAccumulation = 0
-                                    seekAccumulation -= 10
-                                    feedbackEvent = FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${seekAccumulation}s")
-                                } else if (offset.x > rightBound) {
-                                    viewModel.videoPlayer.seekForward()
-                                    if (seekAccumulation < 0) seekAccumulation = 0
-                                    seekAccumulation += 10
-                                    feedbackEvent = FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${seekAccumulation}s")
-                                } else {
-                                    // Center double tap -> toggle play/pause
-                                    if (isPlaying) {
-                                        viewModel.videoPlayer.pause()
-                                        showAdPopup = true
-                                    } else {
-                                        viewModel.videoPlayer.play()
-                                        showAdPopup = false
-                                    }
-                                }
-                            },
-                            onTap = {
-                                if (isToolsExpanded) {
-                                    isToolsExpanded = false
-                                } else {
-                                    isControllerVisible = !isControllerVisible
-                                }
-                            },
-                            onPress = {
-                                tryAwaitRelease()
-                                isLongPressing = false
-                            },
-                            onLongPress = {
-                                isLongPressing = true
-                                feedbackEvent = FeedbackEvent(FeedbackType.SPEED, Icons.Default.Speed, "2.0x Speed", color = Color(0xFFBB86FC))
-                            }
-                        )
-                    }
-                    .pointerInput(Unit) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false)
-                            var zoom = 1f
-                            var pastTouchSlop = false
-                            val touchSlop = viewConfiguration.touchSlop
-                            
-                            do {
-                                val event = awaitPointerEvent()
-                                val canceled = event.changes.any { it.isConsumed }
-                                if (!canceled) {
-                                    if (event.changes.size >= 2) {
-                                        val zoomChange = event.calculateZoom()
-                                        val panChange = event.calculatePan()
-                                        
-                                        if (!pastTouchSlop) {
-                                            zoom *= zoomChange
-                                            val centroidSize = event.calculateCentroidSize(useCurrent = false)
-                                            val zoomMotion = kotlin.math.abs(1 - zoom) * centroidSize
-                                            if (zoomMotion > touchSlop) {
-                                                pastTouchSlop = true
-                                            }
-                                        }
-                                        
-                                        if (pastTouchSlop) {
-                                            scale = (scale * zoomChange).coerceIn(0.5f, 5f)
-                                            if (scale > 1f) {
-                                                val maxX = (size.width * (scale - 1)) / 2
-                                                val maxY = (size.height * (scale - 1)) / 2
-                                                offsetX = (offsetX + panChange.x).coerceIn(-maxX, maxX)
-                                                offsetY = (offsetY + panChange.y).coerceIn(-maxY, maxY)
-                                            } else {
-                                                offsetX = 0f
-                                                offsetY = 0f
-                                            }
-                                            event.changes.forEach { if (it.positionChanged()) it.consume() }
-                                        }
-                                    } else {
-                                        pastTouchSlop = false
-                                        zoom = 1f
-                                    }
-                                }
-                            } while (!canceled && event.changes.any { it.pressed })
-                        }
-                    }
-                    .pointerInput(Unit) {
-                        // Removed (scale == 1f) to allow gesture controls always
-                        var isSeeking = false
-                        var isAdjustingVolBright = false
-                            var seekAccumulator = 0f
-                            var startPosition = 0L
-                            var initialVolume = 0f
-                            var initialBrightness = 0f
-                            var accumulatedY = 0f
-                            var lastBrightness = -1f
-                            var lastVolume = -1f
-
-                            detectDragGestures(
-                            onDragStart = { offset ->
-                                seekAccumulator = 0f
-                                startPosition = viewModel.videoPlayer.player.currentPosition
-                                isSeeking = false
-                                isAdjustingVolBright = false
-                                accumulatedY = 0f
-                                lastBrightness = -1f
-                                lastVolume = -1f
-                                
-                                val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-                                val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                                initialVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / maxVol
-                                
-                                activity?.window?.let { window ->
-                                    var currentBrightness = window.attributes.screenBrightness
-                                    if (currentBrightness < 0) currentBrightness = 0.5f
-                                    initialBrightness = currentBrightness
-                                }
-                            },
-                            onDragEnd = {
-                                if (isSeeking) {
-                                    val screenWidth = size.width
-                                    val seekAmountMs = (seekAccumulator / screenWidth) * 120000
-                                    val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, viewModel.videoPlayer.player.duration)
-                                    viewModel.videoPlayer.player.seekTo(newPos)
-                                } else if (isAdjustingVolBright) {
-                                    if (lastBrightness >= 0f) viewModel.learningEngine.learnBrightness(lastBrightness)
-                                    if (lastVolume >= 0f) viewModel.learningEngine.learnVolume(lastVolume)
-                                }
-                                isSeeking = false
-                                isAdjustingVolBright = false
-                            },
-                            onDragCancel = {
-                                isSeeking = false
-                                isAdjustingVolBright = false
-                            }
-                        ) { change, dragAmount ->
-                            change.consume()
-                            val screenWidth = size.width
-                            val screenHeight = size.height
-                            val isLeftSide = change.position.x < screenWidth / 2
-
-                            if (!isSeeking && !isAdjustingVolBright) {
-                                if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y) * 1.5f) {
-                                    isSeeking = true
-                                } else if (kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 1.5f) {
-                                    isAdjustingVolBright = true
-                                }
-                            }
-
-                            if (isSeeking) {
-                                seekAccumulator += dragAmount.x
-                                val seekAmountMs = (seekAccumulator / screenWidth) * 120000
-                                val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, viewModel.videoPlayer.player.duration)
-                                
-                                val currentSecs = newPos / 1000
-                                val m = currentSecs / 60
-                                val s = currentSecs % 60
-                                val sign = if (seekAmountMs >= 0) "+" else ""
-                                val diffSecs = (seekAmountMs / 1000).toInt()
-                                feedbackEvent = FeedbackEvent(FeedbackType.SEEK, Icons.AutoMirrored.Filled.CompareArrows, String.format("%02d:%02d (%s%ds)", m, s, sign, diffSecs))
-                            } else if (isAdjustingVolBright) {
-                                accumulatedY += dragAmount.y
-                                // A full screen height swipe changes the value by 150% (so 2/3 screen = 100%)
-                                val delta = -accumulatedY / screenHeight * 1.5f 
-                                
-                                if (isLeftSide) {
-                                    // Brightness
-                                    activity?.window?.let { window ->
-                                        val params = window.attributes
-                                        val newB = (initialBrightness + delta).coerceIn(0f, 1f)
-                                        params.screenBrightness = newB
-                                        window.attributes = params
-                                        lastBrightness = newB
-                                        
-                                        feedbackEvent = FeedbackEvent(FeedbackType.BRIGHTNESS, Icons.Default.BrightnessMedium, "${(params.screenBrightness * 100).toInt()}%", value = params.screenBrightness, color = Color(0xFFFFEB3B))
-                                    }
-                                } else {
-                                    // Volume
-                                    val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-                                    val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                                    val newVolFloat = initialVolume + delta
-                                    val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
-                                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVol, 0)
-                                    lastVolume = newVolFloat.coerceIn(0f, 1f)
-                                    
-                                    feedbackEvent = FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3))
-                            }
-                        }
-                    }
+            com.helpofai.videoplayer.feature.player.components.PlayerGestureSurface(
+                viewModel = viewModel,
+                activity = activity,
+                context = context,
+                isPlaying = isPlaying,
+                isToolsExpanded = isToolsExpanded,
+                isControllerVisible = isControllerVisible,
+                longPressBoostSpeed = longPressBoostSpeed,
+                scale = scale,
+                offsetX = offsetX,
+                offsetY = offsetY,
+                seekAccumulation = seekAccumulation,
+                onScaleChange = { scale = it },
+                onOffsetChange = { ox, oy -> offsetX = ox; offsetY = oy },
+                onSeekAccumulationChange = { seekAccumulation = it },
+                onControllerVisibilityChange = { isControllerVisible = it },
+                onToolsExpandedChange = { isToolsExpanded = it },
+                onPlayPauseToggle = { showAd -> if (showAd) activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP else if (activeDialog == com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP) activeDialog = null },
+                onFeedbackEvent = { feedbackEvent = it },
+                onLongPressStateChange = { visible, cx, cy, fx, fy, idx, savedSpeed ->
+                    longPressSelectorVisible = visible
+                    longPressCenterX = cx
+                    longPressCenterY = cy
+                    longPressFingerX = fx
+                    longPressFingerY = fy
+                    selectedSpeedIndex = idx
+                    savedSpeedBeforeBoost = savedSpeed
                 }
             )
         }
+        
 
         if (!isControlsLocked) {
             // Modern MX Player Inspired Top Toolbar
@@ -638,8 +450,8 @@ fun PlayerScreen(
                 title = currentVideoTitle,
                 onBackClick = { activity?.finish() },
                 onLockClick = { isControlsLocked = true },
-                onSpeedClick = { showSpeedDial = true },
-                onEqClick = { showEqualizer = true },
+                onSpeedClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SPEED_DIAL },
+                onEqClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.EQUALIZER },
                 onLoopClick = {
                     val player = viewModel.videoPlayer.player
                     player.repeatMode = if (isLooping) androidx.media3.common.Player.REPEAT_MODE_OFF else androidx.media3.common.Player.REPEAT_MODE_ONE
@@ -675,18 +487,18 @@ fun PlayerScreen(
                 },
                 onAudioClick = {
                     trackSelectorInitialTab = 0
-                    showTrackSelector = true
+                    activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
                 },
                 onSubtitlesClick = {
                     trackSelectorInitialTab = 1
-                    showTrackSelector = true
+                    activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
                 },
                 onScreenshotClick = {
                     viewModel.takeScreenshot(context) { path ->
                         feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.PhotoCamera, "Screenshot Saved")
                     }
                 },
-                onInfoClick = { showInfoDialog = true },
+                onInfoClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.VIDEO_INFO },
                 onRotateClick = {
                     isLandscape = !isLandscape
                     activity?.requestedOrientation = if (isLandscape) {
@@ -696,11 +508,39 @@ fun PlayerScreen(
                     }
                 },
                 onVideoEnhancerClick = { showVideoEnhancer = true },
-                onVideoAdjustmentsClick = { showVideoAdjustments = true },
-                onMoreClick = { showMorePopup = true },
+                onVideoAdjustmentsClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.VIDEO_ADJUSTMENTS },
+                onMoreClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.MORE_POPUP },
                 isToolsExpanded = isToolsExpanded,
                 onToolsExpandedChange = { isToolsExpanded = it },
                 modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
+        if (!isControlsLocked) {
+            val playbackState by viewModel.videoPlayer.playbackState.collectAsState()
+            com.helpofai.videoplayer.feature.player.components.PlayerBottomController(
+                isVisible = isControllerVisible,
+                isPlaying = isPlaying,
+                currentPosition = playbackState.currentPosition,
+                duration = playbackState.duration,
+                isLandscape = isLandscape,
+                bookmarks = emptyList(), // Pass actual bookmarks later if needed
+                lastPlayedPosition = null,
+                onPlayPauseClick = {
+                    if (isPlaying) viewModel.videoPlayer.pause()
+                    else viewModel.videoPlayer.play()
+                },
+                onSeek = { pos -> viewModel.videoPlayer.player.seekTo(pos) },
+                onNextClick = { viewModel.playNextVideo() },
+                onPrevClick = { viewModel.playPrevVideo() },
+                onFullscreenClick = {
+                    isLandscape = !isLandscape
+                    activity?.requestedOrientation = if (isLandscape) {
+                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    } else {
+                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
 
@@ -761,275 +601,71 @@ fun PlayerScreen(
             )
         }
 
-        if (showTrackSelector) {
-            TrackSelectorBottomSheet(
-                player = viewModel.videoPlayer.player,
-                initialTab = trackSelectorInitialTab,
-                onDismissRequest = { showTrackSelector = false },
-                onLoadExternalSubtitle = {
-                    subtitlePickerLauncher.launch("*/*")
-                }
-            )
-        }
-
-        // Decoder Selector
-        if (showDecoderSelector) {
-            DecoderSelectorSheet(
-                currentDecoder = decoderMode,
-                onDecoderSelect = { mode ->
-                    decoderMode = mode
-                    // TODO: Implement actual decoder switching (e.g. exo_player track flags for SW vs HW)
-                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.Memory, "Decoder set to $mode")
-                },
-                onDismissRequest = { showDecoderSelector = false }
-            )
-        }
-
-        // Video Info Dialog
-        if (showInfoDialog) {
-            VideoInfoDialog(
-                player = viewModel.videoPlayer.player,
-                videoPath = viewModel.currentVideoPath,
-                onDismissRequest = { showInfoDialog = false }
-            )
-        }
-
-        // Audio Equalizer Sheet
-        if (showEqualizer) {
-            AudioEqualizerSheet(
-                audioEffectManager = viewModel.audioEffectManager,
-                onDismissRequest = { showEqualizer = false }
-            )
-        }
-
-        // Speed Dial Sheet
-        if (showSpeedDial) {
-            PlaybackSpeedSheet(
-                currentSpeed = viewModel.videoPlayer.player.playbackParameters.speed,
-                onSpeedSelected = { spd ->
-                    viewModel.videoPlayer.player.setPlaybackSpeed(spd)
-                    viewModel.learningEngine.learnPlaybackSpeed(spd)
-                },
-                onDismissRequest = { showSpeedDial = false }
-            )
-        }
-        
-        // Video Enhancer Sheet
-        if (showVideoEnhancer) {
-            VideoEnhancerSheet(
-                videoTitle = currentVideoTitle,
-                currentProfileId = activeEnhancerProfile,
-                onProfileSelect = { profileId ->
-                    activeEnhancerProfile = profileId
-                    feedbackEvent = FeedbackEvent(
-                        type = FeedbackType.INFO,
-                        icon = Icons.Default.AutoFixHigh,
-                        text = "AI Profile Applied"
-                    )
-                },
-                onDismissRequest = { showVideoEnhancer = false }
-            )
-        }
-        
-        // Video Adjustments Sheet
-        if (showVideoAdjustments) {
-            var currentBrightness by remember { 
-                mutableFloatStateOf(activity?.window?.attributes?.screenBrightness?.takeIf { it >= 0 } ?: 0.5f) 
-            }
-            VideoAdjustmentsSheet(
-                currentResizeMode = resizeMode,
-                onResizeModeSelected = { 
-                    resizeMode = it 
-                    viewModel.learningEngine.learnAspectRatio(it.toString())
-                },
-                currentBrightness = currentBrightness,
-                onBrightnessChanged = { newBrightness ->
-                    currentBrightness = newBrightness
-                    activity?.window?.let { window ->
-                        val params = window.attributes
-                        params.screenBrightness = newBrightness
-                        window.attributes = params
-                    }
-                    viewModel.learningEngine.learnBrightness(newBrightness)
-                },
-                isMirrored = isMirrored,
-                onMirrorToggled = { 
-                    isMirrored = it 
-                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.Flip, if (it) "Mirror On" else "Mirror Off")
-                },
-                isFlipped = isFlipped,
-                onFlipToggled = { 
-                    isFlipped = it 
-                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.Flip, if (it) "Flip On" else "Flip Off")
-                },
-                rotationZ = rotationZ,
-                onRotationChanged = { 
-                    rotationZ = it 
-                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.AutoMirrored.Filled.RotateRight, "${(it % 360).toInt()}°")
-                },
-                onDismissRequest = { showVideoAdjustments = false }
-            )
-        }
-
-        if (!isControlsLocked) {
-            PlayerBottomController(
-                isVisible = isControllerVisible,
-                isPlaying = isPlaying,
-                currentPosition = currentPosition,
-                duration = duration,
-                isLandscape = isLandscape,
-                bookmarks = bookmarks.map { it.timeMs },
-                lastPlayedPosition = videoMetadata?.lastPlayedPosition,
-                onPlayPauseClick = {
-                    if (isPlaying) viewModel.videoPlayer.pause() else viewModel.videoPlayer.play()
-                },
-                onSeek = { pos -> 
-                    viewModel.videoPlayer.player.seekTo(pos)
-                    currentPosition = pos
-                },
-                onNextClick = { viewModel.playNextVideo() },
-                onPrevClick = { viewModel.playPrevVideo() },
-                onFullscreenClick = {
-                    isLandscape = !isLandscape
-                    activity?.requestedOrientation = if (isLandscape) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
-                    }
-                },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-        }
-
-        // Quality Analyzer Sheet
         val qualityReport by viewModel.qualityReport.collectAsState()
         val isAnalyzingQuality by viewModel.isAnalyzingQuality.collectAsState()
 
-        if (showQualitySheet || isAnalyzingQuality || qualityReport != null) {
-            com.helpofai.videoplayer.feature.qualityanalyzer.components.QualityReportSheet(
-                report = qualityReport,
-                isAnalyzing = isAnalyzingQuality,
-                onDismissRequest = { 
-                    showQualitySheet = false
-                    viewModel.clearQualityReport()
-                }
-            )
-        }
+        com.helpofai.videoplayer.feature.player.components.PlayerDialogManager(
+            activeDialog = activeDialog,
+            onDismissRequest = { activeDialog = null },
+            viewModel = viewModel,
+            decoderMode = decoderMode,
+            onDecoderModeSelect = {
+                decoderMode = it
+                activeDialog = null
+            },
 
-        // More Popup (Video List & Bookmarks)
-        if (showMorePopup) {
-            PlayerMorePopup(
-                videos = playlist,
-                currentVideoPath = viewModel.currentVideoPath,
-                onVideoSelect = { path ->
-                    viewModel.playVideo(path)
-                    showMorePopup = false
-                },
-                onReorderPlaylist = { from, to ->
-                    viewModel.reorderPlaylist(from, to)
-                },
-                onBookmarksClick = {
-                    showMorePopup = false
-                    showBookmarksSheet = true
-                },
-                onQualityAnalyzerClick = {
-                    showMorePopup = false
-                    showQualitySheet = true
-                    viewModel.analyzeVideoQuality()
-                },
-                onDismissRequest = { showMorePopup = false }
-            )
-        }
-        
-        // Ad Popup when paused via center double-tap
-        if (showAdPopup && !isPlaying) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.8f))
-                    .clickable { 
-                        viewModel.videoPlayer.play()
-                        showAdPopup = false
+            resizeMode = resizeMode,
+            onResizeModeSelected = { resizeMode = it },
+            brightness = viewModel.preferencesUseCase.getPreferredBrightness().coerceAtLeast(0f),
+            onBrightnessChanged = { 
+                activity?.window?.let { win ->
+                    val params = win.attributes
+                    params.screenBrightness = it
+                    win.attributes = params
+                }
+                viewModel.preferencesUseCase.saveBrightness(it)
+            },
+            isMirrored = isMirrored,
+            onMirrorToggled = { isMirrored = it },
+            isFlipped = isFlipped,
+            onFlipToggled = { isFlipped = it },
+            rotationZ = rotationZ,
+            onRotationChanged = { rotationZ = it; feedbackEvent = FeedbackEvent(FeedbackType.INFO, androidx.compose.material.icons.Icons.AutoMirrored.Filled.RotateRight, "${(it % 360).toInt()}°") },
+            qualityReport = qualityReport,
+            isAnalyzingQuality = isAnalyzingQuality,
+            playlist = playlist,
+            currentVideoPath = viewModel.currentVideoPath ?: "",
+            onVideoSelect = { path ->
+                viewModel.playVideo(path)
+                activeDialog = null
+            },
+            onReorderPlaylist = { from, to -> viewModel.reorderPlaylist(from, to) },
+            onShowDialog = { activeDialog = it },
+            isPlaying = isPlaying,
+            bookmarks = bookmarks,
+            onSeekTo = { pos -> 
+                viewModel.videoPlayer.player.seekTo(pos)
+                currentPosition = pos
+                activeDialog = null
+            },
+            isGeneratingChapters = isGeneratingChapters,
+            onGenerateAutoChapters = { onStart, onComplete ->
+                viewModel.generateAutoChapters(
+                    onStart = {
+                        isGeneratingChapters = true
+                        onStart()
                     },
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(32.dp)
-                ) {
-                    Text(
-                        text = "Paused",
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                    
-                    // Show Native Ad
-                    com.helpofai.videoplayer.core.ads.NativeAdCard(
-                        modifier = Modifier.width(320.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    IconButton(
-                        onClick = { 
-                            viewModel.videoPlayer.play()
-                            showAdPopup = false 
-                        },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(MaterialTheme.colorScheme.primary, shape = androidx.compose.foundation.shape.CircleShape)
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow, 
-                            contentDescription = "Resume", 
-                            tint = Color.White, 
-                            modifier = Modifier.size(16.dp)
-                        )
+                    onComplete = { success ->
+                        isGeneratingChapters = false
+                        onComplete(success)
                     }
-                }
-            }
-        }
+                )
+            },
+            onLoadExternalSubtitle = { subtitlePickerLauncher.launch("*/*") },
+            onFeedbackEvent = { feedbackEvent = it }
+        )
         
-        // Bookmarks & Chapters Sheet
-        if (showBookmarksSheet) {
-            com.helpofai.videoplayer.feature.scenedetection.components.SceneSelectionSheet(
-                videoPath = viewModel.currentVideoPath,
-                bookmarks = bookmarks,
-                onSeekTo = { pos -> 
-                    viewModel.videoPlayer.player.seekTo(pos)
-                    currentPosition = pos
-                },
-                onGenerateAutoChapters = {
-                    viewModel.generateAutoChapters(
-                        onStart = { isGeneratingChapters = true },
-                        onComplete = { success ->
-                            isGeneratingChapters = false
-                            if (success) {
-                                feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "Scenes Detected")
-                            } else {
-                                feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "No Scenes Found")
-                            }
-                        }
-                    )
-                },
-                isGeneratingChapters = isGeneratingChapters,
-                onDismissRequest = { showBookmarksSheet = false }
-            )
-        }
-        
-        if (showSubtitlesSheet) {
-            TrackSelectorBottomSheet(
-                player = viewModel.videoPlayer.player,
-                initialTab = 1,
-                onDismissRequest = { showSubtitlesSheet = false },
-                onLoadExternalSubtitle = {
-                    subtitlePickerLauncher.launch("*/*")
-                }
-            )
-        }
-        
+
         if (isBuffering) {
             Box(
                 modifier = Modifier
@@ -1066,6 +702,18 @@ fun PlayerScreen(
             feedback = feedbackEvent,
             isLongPressing = isLongPressing,
             modifier = Modifier.align(Alignment.Center)
+        )
+        
+        // Long-Press Speed Selector Overlay
+        CircularSpeedWheel(
+            isVisible = longPressSelectorVisible,
+            centerX = longPressCenterX,
+            centerY = longPressCenterY,
+            fingerX = longPressFingerX,
+            fingerY = longPressFingerY,
+            selectedIndex = selectedSpeedIndex,
+            currentSpeed = 1.0f,
+            modifier = Modifier.fillMaxSize()
         )
     }
 }

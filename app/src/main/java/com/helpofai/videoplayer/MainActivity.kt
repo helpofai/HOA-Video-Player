@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -43,6 +44,11 @@ import com.helpofai.videoplayer.feature.privacy.PinScreen
 import com.helpofai.videoplayer.feature.permissions.PermissionScreen
 import com.helpofai.videoplayer.feature.permissions.hasRequiredPermissions
 import com.helpofai.videoplayer.feature.splash.AnimatedSplashScreen
+import com.helpofai.videoplayer.core.ads.AdManager
+import com.helpofai.videoplayer.core.ads.InterstitialAdTrigger
+import com.helpofai.videoplayer.core.model.Video
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import javax.inject.Inject
 
 import com.helpofai.videoplayer.core.data.SettingsRepository
@@ -164,13 +170,27 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("home") {
-                            HomeScreen(
-                                onVideoClick = { video ->
-                                    val encodedUri = Uri.encode(video.uri.toString())
-                                    val encodedPath = Uri.encode(video.path)
-                                    com.helpofai.videoplayer.core.ads.AdManager.showInterstitialAd(this@MainActivity) {
+                            // Interstitial trigger state — set to the clicked video to trigger the ad.
+                            var pendingVideo by remember { mutableStateOf<Video?>(null) }
+
+                            // InterstitialAdTrigger observes pendingVideo and shows the ad
+                            // (with frequency capping) then navigates when done.
+                            InterstitialAdTrigger(
+                                trigger    = pendingVideo != null,
+                                onComplete = {
+                                    val video = pendingVideo
+                                    if (video != null) {
+                                        val encodedUri  = Uri.encode(video.uri.toString())
+                                        val encodedPath = Uri.encode(video.path)
                                         navController.navigate("player/$encodedUri?path=$encodedPath")
                                     }
+                                    pendingVideo = null
+                                }
+                            )
+
+                            HomeScreen(
+                                onVideoClick = { video ->
+                                    pendingVideo = video
                                 },
                                 onSettingsClick = {
                                     navController.navigate("settings")

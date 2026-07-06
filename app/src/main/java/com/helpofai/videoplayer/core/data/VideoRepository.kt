@@ -17,26 +17,22 @@ class VideoRepository @Inject constructor(
     private val mediaScanner: MediaScanner,
     private val videoDao: VideoDao
 ) {
-    suspend fun getVideosWithMetadata(): Flow<List<Video>> = withContext(Dispatchers.IO) {
-        val allLocalVideos = mediaScanner.getVideos()
-        
-        videoDao.getAllMetadata().map { metadataList ->
-            val metadataMap = metadataList.associateBy { it.path }
-            
-            allLocalVideos.map { video ->
-                val meta = metadataMap[video.path]
-                video.copy(
-                    isFavorite = meta?.isFavorite ?: false,
-                    lastPlayedPosition = meta?.lastPlayedPosition ?: 0L,
-                    playCount = meta?.playCount ?: 0,
-                    lastPlayedTimestamp = meta?.lastPlayedTimestamp ?: 0L,
-                    category = MediaSmartCategorizer.categorizeVideo(video.title, video.path, video.duration),
-                    playbackSpeed = meta?.playbackSpeed ?: 1.0f,
-                    subtitleTrackLanguage = meta?.subtitleTrackLanguage,
-                    audioTrackLanguage = meta?.audioTrackLanguage
-                )
-            }.sortedByDescending { it.dateAdded }
-        }
+    fun getVideosWithMetadata(): Flow<List<Video>> = videoDao.getAllMetadata().map { metadataList ->
+        val allLocalVideos = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
+        val metadataMap = metadataList.associateBy { it.path }
+        allLocalVideos.map { video ->
+            val meta = metadataMap[video.path]
+            video.copy(
+                isFavorite = meta?.isFavorite ?: false,
+                lastPlayedPosition = meta?.lastPlayedPosition ?: 0L,
+                playCount = meta?.playCount ?: 0,
+                lastPlayedTimestamp = meta?.lastPlayedTimestamp ?: 0L,
+                category = MediaSmartCategorizer.categorizeVideo(video.title, video.path, video.duration),
+                playbackSpeed = meta?.playbackSpeed ?: 1.0f,
+                subtitleTrackLanguage = meta?.subtitleTrackLanguage,
+                audioTrackLanguage = meta?.audioTrackLanguage
+            )
+        }.sortedByDescending { it.dateAdded }
     }
 
     suspend fun toggleFavorite(path: String, isFavorite: Boolean) {

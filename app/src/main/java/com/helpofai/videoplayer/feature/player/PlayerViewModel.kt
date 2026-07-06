@@ -31,11 +31,11 @@ class PlayerViewModel @Inject constructor(
     val videoPlayer: VideoPlayer,
     val audioEffectManager: AudioEffectManager,
     private val repository: VideoRepository,
-    private val settingsRepository: com.helpofai.videoplayer.core.data.SettingsRepository,
     private val ffmpegManager: FFmpegManager,
     private val sceneDetectionEngine: SceneDetectionEngine,
     private val qualityAnalyzerEngine: com.helpofai.videoplayer.feature.qualityanalyzer.QualityAnalyzerEngine,
-    val learningEngine: com.helpofai.videoplayer.feature.learning.OfflineLearningEngine,
+    val preferencesUseCase: com.helpofai.videoplayer.feature.player.domain.PlayerPreferencesUseCase,
+    private val playbackManager: com.helpofai.videoplayer.core.playback.MediaPlaybackManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -82,7 +82,9 @@ class PlayerViewModel @Inject constructor(
     
     private var abRepeatJob: kotlinx.coroutines.Job? = null
 
-    val backgroundPlaybackEnabled = settingsRepository.backgroundPlayback.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val backgroundPlaybackEnabled = preferencesUseCase.backgroundPlaybackEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val longPressBoostSpeed = preferencesUseCase.longPressBoostSpeed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2.0f)
 
     init {
         val videoUriString = savedStateHandle.get<String>("videoUri")
@@ -94,12 +96,6 @@ class PlayerViewModel @Inject constructor(
             _currentPathFlow.value = currentVideoPath
             
             viewModelScope.launch {
-                var subtitleConfigs = currentVideoPath?.let { path ->
-                    findSubtitlesForVideo(path)
-                } ?: emptyList()
-
-                val fileName = currentVideoPath?.let { java.io.File(it).name } ?: "Video"
-                
                 val meta = currentVideoPath?.let { repository.getMetadata(it) }
                 _videoMetadata.value = meta
                 _abRepeatStart.value = meta?.abRepeatStart
@@ -107,50 +103,23 @@ class PlayerViewModel @Inject constructor(
                 
                 if (meta != null && meta.lastPlayedPosition > 0L) {
                     val duration = meta.totalDuration
-                    // Do not prompt if watched till the very end (within 5 seconds)
                     if (duration == 0L || meta.lastPlayedPosition < duration - 5000L) {
                         resumePosition = meta.lastPlayedPosition
-                        // We will show the prompt in observePlaybackState when the video is actually ready
                     }
                 }
                 
-                if (meta?.externalSubtitleUri != null) {
-                    val extUri = Uri.parse(meta.externalSubtitleUri)
-                    val extConfig = MediaItem.SubtitleConfiguration.Builder(extUri)
-                        .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_SUBRIP)
-                        .setLanguage("ext")
-                        .setLabel("External Subtitle")
-                        .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
-                        .build()
-                    subtitleConfigs = (subtitleConfigs + extConfig).toMutableList()
+                if (currentVideoPath != null) {
+                    playbackManager.prepareVideo(
+                        path = currentVideoPath!!,
+                        uri = uri,
+                        meta = meta,
+                        resumePosition = resumePosition,
+                        preferredSpeed = preferencesUseCase.getPreferredPlaybackSpeed(),
+                        preferredSubtitleLang = preferencesUseCase.getPreferredSubtitleLanguage(),
+                        zoomLevel = meta?.zoomLevel ?: 1.0f
+                    )
                 }
 
-                val mediaItem = MediaItem.Builder()
-                    .setUri(uri)
-                    .setSubtitleConfigurations(subtitleConfigs)
-                    .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(fileName).build())
-                    .build()
-
-                videoPlayer.prepare(mediaItem)
-                
-                val speed = learningEngine.getPreferredPlaybackSpeed()
-                videoPlayer.player.setPlaybackSpeed(speed)
-                
-                val subtitleLang = learningEngine.getPreferredSubtitleLanguage()
-                if (subtitleLang != null && subtitleLang != "Off") {
-                    videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
-                        .buildUpon()
-                        .setPreferredTextLanguage(subtitleLang)
-                        .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false)
-                        .build()
-                } else {
-                    videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
-                        .buildUpon()
-                        .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true)
-                        .build()
-                }
-                
-                // Fetch Playlist (videos in same folder)
                 repository.getVideosWithMetadata().collect { allVideos ->
                     val currentParent = currentVideoPath?.let { java.io.File(it).parent }
                     if (currentParent != null) {
@@ -184,7 +153,7 @@ class PlayerViewModel @Inject constructor(
             while (isActive) {
                 val start = _abRepeatStart.value
                 val end = _abRepeatEnd.value
-                if (start != null && end != null && start < end) {
+                if (start != null && end != null && start < end && (start > 0 || end - start > 5000)) {
                     if (videoPlayer.player.currentPosition >= end) {
                         videoPlayer.player.seekTo(start)
                     }
@@ -226,6 +195,8 @@ class PlayerViewModel @Inject constructor(
                 if (state.playbackState == androidx.media3.common.Player.STATE_READY && !hasShownResumePromptForCurrentVideo) {
                     hasShownResumePromptForCurrentVideo = true
                     if (resumePosition > 0L) {
+                        // Seek to saved position when player is fully ready (reliable)
+                        videoPlayer.player.seekTo(resumePosition)
                         showResumePrompt = true
                         
                         // Auto-hide after 10 seconds
@@ -298,20 +269,12 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             // Record current playback position before switching
             currentVideoPath?.let { oldPath ->
-                val position = videoPlayer.player.currentPosition
-                val speed = videoPlayer.player.playbackParameters.speed
-                val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
-                val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
-                repository.recordPlayback(oldPath, position, speed, audioLang, subLang, lastZoomLevel)
+                playbackManager.recordPlaybackState(oldPath, lastZoomLevel)
             }
             
             currentVideoPath = path
             _currentPathFlow.value = path
             val uri = Uri.fromFile(java.io.File(path))
-            
-            var subtitleConfigs = findSubtitlesForVideo(path).toMutableList()
-            
-            val fileName = java.io.File(path).name
             
             val meta = repository.getMetadata(path)
             _videoMetadata.value = meta
@@ -329,54 +292,17 @@ class PlayerViewModel @Inject constructor(
                 }
             }
             
-            if (meta?.externalSubtitleUri != null) {
-                val extUri = Uri.parse(meta.externalSubtitleUri)
-                val extConfig = MediaItem.SubtitleConfiguration.Builder(extUri)
-                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_SUBRIP)
-                    .setLanguage("ext")
-                    .setLabel("External Subtitle")
-                    .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
-                    .build()
-                subtitleConfigs.add(extConfig)
-            }
-            
-            val mediaItem = MediaItem.Builder()
-                .setUri(uri)
-                .setSubtitleConfigurations(subtitleConfigs)
-                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(fileName).build())
-                .build()
-                
-            videoPlayer.prepare(mediaItem)
-            
-            if (meta != null && meta.lastPlayedPosition > 0L) {
-                videoPlayer.player.seekTo(meta.lastPlayedPosition)
-            }
+            playbackManager.prepareVideo(
+                path = path,
+                uri = uri,
+                meta = meta,
+                resumePosition = resumePosition,
+                preferredSpeed = meta?.playbackSpeed ?: preferencesUseCase.getPreferredPlaybackSpeed(),
+                preferredSubtitleLang = meta?.subtitleTrackLanguage ?: preferencesUseCase.getPreferredSubtitleLanguage(),
+                zoomLevel = meta?.zoomLevel ?: 1.0f
+            )
             
             _zoomLevel.value = meta?.zoomLevel ?: 1.0f
-            
-            val speed = meta?.playbackSpeed ?: learningEngine.getPreferredPlaybackSpeed()
-            videoPlayer.player.setPlaybackSpeed(speed)
-            
-            val subtitleLang = meta?.subtitleTrackLanguage ?: learningEngine.getPreferredSubtitleLanguage()
-            if (subtitleLang != "Off" && subtitleLang != null) {
-                videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
-                    .buildUpon()
-                    .setPreferredTextLanguage(subtitleLang)
-                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false)
-                    .build()
-            } else if (subtitleLang == "Off" || subtitleLang == null) {
-                videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
-                    .buildUpon()
-                    .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true)
-                    .build()
-            }
-            
-            if (meta?.audioTrackLanguage != null) {
-                videoPlayer.player.trackSelectionParameters = videoPlayer.player.trackSelectionParameters
-                    .buildUpon()
-                    .setPreferredAudioLanguage(meta.audioTrackLanguage)
-                    .build()
-            }
             
             videoPlayer.play()
         }
@@ -405,63 +331,13 @@ class PlayerViewModel @Inject constructor(
         _playlist.value = current
     }
 
-    private suspend fun findSubtitlesForVideo(videoPath: String): List<MediaItem.SubtitleConfiguration> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val subtitleConfigs = mutableListOf<MediaItem.SubtitleConfiguration>()
-        try {
-            val videoFile = java.io.File(videoPath)
-            val parentDir = videoFile.parentFile
-            val videoBaseName = videoFile.nameWithoutExtension
 
-            if (parentDir != null && parentDir.exists() && parentDir.isDirectory) {
-                val subtitleFiles = parentDir.listFiles { file ->
-                    file.isFile && file.name.startsWith(videoBaseName) && 
-                    (file.name.endsWith(".srt", true) || 
-                     file.name.endsWith(".vtt", true) ||
-                     file.name.endsWith(".ass", true) ||
-                     file.name.endsWith(".ssa", true))
-                }
-
-                subtitleFiles?.forEach { subFile ->
-                    val extension = subFile.extension.lowercase()
-                    val mimeType = when (extension) {
-                        "srt" -> androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
-                        "vtt" -> androidx.media3.common.MimeTypes.TEXT_VTT
-                        "ass", "ssa" -> androidx.media3.common.MimeTypes.TEXT_SSA
-                        else -> androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
-                    }
-
-                    // Attempt to extract language code if formatted like "video.en.srt"
-                    val nameParts = subFile.nameWithoutExtension.split(".")
-                    val lang = if (nameParts.size > 1) nameParts.last() else "und"
-
-                    val config = MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(subFile))
-                        .setMimeType(mimeType)
-                        .setLanguage(lang)
-                        .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
-                        .setLabel(subFile.name)
-                        .build()
-                    
-                    subtitleConfigs.add(config)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        subtitleConfigs
-    }
 
     override fun onCleared() {
         super.onCleared()
-        // Save playback position
         currentVideoPath?.let { path ->
-            val position = videoPlayer.player.currentPosition
-            val speed = videoPlayer.player.playbackParameters.speed
-            val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
-            val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
-            
-            @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
-            kotlinx.coroutines.GlobalScope.launch {
-                repository.recordPlayback(path, position, speed, audioLang, subLang, lastZoomLevel)
+            viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
+                playbackManager.recordPlaybackState(path, lastZoomLevel)
             }
         }
         videoPlayer.release()

@@ -24,6 +24,8 @@ class SettingsRepository @Inject constructor(
         val HARDWARE_ACCELERATION = booleanPreferencesKey("hardware_acceleration")
         val DYNAMIC_COLORS = booleanPreferencesKey("dynamic_colors")
         val BACKGROUND_PLAYBACK = booleanPreferencesKey("background_playback")
+        val FOLDER_VIEW_MODE = stringPreferencesKey("folder_view_mode")
+        val LONG_PRESS_BOOST_SPEED = floatPreferencesKey("long_press_boost_speed")
     }
 
     val defaultPlaybackSpeed: Flow<Float> = dataStore.data.map { preferences ->
@@ -44,6 +46,14 @@ class SettingsRepository @Inject constructor(
 
     val backgroundPlayback: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[BACKGROUND_PLAYBACK] ?: false
+    }
+
+    val folderViewMode: Flow<String> = dataStore.data.map { preferences ->
+        preferences[FOLDER_VIEW_MODE] ?: "list"
+    }
+
+    val longPressBoostSpeed: Flow<Float> = dataStore.data.map { preferences ->
+        preferences[LONG_PRESS_BOOST_SPEED] ?: 2.0f
     }
 
     suspend fun setDefaultPlaybackSpeed(speed: Float) {
@@ -73,6 +83,18 @@ class SettingsRepository @Inject constructor(
     suspend fun setBackgroundPlayback(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[BACKGROUND_PLAYBACK] = enabled
+        }
+    }
+
+    suspend fun setFolderViewMode(mode: String) {
+        dataStore.edit { preferences ->
+            preferences[FOLDER_VIEW_MODE] = mode
+        }
+    }
+
+    suspend fun setLongPressBoostSpeed(speed: Float) {
+        dataStore.edit { preferences ->
+            preferences[LONG_PRESS_BOOST_SPEED] = speed
         }
     }
 }

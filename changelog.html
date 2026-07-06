@@ -166,12 +166,39 @@
             <p>Release Notes & Changelog</p>
         </div>
 
+        <!-- v3.2.0 Release -->
+        <div class="release">
+            <div class="release-header">
+                <div class="version">
+                    v3.2.0
+                    <span class="badge latest">Latest</span>
+                </div>
+                <div class="date">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    July 2026
+                </div>
+            </div>
+
+            <div class="category-title improved">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                Improvements & Refactoring
+            </div>
+            <ul>
+                <li><strong>Architecture Modularization:</strong> Fully refactored `PlayerScreen.kt` and `PlayerViewModel.kt` to comply with the Domain-Driven Architecture guidelines. Massive files were split into independent, reusable modules.</li>
+                <li><strong>MediaPlaybackManager:</strong> Extracted core ExoPlayer logic (track selection, subtitle preparation, play state recording) into a dedicated playback manager for cleaner code and testability.</li>
+                <li><strong>PlayerPreferencesUseCase:</strong> Extracted user preferences and AI offline learning functionality into a clean use case layer.</li>
+                <li><strong>PlayerDialogManager:</strong> Consolidated all 11+ player popups and bottom sheets into a centralized dialog manager, cutting hundreds of lines of UI clutter from the main player screen.</li>
+                <li><strong>PlayerGestureSurface:</strong> Detached all touch and gesture logic (double-tap, pinch-to-zoom, swipe for volume/brightness) into a dedicated overlay layer.</li>
+                <li><strong>UI Enhancements:</strong> Fixed layering bugs and completely restored playback controls on the screen. Circular speed wheel UI updated with premium aesthetics.</li>
+                <li><strong>Build Stability:</strong> Ensured zero compile errors, optimized imports, and passed all tests.</li>
+            </ul>
+        </div>
+
         <!-- v2.1.0 Release -->
         <div class="release">
             <div class="release-header">
                 <div class="version">
                     v2.1.0
-                    <span class="badge latest">Latest</span>
                 </div>
                 <div class="date">
                     <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
