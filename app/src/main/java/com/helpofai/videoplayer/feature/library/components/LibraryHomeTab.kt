@@ -53,59 +53,11 @@ fun LibraryHomeTab(
     }
 
     if (heroVideos.isNotEmpty()) {
-        val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { heroVideos.size })
-        
-        // Auto-scroll logic
-        androidx.compose.runtime.LaunchedEffect(pagerState) {
-            while (true) {
-                kotlinx.coroutines.delay(4000) // Slide every 4 seconds
-                if (pagerState.pageCount > 1) {
-                    val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
-                    pagerState.animateScrollToPage(
-                        page = nextPage,
-                        animationSpec = androidx.compose.animation.core.tween(
-                            durationMillis = 1000, 
-                            easing = androidx.compose.animation.core.FastOutSlowInEasing
-                        )
-                    )
-                }
-            }
-        }
-        
-        androidx.compose.foundation.pager.HorizontalPager(
-            state = pagerState,
-            contentPadding = PaddingValues(horizontal = 32.dp),
-            pageSpacing = 8.dp,
-            modifier = Modifier.fillMaxWidth().height(180.dp)
-        ) { page ->
-            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-            val absOffset = kotlin.math.abs(pageOffset)
-
-            Box(
-                modifier = Modifier
-                    .graphicsLayer {
-                        val scale = androidx.compose.ui.util.lerp(
-                            start = 0.85f,
-                            stop = 1f,
-                            fraction = 1f - absOffset.coerceIn(0f, 1f)
-                        )
-                        scaleX = scale
-                        scaleY = scale
-                        alpha = androidx.compose.ui.util.lerp(
-                            start = 0.5f,
-                            stop = 1f,
-                            fraction = 1f - absOffset.coerceIn(0f, 1f)
-                        )
-                    }
-            ) {
-                val video = heroVideos[page]
-                LibraryHeroCard(
-                    video = video,
-                    onClick = { onVideoClick(video) },
-                    onFavoriteClick = { onFavoriteClick(video) }
-                )
-            }
-        }
+        InteractiveCardHero(
+            videos = heroVideos,
+            onVideoClick = onVideoClick,
+            onFavoriteClick = onFavoriteClick
+        )
         Spacer(modifier = Modifier.height(16.dp))
         AdAfterHero()
     }
