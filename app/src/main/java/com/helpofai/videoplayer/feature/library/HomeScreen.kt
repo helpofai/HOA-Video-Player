@@ -120,7 +120,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val privacyRepository = remember { com.helpofai.videoplayer.core.data.PrivacyRepository(context) }
-    var isLocked by remember { mutableStateOf(privacyRepository.isLockEnabled()) }
+    
     
     val state by viewModel.state.collectAsState()
     val onFavoriteClick: (Video) -> Unit = { video -> viewModel.toggleFavorite(video) }
@@ -185,20 +185,9 @@ fun HomeScreen(
                 playlistTitle     = if (selectedTab == 2 && selectedFolder != null)
                     SmartPlaylistEngine.generatePlaylists(state.videos).find { it.id == selectedFolder }?.title
                     else null,
-                isLocked          = isLocked,
                 videoCount        = state.videos.size,
                 scrollBehavior    = scrollBehavior,
                 onBackClick       = { selectedFolder = null },
-                onLockClick       = {
-                    if (isLocked) {
-                        privacyRepository.removePin()
-                        isLocked = false
-                    } else {
-                        privacyRepository.setPin("1234")
-                        isLocked = true
-                    }
-                },
-                onStorageClick    = { viewModel.analyzeStorage() },
                 onHabitsClick     = { showHabitReport = true },
                 onSortFilterClick = { showSortFilter = true },
                 onSearchClick     = { /* TODO: open search */ },

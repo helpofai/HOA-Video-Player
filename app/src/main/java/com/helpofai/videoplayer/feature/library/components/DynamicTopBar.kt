@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -128,12 +129,9 @@ fun DynamicTopBar(
     selectedTab:          Int,
     selectedFolder:       String?,
     playlistTitle:        String?,
-    isLocked:             Boolean,
     videoCount:           Int      = 0,
     scrollBehavior:       TopAppBarScrollBehavior,
     onBackClick:          () -> Unit,
-    onLockClick:          () -> Unit,
-    onStorageClick:       () -> Unit,
     onHabitsClick:        () -> Unit,
     onSortFilterClick:    () -> Unit,
     onSearchClick:        () -> Unit,
@@ -177,13 +175,9 @@ fun DynamicTopBar(
             ) { (tab, folder, pTitle) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     when {
-                        // Home tab: animated logo + video count badge
+                        // Home tab: animated logo only (badge removed)
                         tab == 0 -> {
                             AppLogoAnimated()
-                            Spacer(Modifier.width(10.dp))
-                            if (videoCount > 0) {
-                                VideoBadge(count = videoCount)
-                            }
                         }
                         // Folder detail: folder name
                         tab == 1 && folder != null -> {
@@ -236,28 +230,6 @@ fun DynamicTopBar(
 
         // ── Actions (right side) ──────────────────────────────────────────────
         actions = {
-            // Lock — Home only
-            DynamicActionIcon(visible = isHome) {
-                IconButton(onClick = onLockClick) {
-                    val icon = if (isLocked) Icons.Default.Lock else Icons.Default.LockOpen
-                    val tint = if (isLocked)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    Icon(icon, contentDescription = if (isLocked) "Unlock" else "Lock", tint = tint)
-                }
-            }
-
-            // Storage Dashboard — Home only
-            DynamicActionIcon(visible = isHome) {
-                IconButton(onClick = onStorageClick) {
-                    Icon(
-                        Icons.Default.Storage,
-                        contentDescription = "Storage Dashboard",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
 
             // Sort & Filter — Home and Folder root
             DynamicActionIcon(visible = isHome || isFolderRoot) {
@@ -320,7 +292,8 @@ fun DynamicTopBar(
             titleContentColor      = MaterialTheme.colorScheme.onSurface,
             actionIconContentColor = MaterialTheme.colorScheme.onSurface
         ),
-        scrollBehavior = scrollBehavior
+        scrollBehavior = scrollBehavior,
+        modifier = Modifier.height(56.dp) // Slimmer TopAppBar
     )
 }
 
@@ -347,7 +320,11 @@ private fun DynamicActionIcon(
 @OptIn(androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi::class)
 @Composable
 private fun AppLogoAnimated() {
-    Box(modifier = Modifier.size(36.dp)) {
+    Box(modifier = Modifier
+        .height(56.dp)
+        .width(108.dp),
+        contentAlignment = Alignment.Center
+    ) {
         val image = androidx.compose.animation.graphics.vector.AnimatedImageVector
             .animatedVectorResource(id = com.helpofai.videoplayer.R.drawable.ic_logo_animated)
         var atEnd by remember { mutableStateOf(false) }
@@ -358,7 +335,8 @@ private fun AppLogoAnimated() {
                 atEnd = atEnd
             ),
             contentDescription = "HOA Video Player",
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit
         )
     }
 }
