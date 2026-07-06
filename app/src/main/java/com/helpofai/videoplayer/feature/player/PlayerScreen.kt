@@ -58,6 +58,7 @@ import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
 import com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet
 import com.helpofai.videoplayer.feature.player.components.VideoAdjustmentsSheet
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel()
@@ -381,6 +382,9 @@ fun PlayerScreen(
             },
             update = { playerView ->
                 playerView.resizeMode = resizeMode
+            },
+            onRelease = { playerView ->
+                playerView.player = null
             },
             modifier = Modifier.fillMaxSize().graphicsLayer {
                 scaleX = scale * if (isMirrored) -1f else 1f
