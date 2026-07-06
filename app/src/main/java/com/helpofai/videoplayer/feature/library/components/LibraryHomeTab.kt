@@ -45,11 +45,12 @@ fun LibraryHomeTab(
     onShareClick: (Video) -> Unit,
     onNavigateToPlaylists: (String?) -> Unit
 ) {
-    Spacer(modifier = Modifier.height(16.dp))
+
 
     // 1. Hero Section (Auto & Manual Sliding)
     val heroVideos = androidx.compose.runtime.remember(state.videos) {
-        if (state.videos.size > 5) state.videos.shuffled().take(5) else state.videos
+        val longVideos = state.videos.filter { it.duration >= 30 * 60 * 1000L }
+        if (longVideos.size > 5) longVideos.shuffled().take(5) else longVideos
     }
 
     if (heroVideos.isNotEmpty()) {
@@ -80,26 +81,37 @@ fun LibraryHomeTab(
         AdAfterContinueWatching()
     }
 
-    // 1.8 Recommended For You
-    val recommendations = com.helpofai.videoplayer.feature.recommendation.RecommendationEngine.getRecommendations(state.videos)
-    if (recommendations.isNotEmpty()) {
-        LibrarySectionTitle("Recommended For You")
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(recommendations) { video ->
-                LibraryVideoInfoCard(
-                    video = video,
-                    onClick = { onVideoClick(video) },
-                    onFavoriteClick = { onFavoriteClick(video) },
-                    onRenameClick = { onRenameClick(video) },
-                    onDeleteClick = { onDeleteClick(video) },
-                    onShareClick = { onShareClick(video) }
-                )
+    // 1.8 Recommended For You (Newest Folder)
+    val latestVideo = state.videos.maxByOrNull { it.dateAdded }
+    if (latestVideo != null) {
+        val recommendedFolder = java.io.File(latestVideo.path).parentFile?.name ?: "Internal Storage"
+        val recommendations = state.videos.filter { (java.io.File(it.path).parentFile?.name ?: "Internal Storage") == recommendedFolder }.sortedByDescending { it.dateAdded }
+        
+        if (recommendations.isNotEmpty()) {
+            LibrarySectionTitle("Recommended For You")
+            androidx.compose.material3.Text(
+                text = "From $recommendedFolder",
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(recommendations) { video ->
+                    LibraryVideoInfoCard(
+                        video = video,
+                        onClick = { onVideoClick(video) },
+                        onFavoriteClick = { onFavoriteClick(video) },
+                        onRenameClick = { onRenameClick(video) },
+                        onDeleteClick = { onDeleteClick(video) },
+                        onShareClick = { onShareClick(video) }
+                    )
+                }
             }
+            HomeNativeAd()
         }
-        HomeNativeAd()
     }
 
     // 2. All Videos / Recently Added
