@@ -77,6 +77,7 @@ fun LibraryHeroCard(video: Video, onClick: () -> Unit = {}, onFavoriteClick: () 
                     .crossfade(true)
                     .size(512)
                     .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
                     .build(),
                 contentDescription = "Video Thumbnail",
                 modifier = Modifier.fillMaxSize(),

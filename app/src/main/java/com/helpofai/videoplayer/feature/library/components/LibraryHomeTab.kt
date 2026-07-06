@@ -49,8 +49,8 @@ fun LibraryHomeTab(
 
     // 1. Hero Section (Auto & Manual Sliding)
     val heroVideos = androidx.compose.runtime.remember(state.videos) {
-        val longVideos = state.videos.filter { it.duration >= 30 * 60 * 1000L }
-        if (longVideos.size > 5) longVideos.shuffled().take(5) else longVideos
+        val longVideos = state.videos.filter { it.duration >= 60 * 60 * 1000L }
+        longVideos.shuffled()
     }
 
     if (heroVideos.isNotEmpty()) {

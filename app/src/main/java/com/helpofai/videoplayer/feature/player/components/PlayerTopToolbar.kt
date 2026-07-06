@@ -119,12 +119,6 @@ fun PlayerTopToolbar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
-                // Add pointerInput to prevent clicks from passing through the toolbar background
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { /* Consume tap so it doesn't dismiss the UI */ }
-                    )
-                }
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
