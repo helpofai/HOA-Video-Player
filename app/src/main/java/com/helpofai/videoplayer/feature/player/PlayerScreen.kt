@@ -374,10 +374,7 @@ fun PlayerScreen(
                             null
                         )
                     )
-                    layoutParams = android.widget.FrameLayout.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                    )
+                    // AndroidView handles layout params automatically via Modifier
                 }
             },
             update = { playerView ->

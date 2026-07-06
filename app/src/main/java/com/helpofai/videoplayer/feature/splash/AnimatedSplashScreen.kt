@@ -24,16 +24,16 @@ import kotlinx.coroutines.delay
 fun AnimatedSplashScreen(onSplashFinished: () -> Unit) {
     var progress by remember { mutableStateOf(0f) }
     
-    // Simulate loading progress from 0 to 100%
+    // Simulate loading progress
     LaunchedEffect(Unit) {
-        val totalTime = 2500L // 2.5 seconds loading
+        val totalTime = 800L // 0.8 seconds loading
         val interval = 25L
         val steps = totalTime / interval
         for (i in 0..steps) {
             progress = i.toFloat() / steps.toFloat()
             delay(interval)
         }
-        delay(300) // Brief pause at 100%
+        delay(100) // Brief pause at 100%
         onSplashFinished()
     }
 
