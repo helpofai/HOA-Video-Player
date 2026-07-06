@@ -1,3 +1,25 @@
+/*
+|--------------------------------------------------------------------------
+| HelpOfAi (HOA) Professional Software
+|--------------------------------------------------------------------------
+|
+| Copyright (c) 2026 Rajib Adhikary. All Rights Reserved.
+|
+| This file is part of the HelpOfAi Professional Software Suite.
+| Unauthorized copying, modification, redistribution, reverse engineering,
+| decompilation, or commercial use of this source code, in whole or in part,
+| is strictly prohibited without prior written permission from the copyright owner.
+|
+| Author      : Rajib Adhikary
+| Organization: HelpOfAi (HOA)
+| Website     : https://helpofai.com
+| Location    : Basta Purba Para, Aranghata, Nadia, West Bengal, India
+|
+| This source code contains proprietary and confidential information.
+| Any unauthorized access or distribution may violate applicable copyright laws.
+|
+|--------------------------------------------------------------------------
+*/
 package com.helpofai.videoplayer.feature.settings
 
 import androidx.compose.foundation.clickable
@@ -225,6 +247,13 @@ fun SettingsScreen(
                         subtitle = "Read our privacy guidelines",
                         icon = Icons.Default.Policy,
                         onClick = { selectedHtmlFile = "privacy.html" }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    SettingsItemWithIcon(
+                        title = "License Terms",
+                        subtitle = "Professional Commercial License",
+                        icon = Icons.Default.Info,
+                        onClick = { selectedHtmlFile = "license.html" }
                     )
                 }
             }
