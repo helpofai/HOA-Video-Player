@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +58,12 @@ fun LibraryHeroCard(video: Video, onClick: () -> Unit = {}, onFavoriteClick: () 
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .padding(horizontal = 12.dp)
+            .shadow(
+                elevation = 24.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = Color.Black.copy(alpha = 0.8f),
+                ambientColor = Color.Black.copy(alpha = 0.5f)
+            )
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),

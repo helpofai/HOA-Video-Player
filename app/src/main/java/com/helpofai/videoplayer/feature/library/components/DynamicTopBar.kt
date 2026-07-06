@@ -292,8 +292,7 @@ fun DynamicTopBar(
             titleContentColor      = MaterialTheme.colorScheme.onSurface,
             actionIconContentColor = MaterialTheme.colorScheme.onSurface
         ),
-        scrollBehavior = scrollBehavior,
-        modifier = Modifier.height(56.dp) // Slimmer TopAppBar
+        scrollBehavior = scrollBehavior
     )
 }
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.feature.library.LibraryState
@@ -46,14 +47,66 @@ fun LibraryHomeTab(
 ) {
     Spacer(modifier = Modifier.height(16.dp))
 
-    // 1. Hero Section (Last Played / Featured)
-    state.videos.firstOrNull()?.let { firstVideo ->
-        LibraryHeroCard(
-            video = firstVideo,
-            onClick = { onVideoClick(firstVideo) },
-            onFavoriteClick = { onFavoriteClick(firstVideo) }
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+    // 1. Hero Section (Auto & Manual Sliding)
+    val heroVideos = androidx.compose.runtime.remember(state.videos) {
+        if (state.videos.size > 5) state.videos.shuffled().take(5) else state.videos
+    }
+
+    if (heroVideos.isNotEmpty()) {
+        val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { heroVideos.size })
+        
+        // Auto-scroll logic
+        androidx.compose.runtime.LaunchedEffect(pagerState) {
+            while (true) {
+                kotlinx.coroutines.delay(4000) // Slide every 4 seconds
+                if (pagerState.pageCount > 1) {
+                    val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
+                    pagerState.animateScrollToPage(
+                        page = nextPage,
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 1000, 
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
+                    )
+                }
+            }
+        }
+        
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(horizontal = 32.dp),
+            pageSpacing = 8.dp,
+            modifier = Modifier.fillMaxWidth().height(180.dp)
+        ) { page ->
+            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+            val absOffset = kotlin.math.abs(pageOffset)
+
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        val scale = androidx.compose.ui.util.lerp(
+                            start = 0.85f,
+                            stop = 1f,
+                            fraction = 1f - absOffset.coerceIn(0f, 1f)
+                        )
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = androidx.compose.ui.util.lerp(
+                            start = 0.5f,
+                            stop = 1f,
+                            fraction = 1f - absOffset.coerceIn(0f, 1f)
+                        )
+                    }
+            ) {
+                val video = heroVideos[page]
+                LibraryHeroCard(
+                    video = video,
+                    onClick = { onVideoClick(video) },
+                    onFavoriteClick = { onFavoriteClick(video) }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
         AdAfterHero()
     }
 
