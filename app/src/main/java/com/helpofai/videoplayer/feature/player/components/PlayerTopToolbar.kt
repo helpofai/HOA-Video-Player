@@ -101,6 +101,7 @@ fun PlayerTopToolbar(
     onMoreClick: () -> Unit,
     isToolsExpanded: Boolean,
     onToolsExpandedChange: (Boolean) -> Unit,
+    onEmptyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -125,6 +126,12 @@ fun PlayerTopToolbar(
                         colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
                     )
                 )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    onEmptyClick()
+                }
         ) {
             Row(
                 modifier = Modifier
@@ -132,7 +139,7 @@ fun PlayerTopToolbar(
                     .height(56.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
-                            onTap = { /* Consume tap to prevent hiding UI */ }
+                            onTap = { onEmptyClick() }
                         )
                     }
                     .padding(horizontal = 4.dp),

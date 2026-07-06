@@ -27,22 +27,75 @@ import com.helpofai.videoplayer.core.database.entities.VideoMetadataEntity
 import com.helpofai.videoplayer.core.media.MediaScanner
 import com.helpofai.videoplayer.core.media.MediaSmartCategorizer
 import com.helpofai.videoplayer.core.model.Video
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class VideoRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val mediaScanner: MediaScanner,
     private val videoDao: VideoDao
 ) {
-    fun getVideosWithMetadata(): Flow<List<Video>> = videoDao.getAllMetadata().map { metadataList ->
-        val allLocalVideos = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
+    private val cacheFile = java.io.File(context.cacheDir, "videos_cache_v2.txt")
+
+    // Advanced Local Cache System for MediaStore
+    private val _localVideosCache = MutableStateFlow<List<Video>?>(null)
+
+    private fun loadCachedVideos(): List<Video>? {
+        if (!cacheFile.exists()) return null
+        return try {
+            cacheFile.useLines { lines ->
+                lines.mapNotNull { line ->
+                    val parts = line.split("|")
+                    if (parts.size >= 9) {
+                        Video(
+                            id = parts[0].toLong(),
+                            uri = android.net.Uri.parse(parts[1]),
+                            title = parts[2],
+                            duration = parts[3].toLong(),
+                            size = parts[4].toLong(),
+                            dateAdded = parts[5].toLong(),
+                            path = parts[6],
+                            width = parts[7].toInt(),
+                            height = parts[8].toInt()
+                        )
+                    } else null
+                }.toList()
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun saveCachedVideos(videos: List<Video>) {
+        try {
+            cacheFile.bufferedWriter().use { writer ->
+                videos.forEach { video ->
+                    writer.write("${video.id}|${video.uri}|${video.title}|${video.duration}|${video.size}|${video.dateAdded}|${video.path}|${video.width}|${video.height}\n")
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getVideosWithMetadata(): Flow<List<Video>> = combine(
+        _localVideosCache.filterNotNull(),
+        videoDao.getAllMetadata()
+    ) { localVideos, metadataList ->
         val metadataMap = metadataList.associateBy { it.path }
-        allLocalVideos.map { video ->
+        localVideos.map { video ->
             val meta = metadataMap[video.path]
             video.copy(
                 isFavorite = meta?.isFavorite ?: false,
@@ -55,6 +108,31 @@ class VideoRepository @Inject constructor(
                 audioTrackLanguage = meta?.audioTrackLanguage
             )
         }.sortedByDescending { it.dateAdded }
+    }.onStart {
+        if (_localVideosCache.value == null) {
+            val cached = withContext(Dispatchers.IO) { loadCachedVideos() }
+            if (cached != null && cached.isNotEmpty()) {
+                _localVideosCache.value = cached
+                // Scan in background asynchronously to refresh cache if needed
+                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                    val fresh = mediaScanner.getVideos()
+                    if (fresh != cached) {
+                        _localVideosCache.value = fresh
+                        saveCachedVideos(fresh)
+                    }
+                }
+            } else {
+                val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
+                _localVideosCache.value = fresh
+                withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
+            }
+        }
+    }
+    
+    suspend fun refreshVideos() {
+        val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
+        _localVideosCache.value = fresh
+        withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
     }
 
     suspend fun toggleFavorite(path: String, isFavorite: Boolean) {

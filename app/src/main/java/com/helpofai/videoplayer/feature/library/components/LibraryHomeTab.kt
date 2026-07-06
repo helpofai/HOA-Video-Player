@@ -46,31 +46,36 @@ fun LibraryHomeTab(
     onNavigateToPlaylists: (String?) -> Unit
 ) {
 
-
-    // 1. Hero Section (Auto & Manual Sliding)
-    val heroVideos = androidx.compose.runtime.remember(state.videos) {
+    // 1. Premium Slider Section (Lightweight & High Performance)
+    val sliderVideos = androidx.compose.runtime.remember(state.videos) {
         val longVideos = state.videos.filter { it.duration >= 40 * 60 * 1000L }
         val finalVideos = if (longVideos.isNotEmpty()) longVideos else state.videos
         finalVideos.shuffled()
     }
 
-    if (heroVideos.isNotEmpty()) {
-        InteractiveCardHero(
-            videos = heroVideos,
-            onVideoClick = onVideoClick,
-            onFavoriteClick = onFavoriteClick
+    if (sliderVideos.isNotEmpty()) {
+        PremiumVideoSlider(
+            videos = sliderVideos,
+            onVideoClick = onVideoClick
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        AdAfterHero()
+        Spacer(modifier = Modifier.height(8.dp))
     }
 
     // 1.5 Resume Playback (Folder Context)
-    val lastPlayedVideo = state.videos.filter { it.lastPlayedPosition > 0 }.maxByOrNull { it.lastPlayedTimestamp }
-    if (lastPlayedVideo != null) {
-        val resumeFolder = java.io.File(lastPlayedVideo.path).parentFile?.name ?: "Internal Storage"
-        val resumeVideos = state.videos.filter { 
-            (java.io.File(it.path).parentFile?.name ?: "Internal Storage") == resumeFolder 
-        }.sortedByDescending { it.lastPlayedTimestamp }.take(10) // Limit to 10
+    val resumeData = androidx.compose.runtime.remember(state.videos) {
+        val lastPlayedVideo = state.videos.filter { it.lastPlayedPosition > 0 }.maxByOrNull { it.lastPlayedTimestamp }
+        if (lastPlayedVideo != null) {
+            val folder = java.io.File(lastPlayedVideo.path).parentFile?.name ?: "Internal Storage"
+            val videos = state.videos.filter { 
+                (java.io.File(it.path).parentFile?.name ?: "Internal Storage") == folder 
+            }.sortedByDescending { it.lastPlayedTimestamp }.take(5)
+            Pair(folder, videos)
+        } else null
+    }
+
+    if (resumeData != null && resumeData.second.isNotEmpty()) {
+        val resumeFolder = resumeData.first
+        val resumeVideos = resumeData.second
 
         LibrarySectionTitle("Resume Playback")
         androidx.compose.material3.Text(
@@ -110,14 +115,24 @@ fun LibraryHomeTab(
                 }
             }
         }
-        AdAfterResumePlayback()
+        // Removed AdAfterResumePlayback() to save RAM and improve performance
     }
 
     // 1.8 Recommended For You (Newest Folder)
-    val latestVideo = state.videos.maxByOrNull { it.dateAdded }
-    if (latestVideo != null) {
-        val recommendedFolder = java.io.File(latestVideo.path).parentFile?.name ?: "Internal Storage"
-        val recommendations = state.videos.filter { (java.io.File(it.path).parentFile?.name ?: "Internal Storage") == recommendedFolder }.sortedByDescending { it.dateAdded }
+    val recommendationsData = androidx.compose.runtime.remember(state.videos) {
+        val latestVideo = state.videos.maxByOrNull { it.dateAdded }
+        if (latestVideo != null) {
+            val folder = java.io.File(latestVideo.path).parentFile?.name ?: "Internal Storage"
+            val videos = state.videos.filter { 
+                (java.io.File(it.path).parentFile?.name ?: "Internal Storage") == folder 
+            }.sortedByDescending { it.dateAdded }
+            Pair(folder, videos)
+        } else null
+    }
+
+    if (recommendationsData != null && recommendationsData.second.isNotEmpty()) {
+        val recommendedFolder = recommendationsData.first
+        val recommendations = recommendationsData.second
         
         if (recommendations.isNotEmpty()) {
             LibrarySectionTitle("Recommended For You")
@@ -142,31 +157,11 @@ fun LibraryHomeTab(
                     )
                 }
             }
-            HomeNativeAd()
+            // Removed HomeNativeAd() to save RAM and improve performance
         }
     }
 
-    // 2. All Videos / Recently Added
-    val recentlyAdded = state.videos.sortedByDescending { it.dateAdded }.take(10)
-    if (recentlyAdded.isNotEmpty()) {
-        LibrarySectionTitle("Recently Added")
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(recentlyAdded) { video ->
-                LibraryVideoInfoCard(
-                    video = video,
-                    onClick = { onVideoClick(video) },
-                    onFavoriteClick = { onFavoriteClick(video) },
-                    onRenameClick = { onRenameClick(video) },
-                    onDeleteClick = { onDeleteClick(video) },
-                    onShareClick = { onShareClick(video) }
-                )
-            }
-        }
-        HomeBannerAd()
-    }
+
 
     // 3. Favorites
     val favorites = state.videos.filter { it.isFavorite }
@@ -184,51 +179,12 @@ fun LibraryHomeTab(
                 )
             }
         }
-        AdAfterFavorites()
+        // Removed AdAfterFavorites() to save RAM and improve performance
     }
 
     // Sections reorganized.
 
-    // 5. Large Files
-    val largeFiles = state.videos.sortedByDescending { it.size }.take(10)
-    if (largeFiles.isNotEmpty()) {
-        LibrarySectionTitle("Large Files")
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(largeFiles) { video ->
-                LibraryVideoInfoCard(
-                    video = video,
-                    onClick = { onVideoClick(video) },
-                    onFavoriteClick = { onFavoriteClick(video) },
-                    onRenameClick = { onRenameClick(video) },
-                    onDeleteClick = { onDeleteClick(video) },
-                    onShareClick = { onShareClick(video) }
-                )
-            }
-        }
-        AdAfterLargeFiles()
-    }
 
-    // 6. Short Clips
-    val shortClips = state.videos.filter { it.duration in 1..60000 }.take(15)
-    if (shortClips.isNotEmpty()) {
-        LibrarySectionTitle("Short Clips")
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(shortClips) { video ->
-                LibraryFavoriteVideoCard(
-                    video = video,
-                    onClick = { onVideoClick(video) },
-                    onFavoriteClick = { onFavoriteClick(video) }
-                )
-            }
-        }
-        AdAfterShortClips()
-    }
 
     // 7. Smart Playlists
     LibrarySectionTitle("Smart Playlists")

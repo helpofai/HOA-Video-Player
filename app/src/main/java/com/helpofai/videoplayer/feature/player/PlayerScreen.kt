@@ -168,6 +168,7 @@ fun PlayerScreen(
     var feedbackEvent by remember { mutableStateOf<FeedbackEvent?>(null) }
     var seekAccumulation by remember { mutableIntStateOf(0) }
     var isControllerVisible by remember { mutableStateOf(true) }
+    var autoHideTrigger by remember { mutableStateOf(0) }
     var isToolsExpanded by remember { mutableStateOf(false) }
     var currentVideoTitle by remember { mutableStateOf("Video Player") }
     
@@ -259,10 +260,10 @@ fun PlayerScreen(
         }
     }
 
-    // Auto-hide controls
-    LaunchedEffect(isControllerVisible, isPlaying, isControlsLocked, isToolsExpanded) {
+    // Auto-hide controls after 5 seconds, reset whenever interaction happens
+    LaunchedEffect(isControllerVisible, isPlaying, isControlsLocked, isToolsExpanded, autoHideTrigger) {
         if (isControllerVisible && isPlaying && !isControlsLocked && !isToolsExpanded) {
-            kotlinx.coroutines.delay(4000)
+            kotlinx.coroutines.delay(5000)
             isControllerVisible = false
         }
     }
@@ -449,13 +450,17 @@ fun PlayerScreen(
                 offsetX = offsetX,
                 offsetY = offsetY,
                 seekAccumulation = seekAccumulation,
-                onScaleChange = { scale = it },
-                onOffsetChange = { ox, oy -> offsetX = ox; offsetY = oy },
-                onSeekAccumulationChange = { seekAccumulation = it },
-                onControllerVisibilityChange = { isControllerVisible = it },
-                onToolsExpandedChange = { isToolsExpanded = it },
-                onPlayPauseToggle = { showAd -> if (showAd) activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP else if (activeDialog == com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP) activeDialog = null },
-                onFeedbackEvent = { feedbackEvent = it },
+                onScaleChange = { scale = it; autoHideTrigger++ },
+                onOffsetChange = { ox, oy -> offsetX = ox; offsetY = oy; autoHideTrigger++ },
+                onSeekAccumulationChange = { seekAccumulation = it; autoHideTrigger++ },
+                onControllerVisibilityChange = { isControllerVisible = it; autoHideTrigger++ },
+                onToolsExpandedChange = { isToolsExpanded = it; autoHideTrigger++ },
+                onPlayPauseToggle = { showAd -> 
+                    if (showAd) activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP 
+                    else if (activeDialog == com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP) activeDialog = null
+                    autoHideTrigger++
+                },
+                onFeedbackEvent = { feedbackEvent = it; autoHideTrigger++ },
                 onLongPressStateChange = { visible, cx, cy, fx, fy, idx, savedSpeed ->
                     longPressSelectorVisible = visible
                     longPressCenterX = cx
@@ -464,6 +469,7 @@ fun PlayerScreen(
                     longPressFingerY = fy
                     selectedSpeedIndex = idx
                     savedSpeedBeforeBoost = savedSpeed
+                    autoHideTrigger++
                 }
             )
         }
@@ -538,6 +544,10 @@ fun PlayerScreen(
                 onMoreClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.MORE_POPUP },
                 isToolsExpanded = isToolsExpanded,
                 onToolsExpandedChange = { isToolsExpanded = it },
+                onEmptyClick = { 
+                    isControllerVisible = !isControllerVisible
+                    autoHideTrigger++
+                },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
         }

@@ -71,11 +71,14 @@ fun VideoPlayerTheme(
         else -> LightColorScheme
     }
     
-    // Force global glassmorphism aesthetics
+    // Force global glassmorphism aesthetics with high contrast text
     val colorScheme = baseColorScheme.copy(
         background = androidx.compose.ui.graphics.Color.Transparent,
+        onBackground = androidx.compose.ui.graphics.Color.White,
         surface = androidx.compose.ui.graphics.Color(0x66000000), // 40% opaque dark
-        surfaceVariant = androidx.compose.ui.graphics.Color(0x4D000000) // 30% opaque dark
+        onSurface = androidx.compose.ui.graphics.Color.White,
+        surfaceVariant = androidx.compose.ui.graphics.Color(0x4D000000), // 30% opaque dark
+        onSurfaceVariant = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
     )
     
     val view = LocalView.current

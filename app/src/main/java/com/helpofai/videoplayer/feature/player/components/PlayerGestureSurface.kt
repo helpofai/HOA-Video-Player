@@ -71,47 +71,26 @@ fun PlayerGestureSurface(
     onFeedbackEvent: (FeedbackEvent) -> Unit,
     onLongPressStateChange: (Boolean, Float, Float, Float, Float, Int, Float) -> Unit // visible, cx, cy, fx, fy, idx, savedSpeed
 ) {
+    val isPlaying by rememberUpdatedState(isPlaying)
+    val isToolsExpanded by rememberUpdatedState(isToolsExpanded)
+    val isControllerVisible by rememberUpdatedState(isControllerVisible)
+    val scale by rememberUpdatedState(scale)
+    val offsetX by rememberUpdatedState(offsetX)
+    val offsetY by rememberUpdatedState(offsetY)
+    val seekAccumulation by rememberUpdatedState(seekAccumulation)
+
+    val onScaleChange by rememberUpdatedState(onScaleChange)
+    val onOffsetChange by rememberUpdatedState(onOffsetChange)
+    val onSeekAccumulationChange by rememberUpdatedState(onSeekAccumulationChange)
+    val onControllerVisibilityChange by rememberUpdatedState(onControllerVisibilityChange)
+    val onToolsExpandedChange by rememberUpdatedState(onToolsExpandedChange)
+    val onPlayPauseToggle by rememberUpdatedState(onPlayPauseToggle)
+    val onFeedbackEvent by rememberUpdatedState(onFeedbackEvent)
+    val onLongPressStateChange by rememberUpdatedState(onLongPressStateChange)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { offset ->
-                        val screenWidth = size.width
-                        val centerWidth = screenWidth * 0.3f // Center 30%
-                        val leftBound = (screenWidth - centerWidth) / 2
-                        val rightBound = leftBound + centerWidth
-
-                        if (offset.x < leftBound) {
-                            viewModel.videoPlayer.seekBack()
-                            val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
-                            onSeekAccumulationChange(newSeek)
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
-                        } else if (offset.x > rightBound) {
-                            viewModel.videoPlayer.seekForward()
-                            val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
-                            onSeekAccumulationChange(newSeek)
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
-                        } else {
-                            // Center double tap -> toggle play/pause
-                            if (isPlaying) {
-                                viewModel.videoPlayer.pause()
-                                onPlayPauseToggle(true) // show ad popup
-                            } else {
-                                viewModel.videoPlayer.play()
-                                onPlayPauseToggle(false)
-                            }
-                        }
-                    },
-                    onTap = {
-                        if (isToolsExpanded) {
-                            onToolsExpandedChange(false)
-                        } else {
-                            onControllerVisibilityChange(!isControllerVisible)
-                        }
-                    },
-                )
-            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -148,11 +127,8 @@ fun PlayerGestureSurface(
                                     } else {
                                         onOffsetChange(0f, 0f)
                                     }
-                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                    event.changes.forEach { it.consume() }
                                 }
-                            } else {
-                                pastTouchSlop = false
-                                zoom = 1f
                             }
                         }
                     } while (!canceled && event.changes.any { it.pressed })
@@ -321,6 +297,44 @@ fun PlayerGestureSurface(
                         }
                     }
                 }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { offset ->
+                        val screenWidth = size.width
+                        val centerWidth = screenWidth * 0.3f // Center 30%
+                        val leftBound = (screenWidth - centerWidth) / 2
+                        val rightBound = leftBound + centerWidth
+
+                        if (offset.x < leftBound) {
+                            viewModel.videoPlayer.seekBack()
+                            val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
+                            onSeekAccumulationChange(newSeek)
+                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
+                        } else if (offset.x > rightBound) {
+                            viewModel.videoPlayer.seekForward()
+                            val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
+                            onSeekAccumulationChange(newSeek)
+                            onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
+                        } else {
+                            // Center double tap -> toggle play/pause
+                            if (isPlaying) {
+                                viewModel.videoPlayer.pause()
+                                onPlayPauseToggle(true) // show ad popup
+                            } else {
+                                viewModel.videoPlayer.play()
+                                onPlayPauseToggle(false)
+                            }
+                        }
+                    },
+                    onTap = {
+                        if (isToolsExpanded) {
+                            onToolsExpandedChange(false)
+                        } else {
+                            onControllerVisibilityChange(!isControllerVisible)
+                        }
+                    },
+                )
             }
     )
 }
