@@ -192,27 +192,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("home") {
-                            // Interstitial trigger state — set to the clicked video to trigger the ad.
-                            var pendingVideo by remember { mutableStateOf<Video?>(null) }
-
-                            // InterstitialAdTrigger observes pendingVideo and shows the ad
-                            // (with frequency capping) then navigates when done.
-                            InterstitialAdTrigger(
-                                trigger    = pendingVideo != null,
-                                onComplete = {
-                                    val video = pendingVideo
-                                    if (video != null) {
-                                        val encodedUri  = Uri.encode(video.uri.toString())
-                                        val encodedPath = Uri.encode(video.path)
-                                        navController.navigate("player/$encodedUri?path=$encodedPath")
-                                    }
-                                    pendingVideo = null
-                                }
-                            )
-
                             HomeScreen(
                                 onVideoClick = { video ->
-                                    pendingVideo = video
+                                    val encodedUri  = Uri.encode(video.uri.toString())
+                                    val encodedPath = Uri.encode(video.path)
+                                    navController.navigate("player/$encodedUri?path=$encodedPath")
                                 },
                                 onSettingsClick = {
                                     navController.navigate("settings")
@@ -234,7 +218,14 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         ) {
-                            PlayerScreen()
+                            PlayerScreen(
+                                onNavigateBack = {
+                                    // Show Ad on BACK instead of on play
+                                    com.helpofai.videoplayer.core.ads.AdManager.showInterstitialAd(this@MainActivity) {
+                                        navController.popBackStack()
+                                    }
+                                }
+                            )
                         }
                     }
                     }

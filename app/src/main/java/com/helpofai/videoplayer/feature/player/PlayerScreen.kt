@@ -83,7 +83,8 @@ import com.helpofai.videoplayer.feature.player.components.VideoAdjustmentsSheet
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun PlayerScreen(
-    viewModel: PlayerViewModel = hiltViewModel()
+    viewModel: PlayerViewModel = hiltViewModel(),
+    onNavigateBack: () -> Unit = {}
 ) {
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val context = LocalContext.current
@@ -103,6 +104,8 @@ fun PlayerScreen(
         }
     }
 
+    androidx.activity.compose.BackHandler(onBack = onNavigateBack)
+    
     var isLongPressing by remember { mutableStateOf(false) }
     
     // Long-Press Speed Selector State
@@ -471,7 +474,7 @@ fun PlayerScreen(
             PlayerTopToolbar(
                 isVisible = isControllerVisible,
                 title = currentVideoTitle,
-                onBackClick = { activity?.finish() },
+                onBackClick = onNavigateBack,
                 onLockClick = { isControlsLocked = true },
                 onSpeedClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SPEED_DIAL },
                 onEqClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.EQUALIZER },
