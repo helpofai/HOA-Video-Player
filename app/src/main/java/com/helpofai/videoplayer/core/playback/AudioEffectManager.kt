@@ -60,9 +60,9 @@ class AudioEffectManager @Inject constructor() {
         release()
 
         try {
-            equalizer = Equalizer(0, sessionId)
-            bassBoost = BassBoost(0, sessionId)
-            virtualizer = Virtualizer(0, sessionId)
+            equalizer = Equalizer(1, sessionId)
+            bassBoost = BassBoost(1, sessionId)
+            virtualizer = Virtualizer(1, sessionId)
 
             equalizer?.enabled = isEqualizerEnabled
             bassBoost?.enabled = isBassBoostEnabled

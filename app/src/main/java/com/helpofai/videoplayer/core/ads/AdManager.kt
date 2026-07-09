@@ -78,7 +78,7 @@ object AdManager {
     private var isInitialized = false
 
     // Interstitial
-    @Volatile private var interstitialAd: InterstitialAd? = null
+    private var interstitialAd: InterstitialAd? = null
     private val isInterstitialLoading = AtomicBoolean(false)
     private val lastInterstitialShowMs  = AtomicLong(0L)
     private val videosSinceInterstitial = AtomicInteger(0)
@@ -93,7 +93,7 @@ object AdManager {
     private val isNativeLoading = AtomicBoolean(false)
 
     // Current foreground Activity (updated by lifecycle callbacks)
-    @Volatile private var currentActivity: Activity? = null
+    private var currentActivity: Activity? = null
 
     // ── Observable state ──────────────────────────────────────────────────────
     data class AdAvailability(
@@ -142,7 +142,7 @@ object AdManager {
     fun loadInterstitialAd(context: Context) {
         if (interstitialAd != null || !isInterstitialLoading.compareAndSet(false, true)) return
         InterstitialAd.load(
-            context.applicationContext,
+            context,  // already applicationContext from callers
             INTERSTITIAL_AD_UNIT_ID,
             AdRequest.Builder().build(),
             object : InterstitialAdLoadCallback() {

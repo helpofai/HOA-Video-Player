@@ -95,7 +95,7 @@ Create a file named `local.properties` in the project root directory (`C:\Users\
 ```properties
 ## Android SDK location — adjust this to match your system
 sdk.dir=C\:\\Users\\[YOUR_USERNAME]\\AppData\\Local\\Android\\Sdk
-
+## sdk.dir=C\:\\Users\\rajib\\AppData\\Local\\Android\\Sdk
 ## AdMob IDs — use Google's test IDs for development, or your real production IDs for release
 ADMOB_APP_ID=ca-app-pub-3940256099942544~3347511713
 ADMOB_BANNER_ID=ca-app-pub-3940256099942544/6300978111

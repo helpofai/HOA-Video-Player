@@ -109,6 +109,7 @@ import com.helpofai.videoplayer.feature.library.ads.InlineRowAd
 import com.helpofai.videoplayer.feature.library.ads.InlineItemAd
 import com.helpofai.videoplayer.feature.library.ads.HomeBannerAd
 import com.helpofai.videoplayer.feature.library.ads.HomeNativeAd
+import com.helpofai.videoplayer.feature.permissions.hasRequiredPermissions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION")
@@ -145,7 +146,7 @@ fun HomeScreen(
     var showExitPopup by remember { mutableStateOf(false) }
     val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
 
-    androidx.activity.compose.BackHandler(enabled = true) {
+    androidx.activity.compose.BackHandler(enabled = selectedFolder != null || selectedTab != 0) {
         if (selectedFolder != null) {
             selectedFolder = null
         } else if (selectedTab != 0) {
@@ -163,12 +164,14 @@ fun HomeScreen(
     )
 
     LaunchedEffect(Unit) {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_VIDEO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
+        if (!hasRequiredPermissions(context)) {
+            val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_VIDEO
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+            permissionLauncher.launch(permission)
         }
-        permissionLauncher.launch(permission)
     }
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current

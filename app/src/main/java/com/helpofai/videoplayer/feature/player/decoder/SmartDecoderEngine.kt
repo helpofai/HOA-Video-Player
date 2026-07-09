@@ -23,27 +23,22 @@
 package com.helpofai.videoplayer.feature.player.decoder
 
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.PowerManager
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 
 object SmartDecoderEngine {
     
+    @OptIn(UnstableApi::class)
     fun getOptimalRenderersFactory(context: Context): DefaultRenderersFactory {
         val factory = DefaultRenderersFactory(context)
         
         // 1. Check Battery and Power Save Mode
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val isPowerSaveMode = powerManager.isPowerSaveMode
-
-        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
-            context.registerReceiver(null, ifilter)
-        }
-        val level: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val batteryPct = if (level != -1 && scale != -1) (level * 100 / scale.toFloat()) else 100f
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val batteryPct = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.toFloat() ?: 100f
         
         val isLowBattery = batteryPct < 20f
 

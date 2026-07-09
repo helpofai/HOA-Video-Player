@@ -61,12 +61,14 @@ class ScannerIntelligentThumbnailEngine @Inject constructor(
                     val score = calculateFrameScore(bitmap)
                     if (score > bestScore) {
                         bestScore = score
-                        // Keep a reference to the best, recycle others if necessary (not doing it here for simplicity of assignment)
+                        // Recycle previous best bitmap before replacing
+                        if (bestBitmap != null && bestBitmap !== bitmap) {
+                            bestBitmap?.recycle()
+                        }
                         bestBitmap = bitmap
                     }
                 }
             }
-
             bestBitmap?.let { bmp ->
                 val thumbnailsDir = File(context.cacheDir, "smart_thumbnails")
                 if (!thumbnailsDir.exists()) thumbnailsDir.mkdirs()

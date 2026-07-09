@@ -115,7 +115,11 @@ class FFmpegManager @Inject constructor(
         val tempListFile = File(context.cacheDir, "ffmpeg_concat_list.txt")
         tempListFile.printWriter().use { out ->
             inputPaths.forEach { path ->
-                out.println("file '${path.replace("'", "'\\''")}'")
+                // Escape single quotes for FFmpeg concat demuxer:
+                // Replace ' with '\\''  (end quote + backslash-quote + start quote)
+                val escaped = path.replace("'", "'\\\\''")
+                // Use double quotes to wrap paths so spaces are handled safely
+                out.println("file '$escaped'")
             }
         }
         

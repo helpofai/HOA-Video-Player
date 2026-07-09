@@ -54,6 +54,9 @@ interface VideoDao {
     @androidx.room.Delete
     suspend fun delete(metadata: VideoMetadataEntity)
 
+    @Query("DELETE FROM video_metadata WHERE path = :path")
+    suspend fun deleteByPath(path: String)
+
     @Query("UPDATE video_metadata SET lastPlayedPosition = 0, lastPlayedTimestamp = 0")
     suspend fun clearAllWatchHistory()
 

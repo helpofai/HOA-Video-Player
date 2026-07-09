@@ -26,6 +26,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -191,55 +192,28 @@ fun PlayerDialogManager(
             )
         }
         PlayerDialogType.AD_POPUP -> {
-            if (!isPlaying) {
+            // Full-screen ad overlay with close (X) and blank-area-to-continue
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.8f))
-                        .clickable {
-                            viewModel.videoPlayer.play()
-                            onDismissRequest()
-                        },
-                    contentAlignment = Alignment.Center
+                        .background(Color.Black.copy(alpha = 0.95f))
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
+                    // Tap blank area to dismiss and continue
+                    Box(modifier = Modifier.fillMaxSize().clickable { onDismissRequest() })
+
+                    // Close (X) button — top-right corner
+                    IconButton(
+                        onClick = { onDismissRequest() },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
                     ) {
-                        Text(
-                            text = "Paused",
-                            color = Color.White,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
+                        Icon(Icons.Default.Close, "Close", tint = Color.White.copy(alpha = 0.8f))
+                    }
 
                         // Show Native Ad
                         com.helpofai.videoplayer.core.ads.NativeAdCard(
-                            modifier = Modifier.width(320.dp)
+                        modifier = Modifier.align(Alignment.Center).widthIn(max = 340.dp)
                         )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        IconButton(
-                            onClick = {
-                                viewModel.videoPlayer.play()
-                                onDismissRequest()
-                            },
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(MaterialTheme.colorScheme.primary, shape = androidx.compose.foundation.shape.CircleShape)
-                        ) {
-                            Icon(
-                                Icons.Default.PlayArrow,
-                                contentDescription = "Resume",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
                 }
-            }
         }
         PlayerDialogType.BOOKMARKS_SHEET -> {
             com.helpofai.videoplayer.feature.scenedetection.components.SceneSelectionSheet(

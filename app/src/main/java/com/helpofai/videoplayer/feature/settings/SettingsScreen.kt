@@ -62,11 +62,19 @@ import coil.imageLoader
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    privacyRepository: com.helpofai.videoplayer.core.data.PrivacyRepository? = null
 ) {
     val context = LocalContext.current
-    val privacyRepository = remember { PrivacyRepository(context) }
+    val effectivePrivacyRepo = remember {
+        privacyRepository 
+            ?: com.helpofai.videoplayer.core.data.PrivacyRepository(context)
+    }
+    // TODO: Inject PrivacyRepository via Hilt in SettingsViewModel instead of creating manually
+    
+    val privacyRepository = effectivePrivacyRepo
     var isLocked by remember { mutableStateOf(privacyRepository.isLockEnabled()) }
+    var showPinSetupDialog by remember { mutableStateOf(false) }
 
     val hardwareAccelEnabled by viewModel.hardwareAcceleration.collectAsState()
     val defaultSpeed by viewModel.defaultPlaybackSpeed.collectAsState()
@@ -203,11 +211,11 @@ fun SettingsScreen(
                         checked = isLocked,
                         onCheckedChange = { 
                             if (it) {
-                                privacyRepository.setPin("1234")
+                                showPinSetupDialog = true
                             } else {
                                 privacyRepository.removePin()
+                                isLocked = false
                             }
-                            isLocked = it
                         }
                     )
                 }
@@ -262,6 +270,69 @@ fun SettingsScreen(
         }
     }
     
+    // PIN Setup Dialog
+    if (showPinSetupDialog) {
+        var pinInput by remember { mutableStateOf("") }
+        var confirmPin by remember { mutableStateOf("") }
+        var pinError by remember { mutableStateOf<String?>(null) }
+        var step by remember { mutableStateOf(1) } // 1 = enter, 2 = confirm
+
+        AlertDialog(
+            onDismissRequest = {
+                showPinSetupDialog = false
+                isLocked = false
+            },
+            title = { Text(if (step == 1) "Create Privacy PIN" else "Confirm PIN") },
+            text = {
+                Column {
+                    if (step == 1) {
+                        OutlinedTextField(
+                            value = pinInput,
+                            onValueChange = { if (it.length <= 6) pinInput = it },
+                            label = { Text("Enter 4-6 digit PIN") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = confirmPin,
+                            onValueChange = { if (it.length <= 6) confirmPin = it },
+                            label = { Text("Confirm PIN") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        )
+                    }
+                    pinError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (step == 1 && pinInput.length >= 4) {
+                        step = 2
+                        pinError = null
+                    } else if (step == 1) {
+                        pinError = "PIN must be at least 4 digits"
+                    } else if (step == 2) {
+                        if (confirmPin == pinInput) {
+                            privacyRepository.setPin(pinInput)
+                            isLocked = true
+                            showPinSetupDialog = false
+                        } else {
+                            pinError = "PINs do not match"
+                            confirmPin = ""
+                        }
+                    }
+                }) { Text(if (step == 1) "Next" else "Set PIN") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPinSetupDialog = false
+                    isLocked = false
+                }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showSpeedDialog) {
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
         AlertDialog(

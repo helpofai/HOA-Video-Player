@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@helpofai/runtime-sdk": "^0.8.69"
+  }
+}

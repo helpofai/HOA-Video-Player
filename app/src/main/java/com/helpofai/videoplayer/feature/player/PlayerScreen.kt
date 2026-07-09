@@ -76,7 +76,6 @@ import com.helpofai.videoplayer.feature.player.components.resolveSpeedIndex
 import com.helpofai.videoplayer.feature.player.components.SPEED_OPTIONS
 import com.helpofai.videoplayer.feature.player.components.PlayerMorePopup
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
-import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
 import com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet
 import com.helpofai.videoplayer.feature.player.components.VideoAdjustmentsSheet
 
@@ -230,20 +229,6 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(abRepeatA, abRepeatB, isPlaying) {
-        val a = abRepeatA
-        val b = abRepeatB
-        if (a != null && b != null && isPlaying) {
-            while (true) {
-                val pos = viewModel.videoPlayer.player.currentPosition
-                if (pos >= b || pos < a) { // also seek if user manually seeks before A
-                    viewModel.videoPlayer.player.seekTo(a)
-                    currentPosition = a
-                }
-                kotlinx.coroutines.delay(100)
-            }
-        }
-    }
 
     LaunchedEffect(seekAccumulation) {
         if (seekAccumulation != 0) {

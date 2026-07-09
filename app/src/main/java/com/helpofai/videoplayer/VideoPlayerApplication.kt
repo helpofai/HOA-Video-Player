@@ -57,6 +57,8 @@ class VideoPlayerApplication : Application(), ImageLoaderFactory {
                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
             }
             startActivity(intent)
+            // Brief delay so the crash activity can start before the process dies
+            try { Thread.sleep(300) } catch (_: InterruptedException) {}
             android.os.Process.killProcess(android.os.Process.myPid())
             System.exit(1)
         }

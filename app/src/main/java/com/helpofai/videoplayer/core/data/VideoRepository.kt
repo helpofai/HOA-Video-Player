@@ -57,7 +57,7 @@ class VideoRepository @Inject constructor(
         return try {
             cacheFile.useLines { lines ->
                 lines.mapNotNull { line ->
-                    val parts = line.split("|")
+                    val parts = line.split("||", limit = 9)
                     if (parts.size >= 9) {
                         Video(
                             id = parts[0].toLong(),
@@ -82,7 +82,7 @@ class VideoRepository @Inject constructor(
         try {
             cacheFile.bufferedWriter().use { writer ->
                 videos.forEach { video ->
-                    writer.write("${video.id}|${video.uri}|${video.title}|${video.duration}|${video.size}|${video.dateAdded}|${video.path}|${video.width}|${video.height}\n")
+                    writer.write("${video.id}||${video.uri}||${video.title}||${video.duration}||${video.size}||${video.dateAdded}||${video.path}||${video.width}||${video.height}\n")
                 }
             }
         } catch (e: Exception) {
@@ -114,14 +114,16 @@ class VideoRepository @Inject constructor(
             if (cached != null && cached.isNotEmpty()) {
                 _localVideosCache.value = cached
                 // Scan in background asynchronously to refresh cache if needed
-                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                // Fire-and-forget refresh on IO — we accept that this may not complete
+                // if the ViewModel is cleared. A structured scope would be better but
+                // this repository is Singleton-scoped, not ViewModel-scoped.
+                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
                     val fresh = mediaScanner.getVideos()
                     if (fresh != cached) {
                         _localVideosCache.value = fresh
                         saveCachedVideos(fresh)
                     }
                 }
-            } else {
                 val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
                 _localVideosCache.value = fresh
                 withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
@@ -206,30 +208,24 @@ class VideoRepository @Inject constructor(
     suspend fun deleteVideo(video: Video): Boolean {
         return withContext(Dispatchers.IO) {
             val file = java.io.File(video.path)
-            if (file.exists() && file.delete()) {
-                videoDao.delete(VideoMetadataEntity(video.path)) // Actually wait, Entity PK is path!
-                true
-            } else {
-                false
-            }
+            val fileDeleted = file.exists() && file.delete()
+            if (fileDeleted) videoDao.deleteByPath(video.path)
+            fileDeleted
         }
     }
 
     suspend fun renameVideo(video: Video, newName: String): Boolean {
         return withContext(Dispatchers.IO) {
             val file = java.io.File(video.path)
-            if (file.exists()) {
-                val newFile = java.io.File(file.parent, "$newName.${file.extension}")
-                if (file.renameTo(newFile)) {
-                    // Update metadata in DB
-                    val meta = videoDao.getMetadataByPath(video.path)
-                    if (meta != null) {
-                        videoDao.insertMetadata(meta.copy(path = newFile.absolutePath))
-                        videoDao.delete(meta)
-                    }
-                    true
-                } else false
-            } else false
+            if (!file.exists()) return@withContext false
+            val newFile = java.io.File(file.parent, "$newName.${file.extension}")
+            if (!file.renameTo(newFile)) return@withContext false
+            val meta = videoDao.getMetadataByPath(video.path)
+            if (meta != null) {
+                videoDao.deleteByPath(video.path)
+                videoDao.insertMetadata(meta.copy(path = newFile.absolutePath))
+            }
+            true
         }
     }
 

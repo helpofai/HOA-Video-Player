@@ -5,6 +5,7 @@
 .helpofai
 # Local configuration file (sdk path, etc)
 local.properties
+keyStorePath
 
 # Gradle files
 .gradle/

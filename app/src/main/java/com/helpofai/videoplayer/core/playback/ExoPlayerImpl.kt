@@ -47,9 +47,15 @@ class ExoPlayerImpl @Inject constructor(
 ) : VideoPlayer {
 
     private var _player: ExoPlayer? = null
-    
+
+    /** Guard that prevents silent orphaned-player creation after release(). */
+    private var isReleased = false
+
     override val player: Player
-        get() = _player ?: initializePlayer()
+        get() {
+            check(!isReleased) { "Player has been released — create a new ExoPlayerImpl instance" }
+            return _player ?: initializePlayer()
+        }
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     override val playbackState = _playbackState.asStateFlow()
@@ -146,6 +152,7 @@ class ExoPlayerImpl @Inject constructor(
         audioEffectManager.release()
         _player?.release()
         _player = null
+        isReleased = true
     }
     
     override fun setPlaybackSpeed(speed: Float) {

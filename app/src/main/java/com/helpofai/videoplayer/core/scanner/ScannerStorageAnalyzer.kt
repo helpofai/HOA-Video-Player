@@ -45,8 +45,11 @@ class ScannerStorageAnalyzer @Inject constructor() {
         
         // 1. Duplicate Detection (Size and Duration matching, plus Hash of first 1MB)
         val exactDuplicates = mutableListOf<List<Video>>()
-        val potentialDuplicates = videos.groupBy { "${it.size}_${it.duration}" }
+        val potentialDuplicates = videos.groupBy { "${it.size}_${it.duration}_${it.width}_${it.height}" }
             .filter { it.value.size > 1 }
+            .filter { (_, group) ->
+                group.map { it.path.lowercase() }.distinct().size > 1
+            }
             
         for ((_, group) in potentialDuplicates) {
             val hashGroups = group.groupBy { getFileHashPrefix(it.path) }
@@ -81,7 +84,7 @@ class ScannerStorageAnalyzer @Inject constructor() {
             val file = File(path)
             if (!file.exists() || !file.canRead()) return ""
             
-            val digest = MessageDigest.getInstance("MD5")
+            val digest = MessageDigest.getInstance("SHA-256")
             file.inputStream().use { stream ->
                 val buffer = ByteArray(1024 * 1024) // Read up to 1MB to be fast
                 val read = stream.read(buffer)
