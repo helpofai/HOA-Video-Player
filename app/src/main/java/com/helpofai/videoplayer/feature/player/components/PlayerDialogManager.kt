@@ -34,6 +34,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,7 +62,8 @@ enum class PlayerDialogType {
     QUALITY_SHEET,
     MORE_POPUP,
     AD_POPUP,
-    BOOKMARKS_SHEET
+    BOOKMARKS_SHEET,
+    DIAGNOSTICS
 }
 
 @Composable
@@ -129,8 +132,11 @@ fun PlayerDialogManager(
             )
         }
         PlayerDialogType.VIDEO_INFO -> {
+            val report by viewModel.mediaCompatibilityReport.collectAsState()
+            val audioReport by viewModel.audioQualityReport.collectAsState()
             VideoInfoDialog(
-                player = viewModel.videoPlayer.player,
+                report = report,
+                audioReport = audioReport,
                 videoPath = currentVideoPath,
                 onDismissRequest = onDismissRequest
             )
@@ -188,6 +194,7 @@ fun PlayerDialogManager(
                     onShowDialog(PlayerDialogType.QUALITY_SHEET)
                     viewModel.analyzeVideoQuality()
                 },
+                onDiagnosticsClick = { onShowDialog(PlayerDialogType.DIAGNOSTICS) },
                 onDismissRequest = onDismissRequest
             )
         }
@@ -233,6 +240,13 @@ fun PlayerDialogManager(
                     )
                 },
                 isGeneratingChapters = isGeneratingChapters,
+                onDismissRequest = onDismissRequest
+            )
+        }
+        PlayerDialogType.DIAGNOSTICS -> {
+            val playbackState by viewModel.videoPlayer.playbackState.collectAsState()
+            VideoDiagnosticsSheet(
+                state = playbackState,
                 onDismissRequest = onDismissRequest
             )
         }

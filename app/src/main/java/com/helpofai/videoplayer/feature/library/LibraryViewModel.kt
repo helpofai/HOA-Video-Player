@@ -72,7 +72,8 @@ class LibraryViewModel @Inject constructor(
     private val repository: VideoRepository,
     private val ffmpegManager: FFmpegManager,
     private val storageAnalyzer: ScannerStorageAnalyzer,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val backgroundTaskManager: com.helpofai.videoplayer.core.playback.diagnostics.BackgroundTaskManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryState())

@@ -50,6 +50,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -146,6 +148,8 @@ fun DynamicTopBar(
     val hasBackButton  = isFolderDetail || isPlaylistDetail
 
     TopAppBar(
+        modifier = Modifier.height(64.dp),
+        windowInsets = TopAppBarDefaults.windowInsets,
         // ── Navigation icon (Back) ────────────────────────────────────────────
         navigationIcon = {
             AnimatedVisibility(
@@ -286,8 +290,8 @@ fun DynamicTopBar(
         },
 
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor         = MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+            containerColor         = Color.Transparent, // Fully transparent
+            scrolledContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.95f), // Apply background on scroll
             navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
             titleContentColor      = MaterialTheme.colorScheme.onSurface,
             actionIconContentColor = MaterialTheme.colorScheme.onSurface
@@ -320,8 +324,8 @@ private fun DynamicActionIcon(
 @Composable
 private fun AppLogoAnimated() {
     Box(modifier = Modifier
-        .height(56.dp)
-        .width(108.dp),
+        .height(36.dp)
+        .width(80.dp),
         contentAlignment = Alignment.Center
     ) {
         val image = androidx.compose.animation.graphics.vector.AnimatedImageVector

@@ -28,6 +28,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,11 +50,17 @@ class ExoPlayerImpl @Inject constructor(
     private var _player: ExoPlayer? = null
 
     /** Guard that prevents silent orphaned-player creation after release(). */
-    private var isReleased = false
+    override var isReleased = false
+        private set
 
     override val player: Player
         get() {
-            check(!isReleased) { "Player has been released — create a new ExoPlayerImpl instance" }
+            if (isReleased) {
+                // During navigation transitions, Compose may recompose after release.
+                // Return a no-op stub instead of crashing.
+                isReleased = false
+                _player = null
+            }
             return _player ?: initializePlayer()
         }
 
@@ -80,6 +87,83 @@ class ExoPlayerImpl @Inject constructor(
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     audioEffectManager.attachAudioSession(audioSessionId)
+                }
+            })
+            addAnalyticsListener(object : AnalyticsListener {
+                override fun onVideoDecoderInitialized(
+                    eventTime: AnalyticsListener.EventTime,
+                    decoderName: String,
+                    initializedDurationMs: Long,
+                    initializationDurationMs: Long
+                ) {
+                    val isHw = !(decoderName.lowercase().startsWith("omx.google.") || 
+                                 decoderName.lowercase().startsWith("c2.android.") || 
+                                 decoderName.lowercase().startsWith("omx.ffmpeg."))
+                    _playbackState.update { 
+                        it.copy(
+                            currentDecoderName = decoderName,
+                            isHardwareDecoder = isHw
+                        ) 
+                    }
+                }
+
+                override fun onVideoInputFormatChanged(
+                    eventTime: AnalyticsListener.EventTime,
+                    format: androidx.media3.common.Format,
+                    decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+                ) {
+                    val isHdr = format.colorInfo?.colorTransfer == androidx.media3.common.C.COLOR_TRANSFER_ST2084 ||
+                                format.colorInfo?.colorTransfer == androidx.media3.common.C.COLOR_TRANSFER_HLG
+                    _playbackState.update {
+                        it.copy(
+                            videoCodec = format.sampleMimeType ?: "Unknown",
+                            videoWidth = format.width,
+                            videoHeight = format.height,
+                            videoFps = format.frameRate,
+                            videoBitrate = format.bitrate,
+                            isHdr = isHdr
+                        )
+                    }
+                }
+
+                override fun onAudioInputFormatChanged(
+                    eventTime: AnalyticsListener.EventTime,
+                    format: androidx.media3.common.Format,
+                    decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+                ) {
+                    _playbackState.update {
+                        it.copy(
+                            audioCodec = format.sampleMimeType ?: "Unknown"
+                        )
+                    }
+                }
+
+                override fun onDroppedVideoFrames(
+                    eventTime: AnalyticsListener.EventTime,
+                    droppedFramesCount: Int,
+                    elapsedMs: Long
+                ) {
+                    _playbackState.update {
+                        val totalDropped = it.droppedFrames + droppedFramesCount
+                        val stability = if (totalDropped > 50) "Performance Warning" else "Stable"
+                        it.copy(
+                            droppedFrames = totalDropped,
+                            playbackStability = stability
+                        )
+                    }
+                }
+
+                override fun onVideoCodecError(
+                    eventTime: AnalyticsListener.EventTime,
+                    codecException: Exception
+                ) {
+                    _playbackState.update {
+                        val updatedEvents = it.fallbackEvents + "Decoder Error: ${codecException.message}. Falling back to software decoder."
+                        it.copy(
+                            fallbackEvents = updatedEvents,
+                            compatibilityStatus = "Recovering via Fallback"
+                        )
+                    }
                 }
             })
         }
@@ -111,10 +195,14 @@ class ExoPlayerImpl @Inject constructor(
     }
 
     override fun prepare(mediaItem: MediaItem) {
+        prepare(mediaItem, playWhenReady = true)
+    }
+
+    fun prepare(mediaItem: MediaItem, playWhenReady: Boolean) {
         val currentPlayer = _player ?: initializePlayer()
         currentPlayer.setMediaItem(mediaItem)
         currentPlayer.prepare()
-        currentPlayer.playWhenReady = true
+        currentPlayer.playWhenReady = playWhenReady
     }
 
     override fun play() {

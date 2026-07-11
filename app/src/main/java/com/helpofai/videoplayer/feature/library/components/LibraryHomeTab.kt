@@ -22,13 +22,25 @@
 */
 package com.helpofai.videoplayer.feature.library.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.feature.library.LibraryState
 import com.helpofai.videoplayer.feature.library.ads.*
@@ -59,6 +71,92 @@ fun LibraryHomeTab(
             onVideoClick = onVideoClick
         )
         Spacer(modifier = Modifier.height(8.dp))
+    }
+
+    // Active Streaming Watch Party Session Popup/Card
+    val sessionManager = remember { com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance() }
+    val activeSession by sessionManager.activeSession.collectAsState()
+    if (activeSession?.video != null) {
+        val session = activeSession!!
+        val video = session.video!!
+        val isHost = !sessionManager.isClientMode
+        val labelText = if (isHost) "HOSTING STREAM" else "LIVE WATCH PARTY"
+        val labelColor = if (isHost) androidx.compose.ui.graphics.Color(0xFF7C5CE7) else androidx.compose.ui.graphics.Color(0xFFE74C3C)
+
+        androidx.compose.material3.Card(
+            colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF111520)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFF1E2535)),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)
+            ) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    androidx.compose.material3.Text(
+                        text = labelText,
+                        color = labelColor,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontSize = 11.sp
+                    )
+                    
+                    // Pulsing animated Live dot
+                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                    val alpha by infiniteTransition.animateFloat(
+                        initialValue = 0.3f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(800, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha"
+                    )
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(androidx.compose.ui.graphics.Color.Red.copy(alpha = alpha))
+                    )
+                }
+
+                androidx.compose.material3.Text(
+                    text = video.title,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+
+                androidx.compose.material3.Text(
+                    text = "Room Name: ${session.name}",
+                    color = androidx.compose.ui.graphics.Color(0xFF8E9CB0),
+                    fontSize = 11.sp
+                )
+
+                androidx.compose.material3.Button(
+                    onClick = { onVideoClick(video) },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = labelColor),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                ) {
+                    androidx.compose.material3.Text(
+                        text = "Join Stream in Full Player",
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
     }
 
     // 1.5 Resume Playback (Folder Context)

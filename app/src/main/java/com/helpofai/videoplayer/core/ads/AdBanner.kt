@@ -61,7 +61,6 @@ fun AdaptiveBanner(
 ) {
     val context = LocalContext.current
     var adView by remember { mutableStateOf<AdView?>(null) }
-    var adLoaded by remember { mutableStateOf(false) }
 
     // Calculate adaptive banner width based on the window — NOT the screen.
     // Using screen width can produce incorrect sizes on multi-window / foldables.
@@ -86,15 +85,11 @@ fun AdaptiveBanner(
             this.adUnitId = adUnitId
             setAdSize(adSize)
             adListener = object : AdListener() {
-                override fun onAdLoaded() {
-                    adLoaded = true
-                }
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     android.util.Log.w(
                         "AdaptiveBanner",
                         "Banner failed to load: ${error.message} [code=${error.code}]"
                     )
-                    adLoaded = false
                 }
             }
             loadAd(AdRequest.Builder().build())

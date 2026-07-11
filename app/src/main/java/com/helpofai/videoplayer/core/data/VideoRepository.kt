@@ -45,7 +45,8 @@ import javax.inject.Singleton
 class VideoRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mediaScanner: MediaScanner,
-    private val videoDao: VideoDao
+    private val videoDao: VideoDao,
+    private val performanceManager: dagger.Lazy<com.helpofai.videoplayer.core.playback.diagnostics.AdaptivePerformanceManager>
 ) {
     private val cacheFile = java.io.File(context.cacheDir, "videos_cache_v2.txt")
 
@@ -114,16 +115,17 @@ class VideoRepository @Inject constructor(
             if (cached != null && cached.isNotEmpty()) {
                 _localVideosCache.value = cached
                 // Scan in background asynchronously to refresh cache if needed
-                // Fire-and-forget refresh on IO — we accept that this may not complete
-                // if the ViewModel is cleared. A structured scope would be better but
-                // this repository is Singleton-scoped, not ViewModel-scoped.
-                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                    val fresh = mediaScanner.getVideos()
-                    if (fresh != cached) {
-                        _localVideosCache.value = fresh
-                        saveCachedVideos(fresh)
+                if (performanceManager.get().canRunBackgroundTasks.value) {
+                    kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                        val fresh = mediaScanner.getVideos()
+                        if (fresh != cached) {
+                            _localVideosCache.value = fresh
+                            saveCachedVideos(fresh)
+                        }
                     }
                 }
+            } else {
+                // Cache is empty or missing (e.g. fresh install) — scan immediately to populate
                 val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
                 _localVideosCache.value = fresh
                 withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
@@ -132,9 +134,11 @@ class VideoRepository @Inject constructor(
     }
     
     suspend fun refreshVideos() {
-        val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
-        _localVideosCache.value = fresh
-        withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
+        if (performanceManager.get().canRunBackgroundTasks.value) {
+            val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
+            _localVideosCache.value = fresh
+            withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
+        }
     }
 
     suspend fun toggleFavorite(path: String, isFavorite: Boolean) {

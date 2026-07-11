@@ -44,6 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -102,6 +105,8 @@ fun PlayerTopToolbar(
     isToolsExpanded: Boolean,
     onToolsExpandedChange: (Boolean) -> Unit,
     onEmptyClick: () -> Unit,
+    isStreaming: Boolean = false,
+    isHost: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -159,16 +164,37 @@ fun PlayerTopToolbar(
                 Spacer(modifier = Modifier.width(8.dp))
                 
                 if (!isToolsExpanded) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .weight(1f)
-                            .basicMarquee(iterations = Int.MAX_VALUE)
-                            .padding(end = 8.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .basicMarquee(iterations = Int.MAX_VALUE)
+                                .padding(end = 8.dp)
+                        )
+                        if (isStreaming) {
+                            androidx.compose.material3.Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = (if (isHost) Color.Red else Color(0xFF00FFCC)).copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, (if (isHost) Color.Red else Color(0xFF00FFCC)).copy(alpha = 0.5f)),
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = if (isHost) "STREAMING" else "LIVE",
+                                    fontSize = 7.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isHost) Color.Red else Color(0xFF00FFCC),
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                     
                     // Quick access most required icons when collapsed
                     AnimatedIconButton(onClick = onAudioClick, icon = Icons.Default.Audiotrack, contentDescription = "Audio")

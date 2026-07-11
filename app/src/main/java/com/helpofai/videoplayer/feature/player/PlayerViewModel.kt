@@ -40,7 +40,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import javax.inject.Inject
 
@@ -58,6 +60,9 @@ class PlayerViewModel @Inject constructor(
     private val qualityAnalyzerEngine: com.helpofai.videoplayer.feature.qualityanalyzer.QualityAnalyzerEngine,
     val preferencesUseCase: com.helpofai.videoplayer.feature.player.domain.PlayerPreferencesUseCase,
     private val playbackManager: com.helpofai.videoplayer.core.playback.MediaPlaybackManager,
+    private val mediaAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer,
+    private val audioQualityAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.AudioQualityAnalyzer,
+    val videoEnhancementManager: com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -77,13 +82,23 @@ class PlayerViewModel @Inject constructor(
     var currentVideoPath: String? = null
         private set
         
-    private val _currentPathFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    private val _currentPathFlow = MutableStateFlow<String?>(null)
         
-    private val _videoMetadata = kotlinx.coroutines.flow.MutableStateFlow<com.helpofai.videoplayer.core.database.entities.VideoMetadataEntity?>(null)
+    private val _videoMetadata = MutableStateFlow<com.helpofai.videoplayer.core.database.entities.VideoMetadataEntity?>(null)
     val videoMetadata = _videoMetadata.asStateFlow()
         
-    private val _playlist = kotlinx.coroutines.flow.MutableStateFlow<List<com.helpofai.videoplayer.core.model.Video>>(emptyList())
+    private val _playlist = MutableStateFlow<List<com.helpofai.videoplayer.core.model.Video>>(emptyList())
     val playlist = _playlist.asStateFlow()
+
+    // Holds the real video title for watch party clients (since path is "http_stream")
+    private val _watchPartyVideoTitle = MutableStateFlow<String?>(null)
+    val watchPartyVideoTitle = _watchPartyVideoTitle.asStateFlow()
+
+    private val _mediaCompatibilityReport = MutableStateFlow<com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer.MediaCompatibilityReport?>(null)
+    val mediaCompatibilityReport = _mediaCompatibilityReport.asStateFlow()
+
+    private val _audioQualityReport = MutableStateFlow<com.helpofai.videoplayer.core.playback.diagnostics.AudioQualityAnalyzer.AudioQualityReport?>(null)
+    val audioQualityReport = _audioQualityReport.asStateFlow()
     
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val bookmarks = _currentPathFlow.flatMapLatest { path ->
@@ -113,12 +128,31 @@ class PlayerViewModel @Inject constructor(
         val videoPathString = savedStateHandle.get<String>("path")
         
         if (videoUriString != null) {
-            val uri = Uri.parse(Uri.decode(videoUriString))
-            currentVideoPath = videoPathString?.let { Uri.decode(it) } ?: uri.path
+            val originalUri = Uri.parse(Uri.decode(videoUriString))
+            val watchPartySessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
+            val activeSession = watchPartySessionManager.activeSession.value
+            
+            val isClient = watchPartySessionManager.isClientMode && activeSession != null
+            // Client always streams from host HTTP server; host plays its local file
+            val uri = if (isClient) {
+                Uri.parse("http://${activeSession?.hostIp}:${activeSession?.port ?: 9980}/video")
+            } else {
+                originalUri
+            }
+            
+            currentVideoPath = if (isClient) "http_stream" else (videoPathString?.let { Uri.decode(it) } ?: uri.path)
             _currentPathFlow.value = currentVideoPath
+
+            // For client mode, show the real video title from the host session
+            if (isClient && activeSession?.video != null) {
+                _watchPartyVideoTitle.value = activeSession.video.title
+            }
             
             viewModelScope.launch {
-                val meta = currentVideoPath?.let { repository.getMetadata(it) }
+                val finalUri = uri
+                val finalPath = currentVideoPath ?: "http_stream"
+                
+                val meta = if (isClient) null else (finalPath.takeIf { it != "http_stream" }?.let { repository.getMetadata(it) })
                 _videoMetadata.value = meta
                 _abRepeatStart.value = meta?.abRepeatStart
                 _abRepeatEnd.value = meta?.abRepeatEnd
@@ -130,16 +164,129 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
                 
-                if (currentVideoPath != null) {
+                if (!isClient) {
                     playbackManager.prepareVideo(
-                        path = currentVideoPath!!,
-                        uri = uri,
+                        path = finalPath,
+                        uri = finalUri,
                         meta = meta,
-                        resumePosition = resumePosition,
+                        resumePosition = 0L,
                         preferredSpeed = preferencesUseCase.getPreferredPlaybackSpeed(),
                         preferredSubtitleLang = preferencesUseCase.getPreferredSubtitleLanguage(),
-                        zoomLevel = meta?.zoomLevel ?: 1.0f
+                        zoomLevel = meta?.zoomLevel ?: 1.0f,
+                        playWhenReady = true
                     )
+                }
+
+                // Client-side: Watch Party active session video change observer
+                if (isClient) {
+                    launch {
+                        var lastVideoId: String? = null
+                        watchPartySessionManager.activeSession.collect { session ->
+                            val currentVideo = session?.video
+                            if (currentVideo != null) {
+                                _watchPartyVideoTitle.value = currentVideo.title
+                                val currentVideoId = currentVideo.id.toString()
+                                if (currentVideoId != lastVideoId) {
+                                    lastVideoId = currentVideoId
+                                    val streamUri = Uri.parse("http://${session.hostIp}:${session.port}/video")
+                                    playbackManager.prepareVideo(
+                                        path = "http_stream",
+                                        uri = streamUri,
+                                        meta = null,
+                                        resumePosition = session.currentPositionMs,
+                                        preferredSpeed = 1.0f,
+                                        preferredSubtitleLang = null,
+                                        zoomLevel = 1.0f,
+                                        playWhenReady = session.isPlaying
+                                    )
+                                }
+                            } else {
+                                _watchPartyVideoTitle.value = "Waiting for host..."
+                                lastVideoId = null
+                                videoPlayer.pause()
+                            }
+                        }
+                    }
+                }
+
+                // Host-Player Sync Binding: push play position to session every second
+                launch {
+                    while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
+                        val session = watchPartySessionManager.activeSession.value
+                        if (session != null && !watchPartySessionManager.isClientMode) {
+                            watchPartySessionManager.updatePlaybackState(
+                                positionMs = videoPlayer.player.currentPosition,
+                                isPlaying = videoPlayer.player.isPlaying
+                            )
+                        }
+                        kotlinx.coroutines.delay(1000)
+                    }
+                }
+
+                // Auto-sync playing video when in Host Sync Mode
+                launch {
+                    combine(
+                        watchPartySessionManager.isSyncModeEnabled,
+                        _currentPathFlow,
+                        _playlist
+                    ) { enabled, path, list -> Triple(enabled, path, list) }
+                    .collect { (enabled, path, list) ->
+                        if (enabled && !watchPartySessionManager.isClientMode && path != null && path != "http_stream") {
+                            val currentVideo = list.firstOrNull { it.path == path } ?: com.helpofai.videoplayer.core.model.Video(
+                                id = path.hashCode().toLong(),
+                                uri = android.net.Uri.fromFile(java.io.File(path)),
+                                title = java.io.File(path).name,
+                                duration = 0L,
+                                size = 0L,
+                                dateAdded = 0L,
+                                path = path
+                            )
+                            if (watchPartySessionManager.currentStreamingVideo.value?.path != path) {
+                                watchPartySessionManager.setStreamingVideo(currentVideo)
+                            }
+                        }
+                    }
+                }
+
+                // Client synchronization handler: only acts when ExoPlayer is STATE_READY
+                launch {
+                    combine(
+                        watchPartySessionManager.activeSession,
+                        videoPlayer.playbackState
+                    ) { session, exoState -> Pair(session, exoState) }
+                    .collect { (session, exoState) ->
+                        if (session != null && watchPartySessionManager.isClientMode) {
+                            val isReady = exoState.playbackState == androidx.media3.common.Player.STATE_READY
+                            val isEnded = exoState.playbackState == androidx.media3.common.Player.STATE_ENDED
+                            if (!isReady || isEnded) return@collect
+
+                            if (session.isPlaying && !exoState.isPlaying) {
+                                videoPlayer.play()
+                            } else if (!session.isPlaying && exoState.isPlaying) {
+                                videoPlayer.pause()
+                            }
+
+                            val drift = kotlin.math.abs(exoState.currentPosition - session.currentPositionMs)
+                            if (drift > 2000L) {
+                                videoPlayer.seekTo(session.currentPositionMs)
+                            }
+                        }
+                    }
+                }
+
+                // Trigger lightweight offline diagnostics (skip for HTTP stream clients)
+                if (!isClient) {
+                    launch(Dispatchers.IO) {
+                        val report = mediaAnalyzer.analyzeMedia(finalUri, finalPath)
+                        _mediaCompatibilityReport.value = report
+                        _audioQualityReport.value = audioQualityAnalyzer.analyzeAudioTrack(
+                            codec = report.audioCodec,
+                            channels = report.audioChannels,
+                            sampleRate = report.audioSampleRate,
+                            bitrateBps = report.totalBitrateBps
+                        )
+                        videoEnhancementManager.applyPreset(videoEnhancementManager.config.value.preset, report)
+                    }
                 }
 
                 repository.getVideosWithMetadata().collect { allVideos ->
@@ -159,7 +306,7 @@ class PlayerViewModel @Inject constructor(
     }
     
     fun onResumeAccepted() {
-        if (resumePosition > 0L) {
+        if (!videoPlayer.isReleased && resumePosition > 0L) {
             videoPlayer.player.seekTo(resumePosition)
         }
         showResumePrompt = false
@@ -173,11 +320,13 @@ class PlayerViewModel @Inject constructor(
         abRepeatJob?.cancel()
         abRepeatJob = viewModelScope.launch {
             while (isActive) {
-                val start = _abRepeatStart.value
-                val end = _abRepeatEnd.value
-                if (start != null && end != null && start < end && (start > 0 || end - start > 5000)) {
-                    if (videoPlayer.player.currentPosition >= end) {
-                        videoPlayer.player.seekTo(start)
+                if (!videoPlayer.isReleased) {
+                    val start = _abRepeatStart.value
+                    val end = _abRepeatEnd.value
+                    if (start != null && end != null && start < end && (start > 0 || end - start > 5000)) {
+                        if (videoPlayer.player.currentPosition >= end) {
+                            videoPlayer.player.seekTo(start)
+                        }
                     }
                 }
                 kotlinx.coroutines.delay(100)
@@ -188,7 +337,7 @@ class PlayerViewModel @Inject constructor(
     private fun startMidRollAdChecker() {
         viewModelScope.launch {
             while (isActive) {
-                if (videoPlayer.player.isPlaying) {
+                if (!videoPlayer.isReleased && videoPlayer.player.isPlaying) {
                     val duration = videoPlayer.player.duration
                     if (duration > 30 * 60 * 1000L) { // > 30 mins
                         val currentPos = videoPlayer.player.currentPosition
@@ -217,13 +366,11 @@ class PlayerViewModel @Inject constructor(
                 if (state.playbackState == androidx.media3.common.Player.STATE_READY && !hasShownResumePromptForCurrentVideo) {
                     hasShownResumePromptForCurrentVideo = true
                     if (resumePosition > 0L) {
-                        // Seek to saved position when player is fully ready (reliable)
-                        videoPlayer.player.seekTo(resumePosition)
                         showResumePrompt = true
                         
-                        // Auto-hide after 10 seconds
+                        // Auto-hide after 8 seconds
                         viewModelScope.launch {
-                            kotlinx.coroutines.delay(10000)
+                            kotlinx.coroutines.delay(8000)
                             if (showResumePrompt) {
                                 showResumePrompt = false
                             }
@@ -318,11 +465,24 @@ class PlayerViewModel @Inject constructor(
                 path = path,
                 uri = uri,
                 meta = meta,
-                resumePosition = resumePosition,
+                resumePosition = 0L, // Start playing from 0:00
                 preferredSpeed = meta?.playbackSpeed ?: preferencesUseCase.getPreferredPlaybackSpeed(),
                 preferredSubtitleLang = meta?.subtitleTrackLanguage ?: preferencesUseCase.getPreferredSubtitleLanguage(),
                 zoomLevel = meta?.zoomLevel ?: 1.0f
             )
+            
+            // Trigger lightweight offline diagnostics once
+            launch(Dispatchers.IO) {
+                val report = mediaAnalyzer.analyzeMedia(uri, path)
+                _mediaCompatibilityReport.value = report
+                _audioQualityReport.value = audioQualityAnalyzer.analyzeAudioTrack(
+                    codec = report.audioCodec,
+                    channels = report.audioChannels,
+                    sampleRate = report.audioSampleRate,
+                    bitrateBps = report.totalBitrateBps
+                )
+                videoEnhancementManager.applyPreset(videoEnhancementManager.config.value.preset, report)
+            }
             
             _zoomLevel.value = meta?.zoomLevel ?: 1.0f
             
@@ -381,7 +541,7 @@ class PlayerViewModel @Inject constructor(
 
     fun takeScreenshot(context: android.content.Context, onSuccess: (String) -> Unit) {
         val path = currentVideoPath ?: return
-        val positionMs = videoPlayer.player.currentPosition
+        val positionMs = if (!videoPlayer.isReleased) videoPlayer.player.currentPosition else 0L
         viewModelScope.launch {
             val fileName = "Screenshot_${System.currentTimeMillis()}.jpg"
             val destFile = java.io.File(context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES), fileName)

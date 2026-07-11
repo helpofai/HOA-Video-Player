@@ -27,5 +27,18 @@ data class PlaybackState(
     val currentPosition: Long = 0L,
     val duration: Long = 0L,
     val bufferedPosition: Long = 0L,
-    val playbackState: Int = 1 // Player.STATE_IDLE
+    val playbackState: Int = 1, // Player.STATE_IDLE
+    val currentDecoderName: String = "Unknown",
+    val isHardwareDecoder: Boolean = true,
+    val videoCodec: String = "Unknown",
+    val audioCodec: String = "Unknown",
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0,
+    val videoFps: Float = 0f,
+    val videoBitrate: Int = 0,
+    val isHdr: Boolean = false,
+    val droppedFrames: Int = 0,
+    val fallbackEvents: List<String> = emptyList(),
+    val playbackStability: String = "Stable",
+    val compatibilityStatus: String = "Compatible"
 )

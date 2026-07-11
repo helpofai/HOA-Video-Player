@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,9 +75,14 @@ fun ContinueWatchingCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            val thumbModel = remember(video.id) {
+                val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
+                if (cachedFile.exists()) cachedFile else java.io.File(video.path)
+            }
+
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(java.io.File(video.path))
+                    .data(thumbModel)
                     .crossfade(true)
                     .size(400) // Optimize RAM
                     .memoryCachePolicy(coil.request.CachePolicy.ENABLED)

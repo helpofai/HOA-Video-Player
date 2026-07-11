@@ -91,78 +91,165 @@ fun PlayerGestureSurface(
     val onFeedbackEvent by rememberUpdatedState(onFeedbackEvent)
     val onLongPressStateChange by rememberUpdatedState(onLongPressStateChange)
 
-    var activePointers by remember { mutableIntStateOf(0) }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        activePointers = event.changes.count { it.pressed }
-                    }
-                }
-            }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var isSeeking = false
+                    var isAdjustingVolBright = false
+                    var isZooming = false
+                    var seekAccumulatorLocal = 0f
+                    var startPosition = 0L
+                    var initialVolume = 0f
+                    var initialBrightness = 0f
+                    var accumulatedY = 0f
+                    var lastBrightness = -1f
+                    var lastVolume = -1f
+
+                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+
                     var zoom = 1f
-                    var pastTouchSlop = false
+                    var pastZoomTouchSlop = false
                     val touchSlop = viewConfiguration.touchSlop
-                    
+
                     do {
                         val event = awaitPointerEvent()
                         val canceled = event.changes.any { it.isConsumed }
-                        if (!canceled) {
-                            if (event.changes.size >= 2) {
-                                val zoomChange = event.calculateZoom()
-                                val panChange = event.calculatePan()
-                                
-                                if (!pastTouchSlop) {
-                                    zoom *= zoomChange
-                                    val centroidSize = event.calculateCentroidSize(useCurrent = false)
-                                    val zoomMotion = kotlin.math.abs(1 - zoom) * centroidSize
-                                    if (zoomMotion > touchSlop) {
-                                        pastTouchSlop = true
+                        if (canceled) break
+
+                        val pointerCount = event.changes.count { it.pressed }
+
+                        if (pointerCount >= 2) {
+                            if (isSeeking || isAdjustingVolBright) {
+                                isSeeking = false
+                                isAdjustingVolBright = false
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L))
+                            }
+                            isZooming = true
+
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+
+                            if (!pastZoomTouchSlop) {
+                                zoom *= zoomChange
+                                val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                                val zoomMotion = kotlin.math.abs(1 - zoom) * centroidSize
+                                if (zoomMotion > touchSlop) {
+                                    pastZoomTouchSlop = true
+                                }
+                            }
+
+                            if (pastZoomTouchSlop) {
+                                val newScale = (scale * zoomChange).coerceIn(0.5f, 5f)
+                                onScaleChange(newScale)
+
+                                val zoomPercent = (newScale * 100).toInt()
+                                val zoomText = when {
+                                    newScale == 1.0f -> "Zoom: Fit (100%)"
+                                    newScale > 1.0f -> "Zoom: ${zoomPercent}%"
+                                    else -> "Zoom: Minimized (${zoomPercent}%)"
+                                }
+
+                                onFeedbackEvent(
+                                    FeedbackEvent(
+                                        type = FeedbackType.ZOOM,
+                                        icon = if (zoomChange >= 1f) Icons.Default.ZoomIn else Icons.Default.ZoomOut,
+                                        text = zoomText,
+                                        color = Color(0xFF4CAF50),
+                                        id = 9999L
+                                    )
+                                )
+
+                                if (newScale > 1f) {
+                                    val maxX = (size.width * (newScale - 1)) / 2
+                                    val maxY = (size.height * (newScale - 1)) / 2
+                                    val newOx = (offsetX + panChange.x).coerceIn(-maxX, maxX)
+                                    val newOy = (offsetY + panChange.y).coerceIn(-maxY, maxY)
+                                    onOffsetChange(newOx, newOy)
+                                } else {
+                                    onOffsetChange(0f, 0f)
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        } else if (pointerCount == 1 && !isZooming) {
+                            val change = event.changes.firstOrNull { it.pressed }
+                            if (change != null) {
+                                val dragAmount = change.position - change.previousPosition
+
+                                if (!isSeeking && !isAdjustingVolBright) {
+                                    startPosition = viewModel.videoPlayer.player.currentPosition
+                                    initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
+                                    activity?.window?.let { window ->
+                                        var currentBrightness = window.attributes.screenBrightness
+                                        if (currentBrightness < 0) currentBrightness = 0.5f
+                                        initialBrightness = currentBrightness
+                                    }
+
+                                    if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y) * 1.5f) {
+                                        isSeeking = true
+                                    } else if (kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 1.5f) {
+                                        isAdjustingVolBright = true
                                     }
                                 }
-                                
-                                if (pastTouchSlop) {
-                                    val newScale = (scale * zoomChange).coerceIn(0.5f, 5f)
-                                    onScaleChange(newScale)
-                                    
-                                    val zoomPercent = (newScale * 100).toInt()
-                                    val zoomText = when {
-                                        newScale == 1.0f -> "Zoom: Fit (100%)"
-                                        newScale > 1.0f -> "Zoom: ${zoomPercent}%"
-                                        else -> "Zoom: Minimized (${zoomPercent}%)"
-                                    }
-                                    
-                                    onFeedbackEvent(
-                                        FeedbackEvent(
-                                            type = FeedbackType.ZOOM,
-                                            icon = if (zoomChange >= 1f) Icons.Default.ZoomIn else Icons.Default.ZoomOut,
-                                            text = zoomText,
-                                            color = Color(0xFF4CAF50),
-                                            id = 9999L // Stable ID to prevent toast animation flickering
-                                        )
-                                    )
 
-                                    if (newScale > 1f) {
-                                        val maxX = (size.width * (newScale - 1)) / 2
-                                        val maxY = (size.height * (newScale - 1)) / 2
-                                        val newOx = (offsetX + panChange.x).coerceIn(-maxX, maxX)
-                                        val newOy = (offsetY + panChange.y).coerceIn(-maxY, maxY)
-                                        onOffsetChange(newOx, newOy)
+                                val screenWidth = size.width
+                                val screenHeight = size.height
+                                val isLeftSide = change.position.x < screenWidth / 2
+
+                                if (isSeeking) {
+                                    seekAccumulatorLocal += dragAmount.x
+                                    val seekAmountMs = (seekAccumulatorLocal / screenWidth) * 120000
+                                    val duration = viewModel.videoPlayer.player.duration
+                                    val safeDuration = if (duration > 0) duration else Long.MAX_VALUE
+                                    val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, safeDuration)
+
+                                    val currentSecs = newPos / 1000
+                                    val m = currentSecs / 60
+                                    val s = currentSecs % 60
+                                    val sign = if (seekAmountMs >= 0) "+" else ""
+                                    val diffSecs = (seekAmountMs / 1000).toInt()
+                                    onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.AutoMirrored.Filled.CompareArrows, String.format("%02d:%02d (%s%ds)", m, s, sign, diffSecs)))
+                                    change.consume()
+                                } else if (isAdjustingVolBright) {
+                                    accumulatedY += dragAmount.y
+                                    val delta = -accumulatedY / screenHeight * 1.5f
+
+                                    if (isLeftSide) {
+                                        activity?.window?.let { window ->
+                                            val params = window.attributes
+                                            val newB = (initialBrightness + delta).coerceIn(0f, 1f)
+                                            params.screenBrightness = newB
+                                            window.attributes = params
+                                            lastBrightness = newB
+                                            onFeedbackEvent(FeedbackEvent(FeedbackType.BRIGHTNESS, Icons.Default.BrightnessMedium, "${(params.screenBrightness * 100).toInt()}%", value = params.screenBrightness, color = Color(0xFFFFEB3B)))
+                                        }
                                     } else {
-                                        onOffsetChange(0f, 0f)
+                                        val newVolFloat = initialVolume + delta
+                                        val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                        lastVolume = newVolFloat.coerceIn(0f, 1f)
+                                        onFeedbackEvent(FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3)))
                                     }
-                                    event.changes.forEach { it.consume() }
+                                    change.consume()
                                 }
                             }
                         }
-                    } while (!canceled && event.changes.any { it.pressed })
+                    } while (event.changes.any { it.pressed })
+
+                    if (isSeeking) {
+                        val screenWidth = size.width
+                        val seekAmountMs = (seekAccumulatorLocal / screenWidth) * 120000
+                        val dur = viewModel.videoPlayer.player.duration.coerceAtLeast(0L)
+                        val newPos = if (dur > 0L) (startPosition + seekAmountMs.toLong()).coerceIn(0L, dur) else startPosition
+                        viewModel.videoPlayer.player.seekTo(newPos)
+                    } else if (isAdjustingVolBright) {
+                        if (lastBrightness >= 0f) viewModel.preferencesUseCase.saveBrightness(lastBrightness)
+                        if (lastVolume >= 0f) viewModel.preferencesUseCase.saveVolume(lastVolume)
+                    }
+                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L))
                 }
             }
             .pointerInput(longPressBoostSpeed) {
@@ -228,119 +315,7 @@ fun PlayerGestureSurface(
                     }
                 }
             }
-            .pointerInput(Unit) {
-                var isSeeking = false
-                var isAdjustingVolBright = false
-                var seekAccumulator = 0f
-                var startPosition = 0L
-                var initialVolume = 0f
-                var initialBrightness = 0f
-                var accumulatedY = 0f
-                var lastBrightness = -1f
-                var lastVolume = -1f
 
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        if (activePointers > 1) return@detectDragGestures
-                        seekAccumulator = 0f
-                        startPosition = viewModel.videoPlayer.player.currentPosition
-                        isSeeking = false
-                        isAdjustingVolBright = false
-                        accumulatedY = 0f
-                        lastBrightness = -1f
-                        lastVolume = -1f
-                        
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                        initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
-                        
-                        activity?.window?.let { window ->
-                            var currentBrightness = window.attributes.screenBrightness
-                            if (currentBrightness < 0) currentBrightness = 0.5f
-                            initialBrightness = currentBrightness
-                        }
-                    },
-                    onDragEnd = {
-                        if (activePointers > 1) {
-                            isSeeking = false
-                            isAdjustingVolBright = false
-                            return@detectDragGestures
-                        }
-                        if (isSeeking) {
-                            val screenWidth = size.width
-                            val seekAmountMs = (seekAccumulator / screenWidth) * 120000
-                            val dur = viewModel.videoPlayer.player.duration.coerceAtLeast(0L)
-                            val newPos = if (dur > 0L) (startPosition + seekAmountMs.toLong()).coerceIn(0L, dur) else startPosition
-                            viewModel.videoPlayer.player.seekTo(newPos)
-                        } else if (isAdjustingVolBright) {
-                            if (lastBrightness >= 0f) viewModel.preferencesUseCase.saveBrightness(lastBrightness)
-                            if (lastVolume >= 0f) viewModel.preferencesUseCase.saveVolume(lastVolume)
-                        }
-                        isSeeking = false
-                        isAdjustingVolBright = false
-                    },
-                    onDragCancel = {
-                        isSeeking = false
-                        isAdjustingVolBright = false
-                        onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L)) // Clear OSD immediately
-                    }
-                ) { change, dragAmount ->
-                    if (activePointers > 1) {
-                        isSeeking = false
-                        isAdjustingVolBright = false
-                        return@detectDragGestures
-                    }
-                    change.consume()
-                    val screenWidth = size.width
-                    val screenHeight = size.height
-                    val isLeftSide = change.position.x < screenWidth / 2
-
-                    if (!isSeeking && !isAdjustingVolBright) {
-                        if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y) * 1.5f) {
-                            isSeeking = true
-                        } else if (kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 1.5f) {
-                            isAdjustingVolBright = true
-                        }
-                    }
-
-                    if (isSeeking) {
-                        seekAccumulator += dragAmount.x
-                        val seekAmountMs = (seekAccumulator / screenWidth) * 120000
-                        val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, viewModel.videoPlayer.player.duration)
-                        
-                        val currentSecs = newPos / 1000
-                        val m = currentSecs / 60
-                        val s = currentSecs % 60
-                        val sign = if (seekAmountMs >= 0) "+" else ""
-                        val diffSecs = (seekAmountMs / 1000).toInt()
-                        onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.AutoMirrored.Filled.CompareArrows, String.format("%02d:%02d (%s%ds)", m, s, sign, diffSecs)))
-                    } else if (isAdjustingVolBright) {
-                        accumulatedY += dragAmount.y
-                        val delta = -accumulatedY / screenHeight * 1.5f 
-                        
-                        if (isLeftSide) {
-                            activity?.window?.let { window ->
-                                val params = window.attributes
-                                val newB = (initialBrightness + delta).coerceIn(0f, 1f)
-                                params.screenBrightness = newB
-                                window.attributes = params
-                                lastBrightness = newB
-                                
-                                onFeedbackEvent(FeedbackEvent(FeedbackType.BRIGHTNESS, Icons.Default.BrightnessMedium, "${(params.screenBrightness * 100).toInt()}%", value = params.screenBrightness, color = Color(0xFFFFEB3B)))
-                            }
-                        } else {
-                            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                            val newVolFloat = initialVolume + delta
-                            val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
-                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                            lastVolume = newVolFloat.coerceIn(0f, 1f)
-                            
-                            onFeedbackEvent(FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3)))
-                        }
-                    }
-                }
-            }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->

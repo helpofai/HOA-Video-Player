@@ -46,7 +46,8 @@ class MediaPlaybackManager @Inject constructor(
         resumePosition: Long,
         preferredSpeed: Float,
         preferredSubtitleLang: String?,
-        zoomLevel: Float
+        zoomLevel: Float,
+        playWhenReady: Boolean = true
     ) = withContext(Dispatchers.Main) {
         val subtitleConfigs = findSubtitlesForVideo(path).toMutableList()
 
@@ -68,7 +69,11 @@ class MediaPlaybackManager @Inject constructor(
             .setMediaMetadata(Media3Metadata.Builder().setTitle(fileName).build())
             .build()
 
-        videoPlayer.prepare(mediaItem)
+        if (videoPlayer is com.helpofai.videoplayer.core.playback.ExoPlayerImpl) {
+            videoPlayer.prepare(mediaItem, playWhenReady)
+        } else {
+            videoPlayer.prepare(mediaItem)
+        }
 
         if (resumePosition > 0L) {
             videoPlayer.seekTo(resumePosition)

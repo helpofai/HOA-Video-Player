@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,10 +55,16 @@ fun VideoThumbnailCard(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             
+            val context = LocalContext.current
+            val thumbModel = remember(video.id) {
+                val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
+                if (cachedFile.exists()) cachedFile else video.uri
+            }
+
             // Coil AsyncImage
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(video.uri)
+                model = ImageRequest.Builder(context)
+                    .data(thumbModel)
                     .crossfade(true)
                     .size(512) // Cap resolution to save RAM
                     .memoryCachePolicy(coil.request.CachePolicy.ENABLED)

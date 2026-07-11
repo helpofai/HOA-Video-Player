@@ -8,6 +8,6 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_logo_animated</item>
         
         <!-- Post-splash screen theme (the one to switch to after splash) -->
-        <item name="postSplashScreenTheme">@android:style/Theme.Material.Light.NoActionBar</item>
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.NoActionBar</item>
     </style>
 </resources>

@@ -94,10 +94,16 @@ fun PremiumVideoSlider(
                         .fillMaxSize()
                         .clickable { onVideoClick(video) }
                 ) {
+                    val context = LocalContext.current
+                    val thumbModel = remember(video.id) {
+                        val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
+                        if (cachedFile.exists()) cachedFile else video.uri
+                    }
+
                     // Thumbnail
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(video.uri)
+                        model = ImageRequest.Builder(context)
+                            .data(thumbModel)
                             .crossfade(true)
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .diskCachePolicy(CachePolicy.ENABLED)

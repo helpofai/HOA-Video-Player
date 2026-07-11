@@ -1,17 +1,25 @@
 [versions]
-agp = "8.7.3"
-kotlin = "2.0.21"
+agp = "9.0.0"
+kotlin = "2.4.0"
 coreKtx = "1.15.0"
-coreSplashscreen = "1.0.1"
+coreSplashscreen = "1.2.0"
 lifecycle = "2.8.7"
-activityCompose = "1.9.3"
-composeBom = "2024.11.00"
-media3 = "1.5.0"
-room = "2.6.1"
-hilt = "2.52"
-coil = "2.6.0"
-navigationCompose = "2.7.7"
-datastore = "1.1.1"
+activityCompose = "1.13.0"
+composeBom = "2026.06.01"
+media3 = "1.10.1"
+room = "2.8.4"
+hilt = "2.60.1"
+coil = "2.7.0"
+navigationCompose = "2.9.8"
+datastore = "1.2.1"
+ksp = "2.3.9"
+playServicesAds = "25.4.0"
+hiltNavigationCompose = "1.2.0"
+mlkit-barcode = "18.3.0"
+zxing-android = "4.3.0"
+zxing-core = "3.5.2"
+camerax = "1.4.0"
+foundation = "1.11.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -26,6 +34,7 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-compose-animation-graphics = { group = "androidx.compose.animation", name = "animation-graphics" }
 
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt", name = "coil-video", version.ref = "coil" }
@@ -41,13 +50,21 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 reorderable = { group = "org.burnoutcrew.composereorderable", name = "reorderable", version = "0.9.6" }
+google-play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
+mlkit-barcode = { group = "com.google.android.gms", name = "play-services-mlkit-barcode-scanning", version.ref = "mlkit-barcode" }
+zxing-android = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing-android" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing-core" }
+camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
-ksp = { id = "com.google.devtools.ksp", version = "2.0.21-1.0.28" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

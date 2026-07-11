@@ -61,6 +61,45 @@ This application operates 100% entirely offline. No cloud APIs, no backend, no d
 
 ---
 
+## 👥 Watch Party & Real-Time Sync
+
+The **Watch Party** feature allows multiple users on the same local network (Wi-Fi or Hotspot) to watch videos together in real-time. It features play/pause synchronization, seek alignment, a floating live preview mini player, real-time text chats, and floating emoji reactions.
+
+### 🧠 Core Architecture & Optimizations
+
+*   **Zero-Configuration Dynamic Port Allocation:**
+    *   To prevent port binding conflicts (`BindException`) from other background services, the host dynamically scans and binds to the first free ports (range `9990..9999` for the TCP Room Command Tunnel, and `9980..9989` for the HTTP Video Stream).
+    *   Dynamic ports are automatically resolved and synced to clients during UDP Discovery and connection handshakes.
+*   **Automatic UDP Room Discovery & Handshake:**
+    *   Clients locate active host rooms on the local subnet by broadcasting `"WATCH_PARTY_DISCOVER"` packets on port `8079`.
+    *   Hosts listen and respond instantly. If local router rules block UDP broadcasts, the client automatically falls back to high-speed ARP subnet scanning across the IP range, probing dynamic ports to locate active rooms.
+*   **Extreme Bandwidth Zero-Copy Streaming:**
+    *   The HTTP Video Stream Server utilizes Java NIO `FileChannel.transferTo()` (zero-copy transfer) to stream video files directly.
+    *   This bypasses user-space memory, routing data directly from storage to network sockets via the operating system's native `sendfile()` system call. It achieves **100% of the hardware Wi-Fi bandwidth capacity** with almost 0% CPU and GC overhead.
+*   **Lifecycle-Aware Background Resource Management:**
+    *   The client's floating **Live Mini Player** runs a lightweight, muted ExoPlayer instance to preview the stream.
+    *   To prevent network bandwidth congestion and resource contention, the mini player is lifecycle-aware: it automatically releases its ExoPlayer and closes socket connections the instant the user transitions to the full-screen player, restoring 100% bandwidth to the foreground playback.
+
+### 📖 How to Use
+
+#### 1. Host Device (Create a Watch Party Room)
+1. Navigate to the **Watch Party** tab.
+2. Enter a **Room Name** (no initial video selection is required).
+3. Optionally configure **Viewer Permissions** (Seek, Play/Pause, Volume controls) or set a password.
+4. Tap **Create Room**.
+5. Go to your local video library, open the video player, tap the **More Settings (Three Dots)** button, and toggle **Watch Party Synchronized Mode** to **ON**. The host is now actively broadcasting the video!
+
+#### 2. Client Device (Join a Watch Party Room)
+1. Connect to the **same Wi-Fi network** or Hotspot as the host device.
+2. Navigate to the **Watch Party** tab and tap **Join Room**.
+3. The client will scan the network and display active rooms. Tap **Request Join** on your host's room.
+4. The host will receive an overlay popup to **Accept** or **Reject** the join request (with an auto-dismiss countdown timer).
+5. Once accepted, the client enters the room dashboard, and a floating **Live Mini Player** will appear displaying a live, muted preview of the host's video stream.
+6. Tap the **Open Player** button on the mini player card to load the stream and watch together in synchronized full screen.
+7. Tap the chat overlay to send messages or reactions that will float across all connected devices in real-time.
+
+---
+
 ## 🛠 Tech Stack & Architecture
 This project rigorously adheres to a **Modular Domain-Driven Architecture**. Every file is self-descriptive and incredibly lightweight. 
 

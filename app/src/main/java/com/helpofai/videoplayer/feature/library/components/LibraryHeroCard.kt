@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,10 +71,16 @@ fun LibraryHeroCard(video: Video, onClick: () -> Unit = {}, onFavoriteClick: () 
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            val context = LocalContext.current
+            val thumbModel = remember(video.id) {
+                val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
+                if (cachedFile.exists()) cachedFile else video.uri
+            }
+
             // Thumbnail
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(video.uri)
+                model = ImageRequest.Builder(context)
+                    .data(thumbModel)
                     .crossfade(true)
                     .size(512)
                     .memoryCachePolicy(CachePolicy.ENABLED)
@@ -89,11 +96,43 @@ fun LibraryHeroCard(video: Video, onClick: () -> Unit = {}, onFavoriteClick: () 
                     .fillMaxSize()
                     .background(Color(0xFF001F3F).copy(alpha = 0.5f))
             )
-            // Smart tags
-            AdvancedVideoTags(
-                video = video,
-                modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
-            )
+            // Bottom info bar
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Color(0xFF001F3F).copy(alpha = 0.85f))
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = video.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${video.formattedDuration} • ${video.formattedSize}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    AdvancedVideoTags(video = video)
+                }
+                IconButton(onClick = onFavoriteClick) {
+                    val icon = if (video.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder
+                    Icon(
+                        icon,
+                        contentDescription = "Favorite",
+                        tint = if (video.isFavorite) Color.Red else Color.White
+                    )
+                }
+            }
+            
             // Watch progress bar
             if (video.lastPlayedPosition > 0 && video.duration > 0) {
                 val progress = (video.lastPlayedPosition.toFloat() / video.duration.toFloat()).coerceIn(0f, 1f)
@@ -106,56 +145,6 @@ fun LibraryHeroCard(video: Video, onClick: () -> Unit = {}, onFavoriteClick: () 
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = Color.White.copy(alpha = 0.3f)
                 )
-            }
-            // Center play button
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-            // Bottom info bar
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .background(Color(0xFF001F3F).copy(alpha = 0.8f))
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = video.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${video.formattedDuration} • ${video.formattedSize}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                }
-                IconButton(onClick = onFavoriteClick) {
-                    val icon = if (video.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder
-                    Icon(
-                        icon,
-                        contentDescription = "Favorite",
-                        tint = if (video.isFavorite) Color.Red else Color.White
-                    )
-                }
             }
         }
     }

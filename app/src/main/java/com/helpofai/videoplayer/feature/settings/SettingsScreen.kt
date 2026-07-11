@@ -22,40 +22,70 @@
 */
 package com.helpofai.videoplayer.feature.settings
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Close
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.foundation.background
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.blur
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.helpofai.videoplayer.core.data.PrivacyRepository
-import com.helpofai.videoplayer.feature.settings.components.*
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.imageLoader
+import com.helpofai.videoplayer.core.data.PrivacyRepository
+import com.helpofai.videoplayer.feature.settings.components.SettingsCategoryCard
+import com.helpofai.videoplayer.feature.settings.components.SettingsHtmlDialog
+import com.helpofai.videoplayer.feature.settings.components.SettingsItem
+import com.helpofai.videoplayer.feature.settings.components.SettingsItemWithIcon
+import com.helpofai.videoplayer.feature.settings.components.SettingsSwitchItem
 
 @OptIn(ExperimentalMaterial3Api::class, coil.annotation.ExperimentalCoilApi::class)
 @Suppress("DEPRECATION")
@@ -63,12 +93,12 @@ import coil.imageLoader
 fun SettingsScreen(
     onBackClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
-    privacyRepository: com.helpofai.videoplayer.core.data.PrivacyRepository? = null
+    privacyRepository: PrivacyRepository? = null
 ) {
     val context = LocalContext.current
     val effectivePrivacyRepo = remember {
         privacyRepository 
-            ?: com.helpofai.videoplayer.core.data.PrivacyRepository(context)
+            ?: PrivacyRepository(context)
     }
     // TODO: Inject PrivacyRepository via Hilt in SettingsViewModel instead of creating manually
     
@@ -115,13 +145,13 @@ fun SettingsScreen(
                 ) {
                     Box(modifier = Modifier.size(96.dp)) {
                         @OptIn(androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi::class)
-                        val image = androidx.compose.animation.graphics.vector.AnimatedImageVector.animatedVectorResource(id = com.helpofai.videoplayer.R.drawable.ic_logo_animated)
+                        val image = AnimatedImageVector.animatedVectorResource(id = com.helpofai.videoplayer.R.drawable.ic_logo_animated)
                         var atEnd by remember { mutableStateOf(false) }
                         LaunchedEffect(Unit) { atEnd = true }
                         
                         @OptIn(androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi::class)
                         androidx.compose.foundation.Image(
-                            painter = androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter(image, atEnd = atEnd),
+                            painter = rememberAnimatedVectorPainter(image, atEnd = atEnd),
                             contentDescription = "Logo",
                             modifier = Modifier.fillMaxSize()
                         )
@@ -241,6 +271,112 @@ fun SettingsScreen(
                 }
             }
             
+            item {
+                SettingsCategoryCard("Diagnostics & Compatibility") {
+                    var showCapabilitiesDialog by remember { mutableStateOf(false) }
+                    
+                    SettingsItem(
+                        title = "Hardware Capabilities",
+                        subtitle = "View CPU, RAM, display and supported hardware codecs.",
+                        onClick = { showCapabilitiesDialog = true }
+                    )
+                    
+                    if (showCapabilitiesDialog) {
+                        val detector = remember { 
+                            com.helpofai.videoplayer.core.playback.diagnostics.DeviceCapabilityDetector(context)
+                        }
+                        val caps = remember { detector.getCapabilities() }
+                        
+                        Dialog(
+                            onDismissRequest = { showCapabilitiesDialog = false },
+                            properties = DialogProperties(usePlatformDefaultWidth = false)
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .padding(24.dp)
+                                    .fillMaxWidth()
+                                    .wrapContentHeight(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xF20F1216), // Premium semi-transparent dark (90% opaque)
+                                contentColor = Color.White,
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp)
+                                ) {
+                                    // Title Row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Device Capabilities",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                        IconButton(onClick = { showCapabilitiesDialog = false }) {
+                                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.LightGray)
+                                        }
+                                    }
+                                    
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 12.dp))
+                                    
+                                    // Scrollable content
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f, fill = false)
+                                            .heightIn(max = 400.dp) // Bound height to keep it in screen bounds
+                                            .verticalScroll(rememberScrollState()),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        InfoRowItem("OS Version:", "Android ${caps.sdkVersion} (API ${android.os.Build.VERSION.SDK_INT})")
+                                        InfoRowItem("CPU Cores:", "${caps.cpuCores} Cores")
+                                        InfoRowItem("RAM Capacity:", String.format("%.2f GB Total", caps.totalRamGb))
+                                        InfoRowItem("Low RAM Mode:", if (caps.lowRamDevice) "Yes" else "No")
+                                        InfoRowItem("Display Refresh Rate:", String.format("%.1f Hz", caps.maxDisplayRefreshRate))
+                                        InfoRowItem("Display Bounds:", "${caps.displayWidth} x ${caps.displayHeight}")
+                                        InfoRowItem("Native HDR Display Support:", if (caps.supportsHdr) "Yes" else "No")
+                                        
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
+                                        
+                                        val (hwCodecs, swCodecs) = caps.supportedCodecs.partition { it.isHardwareAccelerated }
+                                        
+                                        if (hwCodecs.isNotEmpty()) {
+                                            Text("Hardware Codecs (${hwCodecs.size}):", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            for (codec in hwCodecs) {
+                                                Text("• ${codec.name} (${codec.mimeType})", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        
+                                        if (swCodecs.isNotEmpty()) {
+                                            Text("Software Codecs (${swCodecs.size}):", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                            for (codec in swCodecs) {
+                                                Text("• ${codec.name} (${codec.mimeType})", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                            }
+                                        }
+                                    }
+                                    
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 12.dp))
+                                    
+                                    // Footer
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                                        TextButton(
+                                            onClick = { showCapabilitiesDialog = false },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            Text("Dismiss", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 SettingsCategoryCard("About & Legal") {
                     SettingsItemWithIcon(
@@ -400,5 +536,13 @@ fun SettingsScreen(
             fileName = selectedHtmlFile!!,
             onDismissRequest = { selectedHtmlFile = null }
         )
+    }
+}
+
+@Composable
+private fun InfoRowItem(label: String, value: String) {
+    Column {
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium)
     }
 }

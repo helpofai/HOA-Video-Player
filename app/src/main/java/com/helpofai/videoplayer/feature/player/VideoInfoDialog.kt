@@ -33,9 +33,13 @@ import androidx.media3.common.Player
 import java.io.File
 import java.text.DecimalFormat
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @Composable
 fun VideoInfoDialog(
-    player: Player,
+    report: com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer.MediaCompatibilityReport?,
+    audioReport: com.helpofai.videoplayer.core.playback.diagnostics.AudioQualityAnalyzer.AudioQualityReport?,
     videoPath: String?,
     onDismissRequest: () -> Unit
 ) {
@@ -43,42 +47,56 @@ fun VideoInfoDialog(
     val sizeInMb = file?.let { it.length() / (1024.0 * 1024.0) } ?: 0.0
     val df = DecimalFormat("#.##")
 
-    // Extract codec info from current tracks
-    var videoCodec = "Unknown"
-    var audioCodec = "Unknown"
-    var resolution = "Unknown"
-    var bitrate = "Unknown"
-
-    player.currentTracks.groups.forEach { group ->
-        if (group.length > 0) {
-            val format = group.getTrackFormat(0)
-            if (group.type == C.TRACK_TYPE_VIDEO) {
-                videoCodec = format.sampleMimeType ?: "Unknown"
-                resolution = "${format.width} x ${format.height}"
-                if (format.bitrate != androidx.media3.common.Format.NO_VALUE) {
-                    bitrate = "${format.bitrate / 1000} kbps"
-                }
-            } else if (group.type == C.TRACK_TYPE_AUDIO) {
-                audioCodec = format.sampleMimeType ?: "Unknown"
-            }
-        }
-    }
-
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Video Information", fontWeight = FontWeight.Bold) },
+        title = { Text("Media Compatibility Report", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 InfoRow("File Path:", videoPath ?: "Unknown")
                 InfoRow("File Size:", "${df.format(sizeInMb)} MB")
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                InfoRow("Resolution:", resolution)
-                InfoRow("Video Codec:", videoCodec.replace("video/", "").uppercase())
-                InfoRow("Audio Codec:", audioCodec.replace("audio/", "").uppercase())
-                InfoRow("Bitrate:", bitrate)
+                
+                if (report != null) {
+                    InfoRow("Container Format:", report.container)
+                    InfoRow("Resolution:", "${report.width} x ${report.height} (${report.rotation}° Rotation)")
+                    InfoRow("Frame Rate:", String.format("%.1f fps", report.fps))
+                    InfoRow("Video Codec:", (report.videoCodec ?: "None").replace("video/", "").uppercase())
+                    if (report.videoProfile > 0) {
+                        InfoRow("Video Codec Profile / Level:", "Profile ${report.videoProfile} / Level ${report.videoLevel}")
+                    }
+                    InfoRow("HDR Format:", if (report.isHdr) report.hdrType ?: "Yes" else "None")
+                    InfoRow("Audio Track Count:", "${report.audioTrackCount}")
+                    InfoRow("Subtitle Track Count:", "${report.subtitleTrackCount}")
+                    if (report.languageTracks.isNotEmpty()) {
+                        InfoRow("Languages Detected:", report.languageTracks.distinct().joinToString(", ").uppercase())
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    
+                    if (audioReport != null) {
+                        InfoRow("Audio Codec:", audioReport.codec.replace("audio/", "").uppercase())
+                        InfoRow("Audio Layout:", "${audioReport.channelLayout} @ ${audioReport.sampleRate} Hz")
+                        InfoRow("Dynamic Range Estimate:", "${audioReport.dynamicRangeDb} dB")
+                        InfoRow("Peak Amplitude Estimate:", "${audioReport.peakLevelDbfs} dBFS")
+                    }
+                    
+                    if (report.issues.isNotEmpty() || report.recommendations.isNotEmpty()) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text("Issues & Suggestions:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        report.issues.forEach { issue ->
+                            Text("• $issue", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
+                        report.recommendations.forEach { rec ->
+                            Text("• $rec", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else {
+                    Text("Loading metadata analyzer...")
+                }
             }
         },
         confirmButton = {

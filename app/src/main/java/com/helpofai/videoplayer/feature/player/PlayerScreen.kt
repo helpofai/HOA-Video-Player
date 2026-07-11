@@ -23,61 +23,76 @@
 package com.helpofai.videoplayer.feature.player
 
 import android.content.pm.ActivityInfo
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroidSize
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.foundation.layout.*
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import com.helpofai.videoplayer.feature.player.components.CircularSpeedWheel
 import com.helpofai.videoplayer.feature.player.components.FeedbackEvent
 import com.helpofai.videoplayer.feature.player.components.FeedbackType
-import com.helpofai.videoplayer.feature.player.components.BookmarksSheet
-import com.helpofai.videoplayer.feature.player.components.PlayerBottomController
-import com.helpofai.videoplayer.feature.player.components.DecoderSelectorSheet
 import com.helpofai.videoplayer.feature.player.components.PlayerFeedbackOverlay
-import com.helpofai.videoplayer.feature.player.components.CircularSpeedWheel
-import com.helpofai.videoplayer.feature.player.components.resolveSpeedIndex
-import com.helpofai.videoplayer.feature.player.components.SPEED_OPTIONS
-import com.helpofai.videoplayer.feature.player.components.PlayerMorePopup
 import com.helpofai.videoplayer.feature.player.components.PlayerTopToolbar
-import com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet
-import com.helpofai.videoplayer.feature.player.components.VideoAdjustmentsSheet
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -126,7 +141,7 @@ fun PlayerScreen(
     var isLandscape by remember { mutableStateOf(false) }
     
     // Dialog State
-    var activeDialog by remember { androidx.compose.runtime.mutableStateOf<com.helpofai.videoplayer.feature.player.components.PlayerDialogType?>(null) }
+    var activeDialog by remember { mutableStateOf<com.helpofai.videoplayer.feature.player.components.PlayerDialogType?>(null) }
     
     // Subtitles/Audio State
     var trackSelectorInitialTab by remember { mutableIntStateOf(0) }
@@ -140,7 +155,9 @@ fun PlayerScreen(
     var isGeneratingChapters by remember { mutableStateOf(false) }
 
     // Loop State
-    var isLooping by remember { mutableStateOf(viewModel.videoPlayer.player.repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) }
+    var isLooping by remember { mutableStateOf(
+        try { viewModel.videoPlayer.player.repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE } catch (_: Exception) { false }
+    ) }
 
     // Lock State
     var isControlsLocked by remember { mutableStateOf(false) }
@@ -155,7 +172,7 @@ fun PlayerScreen(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
     var showVideoEnhancer by remember { mutableStateOf(false) }
-    var activeEnhancerProfile by remember { mutableStateOf("standard") }
+    val enhancementConfig by viewModel.videoEnhancementManager.config.collectAsState()
     var rotationZ by remember { mutableFloatStateOf(0f) }
     var isBuffering by remember { mutableStateOf(false) }
     var processData by remember { mutableStateOf("") }
@@ -170,10 +187,14 @@ fun PlayerScreen(
     var autoHideTrigger by remember { mutableStateOf(0) }
     var isToolsExpanded by remember { mutableStateOf(false) }
     var currentVideoTitle by remember { mutableStateOf("Video Player") }
-    
+    val watchPartyVideoTitle by viewModel.watchPartyVideoTitle.collectAsState()
+    // Use real title from session when client is streaming from host
+    LaunchedEffect(watchPartyVideoTitle) {
+        watchPartyVideoTitle?.let { currentVideoTitle = it }
+    }
+
     val playlist by viewModel.playlist.collectAsState()
-    val videoMetadata by viewModel.videoMetadata.collectAsState()
-    
+
     // AB Repeat State
     var abRepeatA by remember { mutableStateOf<Long?>(null) }
     var abRepeatB by remember { mutableStateOf<Long?>(null) }
@@ -316,7 +337,11 @@ fun PlayerScreen(
             }
             
             override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                mediaMetadata.title?.let { currentVideoTitle = it.toString() }
+                val titleFromMeta = mediaMetadata.title?.toString()
+                // Only update from media metadata if we're NOT in client stream mode
+                if (titleFromMeta != null && titleFromMeta != "http_stream" && watchPartyVideoTitle == null) {
+                    currentVideoTitle = titleFromMeta
+                }
             }
             
             override fun onIsPlayingChanged(isPlayingChange: Boolean) {
@@ -385,7 +410,6 @@ fun PlayerScreen(
                             null
                         )
                     )
-                    // AndroidView handles layout params automatically via Modifier
                 }
             },
             update = { playerView ->
@@ -401,23 +425,81 @@ fun PlayerScreen(
                 translationY = offsetY
                 this.rotationZ = rotationZ
 
-                // AI Video Enhancer is selected via activeEnhancerProfile
-                // Applying real-time ColorMatrix to SurfaceView requires a custom Media3 VideoSink 
-                // or OpenGL shader, which is managed at the ExoPlayer level.
+                // Real-time GPU-accelerated video enhancement filter using RenderEffect (API 31+)
+                if (enhancementConfig.preset != "original") {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        val matrix = android.graphics.ColorMatrix()
+                        
+                        // 1. Saturation & Vibrance (boost color saturation)
+                        val s = 1f + (enhancementConfig.saturation + enhancementConfig.vibrance * 0.5f) * enhancementConfig.strength
+                        matrix.setSaturation(s.coerceIn(0f, 3f))
+                        
+                        // 2. Contrast & Brightness (Color matrix math)
+                        val c = 1f + enhancementConfig.contrast * enhancementConfig.strength
+                        val b = enhancementConfig.brightness * 255f * enhancementConfig.strength
+                        
+                        val contrastMatrix = android.graphics.ColorMatrix(floatArrayOf(
+                            c, 0f, 0f, 0f, b + (1f - c) * 128f,
+                            0f, c, 0f, 0f, b + (1f - c) * 128f,
+                            0f, 0f, c, 0f, b + (1f - c) * 128f,
+                            0f, 0f, 0f, 1f, 0f
+                        ))
+                        matrix.postConcat(contrastMatrix)
+                        
+                        // 3. Color Temperature (Warm / Cool tints)
+                        val temp = enhancementConfig.colorTemperature * enhancementConfig.strength
+                        if (temp != 0f) {
+                            val rShift = if (temp > 0f) temp * 30f else temp * 20f
+                            val bShift = if (temp < 0f) -temp * 30f else -temp * 20f
+                            val gShift = if (temp > 0f) temp * 10f else 0f
+                            
+                            val tempMatrix = android.graphics.ColorMatrix(floatArrayOf(
+                                1f, 0f, 0f, 0f, rShift,
+                                0f, 1f, 0f, 0f, gShift,
+                                0f, 0f, 1f, 0f, bShift,
+                                0f, 0f, 0f, 1f, 0f
+                            ))
+                            matrix.postConcat(tempMatrix)
+                        }
+                        
+                        try {
+                            val androidRenderEffect = android.graphics.RenderEffect.createColorFilterEffect(
+                                android.graphics.ColorMatrixColorFilter(matrix)
+                            )
+                            this.renderEffect = androidRenderEffect.asComposeRenderEffect()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
             }
         )
         
-        // AI Video Enhancer Overlay (Soft UI Tint)
-        val aiOverlayColor = when (activeEnhancerProfile) {
-            "cinematic" -> Color(0x208B4513) // Warm cinematic tint
-            "hdr_boost" -> Color(0x15FFFFFF) // Brightness lift
-            "vivid" -> Color(0x1A0055FF) // Cool vivid tint
-            "dark_detail" -> Color(0x25FFFFFF) // Shadow lift
-            else -> Color.Transparent
-        }
-        
-        if (aiOverlayColor != Color.Transparent) {
-            Box(modifier = Modifier.fillMaxSize().background(aiOverlayColor))
+        // Dynamic Video Enhancer Overlay
+        if (enhancementConfig.preset != "original") {
+            val strength = enhancementConfig.strength
+            val overlayColor = when (enhancementConfig.preset) {
+                "cinema" -> Color(0x8B4513).copy(alpha = 0.12f * strength) // Warm cinema brown
+                "vivid" -> Color(0x0055FF).copy(alpha = 0.1f * strength) // Cool vivid blue
+                "amoled" -> Color(0x000000).copy(alpha = 0.15f * strength) // Deep black lift
+                "hdr" -> Color(0xFFFFFF).copy(alpha = 0.08f * strength) // Brightness boost
+                "anime" -> Color(0xFFC0CB).copy(alpha = 0.08f * strength) // Soft pink vibrant
+                "sports" -> Color(0x00FF00).copy(alpha = 0.06f * strength) // Grass enhancement green
+                "low_light" -> Color(0xFFFFFF).copy(alpha = 0.18f * strength) // Strong shadow lift
+                else -> {
+                    // Custom or auto overlay based on color temperature and brightness
+                    if (enhancementConfig.colorTemperature > 0f) {
+                        Color(0xFFB000).copy(alpha = 0.1f * enhancementConfig.colorTemperature * strength)
+                    } else if (enhancementConfig.colorTemperature < 0f) {
+                        Color(0x00B0FF).copy(alpha = 0.1f * (-enhancementConfig.colorTemperature) * strength)
+                    } else {
+                        Color.Transparent
+                    }
+                }
+            }
+            if (overlayColor != Color.Transparent) {
+                Box(modifier = Modifier.fillMaxSize().background(overlayColor))
+            }
         }
 
         if (!isInPipMode) {
@@ -519,9 +601,9 @@ fun PlayerScreen(
                 onRotateClick = {
                     isLandscape = !isLandscape
                     activity?.requestedOrientation = if (isLandscape) {
-                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     } else {
-                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
                 onVideoEnhancerClick = { showVideoEnhancer = true },
@@ -533,8 +615,51 @@ fun PlayerScreen(
                     isControllerVisible = !isControllerVisible
                     autoHideTrigger++
                 },
+                isStreaming = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().activeSession.value != null,
+                isHost = !com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().isClientMode,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
+            
+            // Watch Party Host Monitoring Overlay
+            val sessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
+            val activeSession by sessionManager.activeSession.collectAsState()
+            
+            // Streaming/LIVE tag
+            if (activeSession != null) {
+                val isHost = !sessionManager.isClientMode
+                val tagText = if (isHost) "STREAMING" else "LIVE"
+                val tagColor = if (isHost) Color(0xFF7C5CE7) else Color(0xFFE74C3C)
+                Surface(
+                    color = tagColor,
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 16.dp, top = 80.dp)
+                ) {
+                    Text(
+                        text = tagText,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            if (activeSession != null && !sessionManager.isClientMode && isControllerVisible) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 100.dp, end = 16.dp)
+                        .width(250.dp),
+                    color = Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    com.helpofai.videoplayer.feature.watch_party.ui.host_dashboard.WatchPartyPlayerMonitoringView(
+                        session = activeSession!!
+                    )
+                }
+            }
         }
         if (!isControlsLocked) {
             val playbackState by viewModel.videoPlayer.playbackState.collectAsState()
@@ -556,9 +681,9 @@ fun PlayerScreen(
                 onFullscreenClick = {
                     isLandscape = !isLandscape
                     activity?.requestedOrientation = if (isLandscape) {
-                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     } else {
-                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -606,20 +731,41 @@ fun PlayerScreen(
             }
         }
 
-        // Lock Controls Button
-        IconButton(
-            onClick = { isControlsLocked = !isControlsLocked },
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(16.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
-        ) {
-            Icon(
-                if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                contentDescription = "Lock Controls",
-                tint = if (isControlsLocked) MaterialTheme.colorScheme.primary else Color.White
+        // Locked Screen Click Handler
+        if (isControlsLocked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        isControllerVisible = !isControllerVisible
+                        autoHideTrigger++
+                    }
             )
+        }
+
+        // Lock Controls Button
+        AnimatedVisibility(
+            visible = isControllerVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            IconButton(
+                onClick = { isControlsLocked = !isControlsLocked },
+                modifier = Modifier
+                    .padding(16.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = "Lock Controls",
+                    tint = if (isControlsLocked) MaterialTheme.colorScheme.primary else Color.White
+                )
+            }
         }
 
         val qualityReport by viewModel.qualityReport.collectAsState()
@@ -651,7 +797,7 @@ fun PlayerScreen(
             isFlipped = isFlipped,
             onFlipToggled = { isFlipped = it },
             rotationZ = rotationZ,
-            onRotationChanged = { rotationZ = it; feedbackEvent = FeedbackEvent(FeedbackType.INFO, androidx.compose.material.icons.Icons.AutoMirrored.Filled.RotateRight, "${(it % 360).toInt()}°") },
+            onRotationChanged = { rotationZ = it; feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.AutoMirrored.Filled.RotateRight, "${(it % 360).toInt()}°") },
             qualityReport = qualityReport,
             isAnalyzingQuality = isAnalyzingQuality,
             playlist = playlist,
@@ -685,7 +831,14 @@ fun PlayerScreen(
             onLoadExternalSubtitle = { subtitlePickerLauncher.launch("*/*") },
             onFeedbackEvent = { feedbackEvent = it }
         )
-        
+        val mediaReport by viewModel.mediaCompatibilityReport.collectAsState()
+        if (showVideoEnhancer) {
+            com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet(
+                enhancementManager = viewModel.videoEnhancementManager,
+                report = mediaReport,
+                onDismissRequest = { showVideoEnhancer = false }
+            )
+        }
 
         if (isBuffering) {
             Box(

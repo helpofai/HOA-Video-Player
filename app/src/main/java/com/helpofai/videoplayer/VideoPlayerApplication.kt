@@ -36,6 +36,7 @@ class VideoPlayerApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         
         com.helpofai.videoplayer.core.ads.AdManager.init(this)
+        com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().init(this)
         
         Thread.setDefaultUncaughtExceptionHandler { _, exception ->
             val stackTrace = android.util.Log.getStackTraceString(exception)

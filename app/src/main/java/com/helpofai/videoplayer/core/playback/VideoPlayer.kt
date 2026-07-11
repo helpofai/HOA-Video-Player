@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 interface VideoPlayer {
     val player: Player
     val playbackState: StateFlow<PlaybackState>
+    val isReleased: Boolean
 
     fun prepare(mediaItem: MediaItem)
     fun play()

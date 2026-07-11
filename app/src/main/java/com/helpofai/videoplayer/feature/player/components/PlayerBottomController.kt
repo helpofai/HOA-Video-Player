@@ -216,71 +216,91 @@ fun PlayerBottomController(
                 .padding(horizontal = if (isLandscape) 48.dp else 16.dp)
                 .padding(bottom = 24.dp, top = 32.dp)
         ) {
-            // Single Row Layout for maximum space saving
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                AnimatedIconButton(
-                    icon = Icons.Default.SkipPrevious,
-                    onClick = onPrevClick,
-                    size = 36.dp,
-                    iconSize = 24.dp
-                )
-                
-                AnimatedIconButton(
-                    icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    onClick = onPlayPauseClick,
-                    size = 36.dp,
-                    iconSize = 24.dp,
-                    tint = Color.White
-                )
-                
-                AnimatedIconButton(
-                    icon = Icons.Default.SkipNext,
-                    onClick = onNextClick,
-                    size = 36.dp,
-                    iconSize = 24.dp
-                )
-                
-                Text(
-                    text = formatTime(currentPosition),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-                
-                var sliderValue by remember(currentPosition, duration) { 
-                    mutableFloatStateOf(currentPosition.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat())) 
+                // Video Timer / Seekbar Section
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatTime(currentPosition),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    
+                    var sliderValue by remember(currentPosition, duration) { 
+                        mutableFloatStateOf(currentPosition.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat())) 
+                    }
+                    
+                    ThinRainbowSeekBar(
+                        value = sliderValue,
+                        max = duration.coerceAtLeast(1).toFloat(),
+                        bookmarks = bookmarks,
+                        lastPlayedPosition = lastPlayedPosition,
+                        onSeek = { 
+                            sliderValue = it
+                            onSeek(it.toLong())
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
+                    )
+                    
+                    Text(
+                        text = formatTime(duration),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
                 
-                ThinRainbowSeekBar(
-                    value = sliderValue,
-                    max = duration.coerceAtLeast(1).toFloat(),
-                    bookmarks = bookmarks,
-                    lastPlayedPosition = lastPlayedPosition,
-                    onSeek = { 
-                        sliderValue = it
-                        onSeek(it.toLong())
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                )
+                Spacer(modifier = Modifier.height(8.dp))
                 
-                Text(
-                    text = formatTime(duration),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-                
-                AnimatedIconButton(
-                    icon = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                    onClick = onFullscreenClick,
-                    size = 36.dp,
-                    iconSize = 24.dp
-                )
+                // Playback controls below the seekbar
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        AnimatedIconButton(
+                            icon = Icons.Default.SkipPrevious,
+                            onClick = onPrevClick,
+                            size = 44.dp,
+                            iconSize = 28.dp
+                        )
+                        
+                        AnimatedIconButton(
+                            icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            onClick = onPlayPauseClick,
+                            size = 52.dp,
+                            iconSize = 32.dp,
+                            tint = Color.Black,
+                            backgroundColor = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        AnimatedIconButton(
+                            icon = Icons.Default.SkipNext,
+                            onClick = onNextClick,
+                            size = 44.dp,
+                            iconSize = 28.dp
+                        )
+                    }
+                    
+                    Box(
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        AnimatedIconButton(
+                            icon = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                            onClick = onFullscreenClick,
+                            size = 44.dp,
+                            iconSize = 28.dp
+                        )
+                    }
+                }
             }
         }
     }
@@ -313,7 +333,7 @@ fun AnimatedIconButton(
             .background(backgroundColor)
             .clickable(
                 interactionSource = interactionSource,
-                indication = androidx.compose.material3.ripple(bounded = false),
+                indication = ripple(bounded = false),
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center

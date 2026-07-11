@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.lang.ref.WeakReference
 
 /**
  * Central ad manager for HOA Video Player.
@@ -93,7 +94,7 @@ object AdManager {
     private val isNativeLoading = AtomicBoolean(false)
 
     // Current foreground Activity (updated by lifecycle callbacks)
-    private var currentActivity: Activity? = null
+    private var currentActivity: WeakReference<Activity>? = null
 
     // ── Observable state ──────────────────────────────────────────────────────
     data class AdAvailability(
@@ -357,10 +358,12 @@ object AdManager {
         private val adManager: AdManager
     ) : Application.ActivityLifecycleCallbacks {
 
-        override fun onActivityStarted(activity: Activity)  { adManager.currentActivity = activity }
-        override fun onActivityResumed(activity: Activity)  { adManager.currentActivity = activity }
+        override fun onActivityStarted(activity: Activity)  { adManager.currentActivity = WeakReference(activity) }
+        override fun onActivityResumed(activity: Activity)  { adManager.currentActivity = WeakReference(activity) }
         override fun onActivityDestroyed(activity: Activity) {
-            if (adManager.currentActivity === activity) adManager.currentActivity = null
+            if (adManager.currentActivity?.get() === activity) {
+                adManager.currentActivity = null
+            }
         }
 
         override fun onActivityCreated(activity: Activity, bundle: Bundle?) {}

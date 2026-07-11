@@ -22,94 +22,74 @@
 */
 package com.helpofai.videoplayer.feature.library
 
+import com.helpofai.videoplayer.feature.watch_party.ui.WatchPartyMainTab
+
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.*
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import coil.request.videoFrameMillis
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import androidx.compose.animation.graphics.res.animatedVectorResource
-import androidx.compose.material.icons.filled.Insights
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.basicMarquee
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.draw.blur
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.helpofai.videoplayer.core.model.Video
-import com.helpofai.videoplayer.feature.library.components.AdvancedVideoTags
-import com.helpofai.videoplayer.feature.library.components.BadgeTag
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.draw.scale
-import com.helpofai.videoplayer.feature.library.components.LibrarySkeletonLoader
-import com.helpofai.videoplayer.feature.library.components.VideoThumbnailCard
-import com.helpofai.videoplayer.feature.library.components.LibraryHeroCard
-import com.helpofai.videoplayer.feature.library.components.LibraryVideoInfoCard
-import com.helpofai.videoplayer.feature.library.components.LibraryFavoriteVideoCard
-import com.helpofai.videoplayer.feature.library.components.LibraryCompactVideoListItem
-import com.helpofai.videoplayer.feature.library.components.LibraryCollectionChip
-import com.helpofai.videoplayer.feature.library.components.LibrarySectionTitle
-import com.helpofai.videoplayer.feature.library.components.LibraryFolderCard
-import com.helpofai.videoplayer.feature.library.components.LibraryFolderListItem
-import com.helpofai.videoplayer.feature.library.components.LibraryStorageDashboard
 import com.helpofai.videoplayer.feature.library.components.DynamicTopBar
-import com.helpofai.videoplayer.feature.playlist.SmartPlaylistEngine
-import com.helpofai.videoplayer.feature.library.ads.AdAfterHero
-import com.helpofai.videoplayer.feature.library.ads.AdAfterContinueWatching
-import com.helpofai.videoplayer.feature.library.ads.AdAfterFavorites
-import com.helpofai.videoplayer.feature.library.ads.AdAfterResumePlayback
-import com.helpofai.videoplayer.feature.library.ads.AdAfterLargeFiles
-import com.helpofai.videoplayer.feature.library.ads.AdAfterShortClips
-import com.helpofai.videoplayer.feature.library.ads.AdAfterSmartPlaylists
-import com.helpofai.videoplayer.feature.library.ads.InlineRowAd
-import com.helpofai.videoplayer.feature.library.ads.InlineItemAd
-import com.helpofai.videoplayer.feature.library.ads.HomeBannerAd
-import com.helpofai.videoplayer.feature.library.ads.HomeNativeAd
+import com.helpofai.videoplayer.feature.library.components.LibrarySkeletonLoader
+import com.helpofai.videoplayer.feature.library.components.LibraryStorageDashboard
 import com.helpofai.videoplayer.feature.permissions.hasRequiredPermissions
+import com.helpofai.videoplayer.feature.playlist.SmartPlaylistEngine
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION")
@@ -120,9 +100,6 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val privacyRepository = remember { com.helpofai.videoplayer.core.data.PrivacyRepository(context) }
-    
-    
     val state by viewModel.state.collectAsState()
     val onFavoriteClick: (Video) -> Unit = { video -> viewModel.toggleFavorite(video) }
     
@@ -164,7 +141,9 @@ fun HomeScreen(
     )
 
     LaunchedEffect(Unit) {
-        if (!hasRequiredPermissions(context)) {
+        val hasPermissions = hasRequiredPermissions(context)
+        viewModel.onPermissionResult(hasPermissions)
+        if (!hasPermissions) {
             val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 Manifest.permission.READ_MEDIA_VIDEO
             } else {
@@ -180,7 +159,9 @@ fun HomeScreen(
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             DynamicTopBar(
                 selectedTab       = selectedTab,
@@ -198,35 +179,45 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            Column {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ) {
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home", modifier = Modifier.size(24.dp)) },
-                        label = { Text("Home", style = MaterialTheme.typography.labelMedium) }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { 
-                            if (selectedTab == 1) selectedFolder = null
-                            selectedTab = 1 
-                        },
-                        icon = { Icon(Icons.Default.Folder, contentDescription = "Folders", modifier = Modifier.size(24.dp)) },
-                        label = { Text("Folders", style = MaterialTheme.typography.labelMedium) }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 2,
-                        onClick = { 
-                            if (selectedTab == 2) selectedFolder = null
-                            selectedTab = 2 
-                        },
-                        icon = { Icon(Icons.Default.List, contentDescription = "Playlists", modifier = Modifier.size(24.dp)) },
-                        label = { Text("Playlists", style = MaterialTheme.typography.labelMedium) }
-                    )
-                }
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+            ) {
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home", modifier = Modifier.size(24.dp)) },
+                    label = { Text("Home", style = MaterialTheme.typography.labelMedium) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { 
+                        if (selectedTab == 1) selectedFolder = null
+                        selectedTab = 1 
+                    },
+                    icon = { Icon(Icons.Default.Folder, contentDescription = "Folders", modifier = Modifier.size(24.dp)) },
+                    label = { Text("Folders", style = MaterialTheme.typography.labelMedium) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { 
+                        if (selectedTab == 2) selectedFolder = null
+                        selectedTab = 2 
+                    },
+                    icon = { Icon(Icons.Default.List, contentDescription = "Playlists", modifier = Modifier.size(24.dp)) },
+                    label = { Text("Playlists", style = MaterialTheme.typography.labelMedium) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
+                    icon = { Icon(Icons.Default.SwapHoriz, contentDescription = "Transfers", modifier = Modifier.size(24.dp)) },
+                    label = { Text("Transfers", style = MaterialTheme.typography.labelMedium) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    icon = { Icon(Icons.Default.Group, contentDescription = "Watch Party", modifier = Modifier.size(24.dp)) },
+                    label = { Text("Watch Party", style = MaterialTheme.typography.labelMedium) }
+                )
             }
         }
     ) { paddingValues ->
@@ -247,7 +238,10 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
+                    .then(
+                        if (selectedTab != 3 && selectedTab != 4) Modifier.verticalScroll(rememberScrollState())
+                        else Modifier
+                    )
             ) {
                 if (selectedTab == 0) {
                     com.helpofai.videoplayer.feature.library.components.LibraryHomeTab(
@@ -287,6 +281,16 @@ fun HomeScreen(
                         onRenameClick = { videoToRename = it },
                         onDeleteClick = { videoToDelete = it },
                         onShareClick = onShareClick
+                    )
+                } else if (selectedTab == 3) {
+                    com.helpofai.videoplayer.feature.workspace.transfers.TransfersTab(
+                        isTablet = isTablet,
+                        videos = state.videos
+                    )
+                } else if (selectedTab == 4) {
+                    WatchPartyMainTab(
+                        videos = state.videos,
+                        onVideoClick = onVideoClick
                     )
                 }
             }
