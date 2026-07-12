@@ -217,7 +217,7 @@ fun WatchPartyJoinRequestOverlay() {
                             )
                         }
 
-                        Divider(
+                        HorizontalDivider(
                             color = Color.White.copy(alpha = 0.06f),
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
@@ -258,7 +258,7 @@ fun WatchPartyJoinRequestOverlay() {
                                     }
                                 }
 
-                                Divider(color = Color.White.copy(alpha = 0.05f))
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
                                 // Stats row
                                 Row(
@@ -405,8 +405,9 @@ fun WatchPartyJoinRequestOverlay() {
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = Color(0xFFFF6B6B)
                                 ),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    brush = Brush.linearGradient(
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    Brush.linearGradient(
                                         colors = listOf(
                                             Color(0xFFFF6B6B).copy(alpha = 0.5f),
                                             Color(0xFFFF6B6B).copy(alpha = 0.2f)
