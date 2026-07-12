@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +23,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
+private val TcBgDeep    = Color(0xFF090B10)
+private val TcBgCard    = Color(0xFF111520)
+private val TcAccentC   = Color(0xFF00CEC9)
+private val TcTextPri   = Color(0xFFECF0F1)
+private val TcTextSub   = Color(0xFF8E9CB0)
+private val TcDivider   = Color(0xFF1E2535)
+
 @Composable
-fun NetworkClientView(
+fun TransfersNetworkDriveView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -57,17 +63,17 @@ fun NetworkClientView(
                 text = "Network & Mounting",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = TcTextPri
             )
             IconButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Channel", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.Add, contentDescription = "Add Channel", tint = TcAccentC)
             }
         }
         
         Text(
             text = "Connect directly to remote servers, file shares, and mounted USB OTG devices.",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = TcTextSub
         )
         
         savedConnections.forEach { connection ->
@@ -111,8 +117,8 @@ private fun NetworkItemRow(
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF1E222B).copy(alpha = 0.5f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        color = TcBgCard,
+        border = BorderStroke(1.dp, TcDivider)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -121,29 +127,30 @@ private fun NetworkItemRow(
             Icon(
                 imageVector = Icons.Default.Dns,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = TcAccentC,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(connection.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(connection.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TcTextPri)
                 Text(
                     "Protocol: ${connection.protocol}  •  ${connection.address}:${connection.port}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = TcTextSub
                 )
             }
             Box(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                    .background(TcAccentC.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Text(connection.status, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(connection.status, style = MaterialTheme.typography.labelSmall, color = TcAccentC)
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddConnectionDialog(
     onDismiss: () -> Unit,
@@ -161,8 +168,8 @@ private fun AddConnectionDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF161A22),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+            color = TcBgCard,
+            border = BorderStroke(1.dp, TcDivider),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Column(
@@ -176,14 +183,15 @@ private fun AddConnectionDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Add Network Channel", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Add Network Channel", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TcTextPri)
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.LightGray)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TcTextSub)
                     }
                 }
                 
-                // Protocol Dropdown simulated selector
-                Text("Select Protocol", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
+                HorizontalDivider(color = TcDivider)
+
+                Text("Select Protocol", style = MaterialTheme.typography.labelMedium, color = TcTextSub)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     protocols.forEach { proto ->
                         val selected = protocol == proto
@@ -200,14 +208,14 @@ private fun AddConnectionDialog(
                                     }
                                 },
                             shape = RoundedCornerShape(8.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.05f),
-                            border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f))
+                            color = if (selected) TcAccentC else Color.White.copy(alpha = 0.05f),
+                            border = BorderStroke(1.dp, if (selected) TcAccentC else TcDivider)
                         ) {
                             Text(
                                 text = proto,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (selected) Color.Black else Color.LightGray
+                                color = if (selected) Color.Black else TcTextPri
                             )
                         }
                     }
@@ -216,16 +224,28 @@ private fun AddConnectionDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Connection Name (e.g. Home Router)") },
+                    label = { Text("Connection Name") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TcTextPri,
+                        unfocusedTextColor = TcTextPri,
+                        focusedBorderColor = TcAccentC,
+                        unfocusedBorderColor = TcDivider
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("Server Address / Domain IP") },
+                    label = { Text("Server Address") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TcTextPri,
+                        unfocusedTextColor = TcTextPri,
+                        focusedBorderColor = TcAccentC,
+                        unfocusedBorderColor = TcDivider
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 
@@ -234,6 +254,12 @@ private fun AddConnectionDialog(
                     onValueChange = { port = it },
                     label = { Text("Port") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TcTextPri,
+                        unfocusedTextColor = TcTextPri,
+                        focusedBorderColor = TcAccentC,
+                        unfocusedBorderColor = TcDivider
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 
@@ -243,6 +269,12 @@ private fun AddConnectionDialog(
                         onValueChange = { username = it },
                         label = { Text("Username") },
                         singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TcTextPri,
+                            unfocusedTextColor = TcTextPri,
+                            focusedBorderColor = TcAccentC,
+                            unfocusedBorderColor = TcDivider
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -251,6 +283,12 @@ private fun AddConnectionDialog(
                         label = { Text("Password") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TcTextPri,
+                            unfocusedTextColor = TcTextPri,
+                            focusedBorderColor = TcAccentC,
+                            unfocusedBorderColor = TcDivider
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -263,7 +301,7 @@ private fun AddConnectionDialog(
                             onSave(NetworkConnection(name, protocol, address, port, "Active"))
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = TcAccentC, contentColor = Color.Black),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Connect Channel", fontWeight = FontWeight.Bold)

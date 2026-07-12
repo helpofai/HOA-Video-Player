@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -148,8 +149,8 @@ fun DynamicTopBar(
     val hasBackButton  = isFolderDetail || isPlaylistDetail
 
     TopAppBar(
-        modifier = Modifier.height(64.dp),
-        windowInsets = TopAppBarDefaults.windowInsets,
+        modifier = Modifier.fillMaxWidth(),
+        windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
         // ── Navigation icon (Back) ────────────────────────────────────────────
         navigationIcon = {
             AnimatedVisibility(
@@ -234,6 +235,10 @@ fun DynamicTopBar(
                         // Watch Party tab
                         tab == 4 -> {
                             TabTitleText("Watch Party")
+                        }
+                        // Explorer tab
+                        tab == 5 -> {
+                            TabTitleText("Explorer")
                         }
                         else -> {
                             TabTitleText("HOA Player")

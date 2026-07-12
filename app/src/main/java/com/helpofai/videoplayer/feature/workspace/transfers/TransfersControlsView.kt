@@ -17,8 +17,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+private val TcBgDeep    = Color(0xFF090B10)
+private val TcBgCard    = Color(0xFF111520)
+private val TcAccentC   = Color(0xFF00CEC9)
+private val TcTextPri   = Color(0xFFECF0F1)
+private val TcTextSub   = Color(0xFF8E9CB0)
+private val TcDivider   = Color(0xFF1E2535)
+
 @Composable
-fun TransferControlsView(
+fun TransfersControlsView(
     modifier: Modifier = Modifier
 ) {
     // UI Transparency settings
@@ -41,26 +48,26 @@ fun TransferControlsView(
             text = "Transfer Control & Transparency",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = TcTextPri
         )
         Text(
             text = "Configure server limits, view real-time socket statistics, and adjust UI overlay opacity settings.",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = TcTextSub
         )
         
         // 1. UI Transparency Controls
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFF1E222B).copy(alpha = uiOpacity),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            color = TcBgCard.copy(alpha = uiOpacity),
+            border = BorderStroke(1.dp, TcDivider)
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = TcAccentC)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("UI Transparency & Blurs", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("UI Transparency & Blurs", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TcTextPri)
                 }
                 
                 Column {
@@ -68,14 +75,14 @@ fun TransferControlsView(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Card Background Opacity", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                        Text(String.format("%.0f%%", uiOpacity * 100f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Card Background Opacity", style = MaterialTheme.typography.bodySmall, color = TcTextSub)
+                        Text(String.format("%.0f%%", uiOpacity * 100f), style = MaterialTheme.typography.labelSmall, color = TcAccentC)
                     }
                     Slider(
                         value = uiOpacity,
                         onValueChange = { uiOpacity = it },
                         valueRange = 0.1f..1.0f,
-                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
+                        colors = SliderDefaults.colors(thumbColor = TcAccentC, activeTrackColor = TcAccentC)
                     )
                 }
                 
@@ -84,14 +91,14 @@ fun TransferControlsView(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Background Blur Radius", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                        Text("${blurIntensity.toInt()}dp", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Background Blur Radius", style = MaterialTheme.typography.bodySmall, color = TcTextSub)
+                        Text("${blurIntensity.toInt()}dp", style = MaterialTheme.typography.labelSmall, color = TcAccentC)
                     }
                     Slider(
                         value = blurIntensity,
                         onValueChange = { blurIntensity = it },
                         valueRange = 4f..32f,
-                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
+                        colors = SliderDefaults.colors(thumbColor = TcAccentC, activeTrackColor = TcAccentC)
                     )
                 }
             }
@@ -101,14 +108,14 @@ fun TransferControlsView(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFF1E222B).copy(alpha = uiOpacity),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            color = TcBgCard.copy(alpha = uiOpacity),
+            border = BorderStroke(1.dp, TcDivider)
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = TcAccentC)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Bandwidth & Performance Settings", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Bandwidth & Performance Settings", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TcTextPri)
                 }
                 
                 Column {
@@ -116,14 +123,14 @@ fun TransferControlsView(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Maximum Bandwidth Limit", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                        Text(if (speedLimit >= 100f) "Uncapped" else "${speedLimit.toInt()} MB/s", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Maximum Bandwidth Limit", style = MaterialTheme.typography.bodySmall, color = TcTextSub)
+                        Text(if (speedLimit >= 100f) "Uncapped" else "${speedLimit.toInt()} MB/s", style = MaterialTheme.typography.labelSmall, color = TcAccentC)
                     }
                     Slider(
                         value = speedLimit,
                         onValueChange = { speedLimit = it },
                         valueRange = 10f..100f,
-                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
+                        colors = SliderDefaults.colors(thumbColor = TcAccentC, activeTrackColor = TcAccentC)
                     )
                 }
                 
@@ -132,15 +139,15 @@ fun TransferControlsView(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Simultaneous File Connections", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                        Text("${maxConnections.toInt()} stream(s)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Simultaneous File Connections", style = MaterialTheme.typography.bodySmall, color = TcTextSub)
+                        Text("${maxConnections.toInt()} stream(s)", style = MaterialTheme.typography.labelSmall, color = TcAccentC)
                     }
                     Slider(
                         value = maxConnections,
                         onValueChange = { maxConnections = it },
                         valueRange = 1f..5f,
                         steps = 3,
-                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
+                        colors = SliderDefaults.colors(thumbColor = TcAccentC, activeTrackColor = TcAccentC)
                     )
                 }
                 
@@ -150,8 +157,8 @@ fun TransferControlsView(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Force Secure Channel", style = MaterialTheme.typography.bodySmall, color = Color.White)
-                        Text("Encrypt transfer streams with AES-GCM 256", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text("Force Secure Channel", style = MaterialTheme.typography.bodySmall, color = TcTextPri)
+                        Text("Encrypt transfer streams with AES-GCM 256", style = MaterialTheme.typography.labelSmall, color = TcTextSub)
                     }
                     Switch(
                         checked = encryptTransfers,
@@ -165,19 +172,19 @@ fun TransferControlsView(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFF1E222B).copy(alpha = uiOpacity),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            color = TcBgCard.copy(alpha = uiOpacity),
+            border = BorderStroke(1.dp, TcDivider)
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.NetworkCheck, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.NetworkCheck, contentDescription = null, tint = TcAccentC)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Real-Time Socket Statistics", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Real-Time Socket Statistics", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TcTextPri)
                 }
                 
                 DiagnosticItem("wlan0 Interface IP", "192.168.1.100")
                 DiagnosticItem("p2p0 (Wi-Fi Direct)", "192.168.49.1 (Active)")
-                DiagnosticItem("Socket State", "LISTENING (Port 8080, 5050)")
+                DiagnosticItem("Socket State", "LISTENING (Port 8082, 8080)")
                 DiagnosticItem("Active Handshake Encryption", if (encryptTransfers) "TLS 1.3 / ECHD" else "None (Cleartext)")
                 DiagnosticItem("Round-trip Time (Ping)", "4ms (Ultrafast Local Link)")
             }
@@ -195,8 +202,8 @@ private fun DiagnosticItem(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = TcTextSub)
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = TcTextPri)
     }
-    HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+    HorizontalDivider(color = TcDivider.copy(alpha = 0.5f))
 }

@@ -24,17 +24,20 @@ package com.helpofai.videoplayer.feature.library.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.feature.library.LibraryState
 import com.helpofai.videoplayer.feature.library.ads.InlineItemAd
 import com.helpofai.videoplayer.feature.library.ads.InlineRowAd
+import com.helpofai.videoplayer.feature.filemanager.FileManagerScreen
 
 @Composable
 fun LibraryFoldersTab(
@@ -52,43 +55,91 @@ fun LibraryFoldersTab(
     val folders = state.videos.groupBy { java.io.File(it.path).parentFile?.name ?: "Internal Storage" }
     val folderViewMode = state.folderViewMode
 
+    var isTreeViewActive by remember { mutableStateOf(false) }
+
+    if (isTreeViewActive) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "File Tree Explorer",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                TextButton(
+                    onClick = { isTreeViewActive = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Show Folders", fontWeight = FontWeight.Bold)
+                }
+            }
+            FileManagerScreen(
+                onVideoClick = onVideoClick,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        return
+    }
+
     if (selectedFolder == null) {
         Spacer(modifier = Modifier.height(16.dp))
         val folderList = folders.toList()
 
-        // ── View Mode Toggle (List | Grid) ───────────────────────
+        // ── View Mode Toggle & Tree Explorer Button ───────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "List",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (folderViewMode == "list") FontWeight.Bold else FontWeight.Normal,
-                color = if (folderViewMode == "list") MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier
-                    .clickable { onViewModeChange("list") }
-                    .padding(horizontal = 8.dp)
-            )
-            Text(
-                " | ",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-            )
-            Text(
-                "Grid",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (folderViewMode == "grid") FontWeight.Bold else FontWeight.Normal,
-                color = if (folderViewMode == "grid") MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier
-                    .clickable { onViewModeChange("grid") }
-                    .padding(horizontal = 8.dp)
-            )
+            TextButton(
+                onClick = { isTreeViewActive = true },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountTree,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Advanced Tree Explorer", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "List",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (folderViewMode == "list") FontWeight.Bold else FontWeight.Normal,
+                    color = if (folderViewMode == "list") MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .clickable { onViewModeChange("list") }
+                        .padding(horizontal = 8.dp)
+                )
+                Text(
+                    " | ",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+                Text(
+                    "Grid",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (folderViewMode == "grid") FontWeight.Bold else FontWeight.Normal,
+                    color = if (folderViewMode == "grid") MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .clickable { onViewModeChange("grid") }
+                        .padding(horizontal = 8.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
 

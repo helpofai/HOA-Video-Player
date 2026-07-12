@@ -20,8 +20,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+private val TcBgDeep    = Color(0xFF090B10)
+private val TcBgCard    = Color(0xFF111520)
+private val TcAccentC   = Color(0xFF00CEC9)
+private val TcAccentG   = Color(0xFF00B894)
+private val TcTextPri   = Color(0xFFECF0F1)
+private val TcTextSub   = Color(0xFF8E9CB0)
+private val TcDivider   = Color(0xFF1E2535)
+
 @Composable
-fun TransferQueueView(
+fun TransfersQueueView(
     activeQueue: List<ActiveTransfer>,
     onPauseToggle: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -47,15 +55,15 @@ fun TransferQueueView(
             text = "Active Transfer Queue",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = TcTextPri
         )
         
         // Speed indicator card
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            color = TcAccentC.copy(alpha = 0.05f),
+            border = BorderStroke(1.dp, TcAccentC.copy(alpha = 0.2f))
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
@@ -63,15 +71,15 @@ fun TransferQueueView(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.Speed, contentDescription = null, tint = TcAccentC)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("Ultrafast Shared Session", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text("Ultrafast Shared Session", style = MaterialTheme.typography.labelSmall, color = TcTextSub)
                         Text(
                             text = currentSpeed,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = TcAccentC
                         )
                     }
                 }
@@ -81,14 +89,14 @@ fun TransferQueueView(
         Spacer(modifier = Modifier.height(8.dp))
         
         if (activeQueue.isEmpty()) {
-            Text("No active transfers", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+            Text("No active transfers", color = TcTextSub, style = MaterialTheme.typography.bodyMedium)
         } else {
             activeQueue.forEachIndexed { index, transfer ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF1E222B).copy(alpha = 0.5f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                    color = TcBgCard,
+                    border = BorderStroke(1.dp, TcDivider)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -97,11 +105,11 @@ fun TransferQueueView(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(transfer.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                                Text(transfer.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TcTextPri, maxLines = 1)
                                 Text(
                                     text = if (transfer.isPaused) "Paused" else "ETA: ${transfer.eta}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = TcTextSub
                                 )
                             }
                             
@@ -109,7 +117,7 @@ fun TransferQueueView(
                                 Icon(
                                     imageVector = if (transfer.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                                     contentDescription = "Toggle",
-                                    tint = Color.White
+                                    tint = TcTextPri
                                 )
                             }
                         }
@@ -122,10 +130,10 @@ fun TransferQueueView(
                             LinearProgressIndicator(
                                 progress = { progress },
                                 modifier = Modifier.weight(1f).height(6.dp).clip(CircleShape),
-                                color = MaterialTheme.colorScheme.primary,
+                                color = if (transfer.isPaused) TcTextSub else TcAccentG,
                                 trackColor = Color.White.copy(alpha = 0.1f)
                             )
-                            Text(String.format("%.0f%%", progress * 100f), style = MaterialTheme.typography.labelSmall, color = Color.LightGray)
+                            Text(String.format("%.0f%%", progress * 100f), style = MaterialTheme.typography.labelSmall, color = TcTextPri)
                         }
                     }
                 }

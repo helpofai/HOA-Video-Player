@@ -238,13 +238,6 @@ fun WatchPartyMainTab(
                     }
                 }
 
-                Text(
-                    "HOA Watch Party",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                
                 // Mode Selectors
                 Row(
                     modifier = Modifier.fillMaxWidth(),

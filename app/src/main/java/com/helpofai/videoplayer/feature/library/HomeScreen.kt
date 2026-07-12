@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -207,6 +208,15 @@ fun HomeScreen(
                     label = { Text("Playlists", style = MaterialTheme.typography.labelMedium) }
                 )
                 NavigationBarItem(
+                    selected = selectedTab == 5,
+                    onClick = { 
+                        if (selectedTab == 5) selectedFolder = null
+                        selectedTab = 5 
+                    },
+                    icon = { Icon(Icons.Default.Description, contentDescription = "Files", modifier = Modifier.size(24.dp)) },
+                    label = { Text("Files", style = MaterialTheme.typography.labelMedium) }
+                )
+                NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
                     icon = { Icon(Icons.Default.SwapHoriz, contentDescription = "Transfers", modifier = Modifier.size(24.dp)) },
@@ -238,15 +248,15 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
-                        top = if (selectedTab == 3 || selectedTab == 4) paddingValues.calculateTopPadding() else 0.dp,
+                        top = if (selectedTab == 3 || selectedTab == 4 || selectedTab == 5) paddingValues.calculateTopPadding() else 0.dp,
                         bottom = paddingValues.calculateBottomPadding()
                     )
                     .then(
-                        if (selectedTab != 3 && selectedTab != 4) Modifier.verticalScroll(rememberScrollState())
+                        if (selectedTab != 3 && selectedTab != 4 && selectedTab != 5) Modifier.verticalScroll(rememberScrollState())
                         else Modifier
                     )
             ) {
-                if (selectedTab != 3 && selectedTab != 4) {
+                if (selectedTab != 3 && selectedTab != 4 && selectedTab != 5) {
                     Spacer(Modifier.height(paddingValues.calculateTopPadding()))
                 }
                 if (selectedTab == 0) {
@@ -297,6 +307,11 @@ fun HomeScreen(
                     WatchPartyMainTab(
                         videos = state.videos,
                         onVideoClick = onVideoClick
+                    )
+                } else if (selectedTab == 5) {
+                    com.helpofai.videoplayer.feature.filemanager.FileManagerScreen(
+                        onVideoClick = onVideoClick,
+                        onNavigateToTab = { tabIndex -> selectedTab = tabIndex }
                     )
                 }
             }
