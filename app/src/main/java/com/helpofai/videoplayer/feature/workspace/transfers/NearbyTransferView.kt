@@ -423,6 +423,7 @@ private fun ReceiverScannerDialog(
     }
 }
 
+@Suppress("DEPRECATION")
 @Composable
 fun CameraPreview(modifier: Modifier = Modifier) {
     var isCameraActive by remember { mutableStateOf(false) }

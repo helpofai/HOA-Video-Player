@@ -43,7 +43,7 @@ import android.content.pm.PackageManager
 import android.Manifest
 import com.helpofai.videoplayer.core.model.Video
 import kotlinx.coroutines.launch
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+
 
 @Composable
 fun TransfersTab(
@@ -157,19 +157,11 @@ private fun TabRow(
     pages: List<String>,
     onTabClick: (Int) -> Unit
 ) {
-    ScrollableTabRow(
+    androidx.compose.material3.SecondaryScrollableTabRow(
         selectedTabIndex = selectedPageIndex,
         containerColor = Color.White.copy(alpha = 0.03f),
         edgePadding = 8.dp,
         divider = {},
-        indicator = { tabPositions ->
-            if (selectedPageIndex < tabPositions.size) {
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedPageIndex]),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        },
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))

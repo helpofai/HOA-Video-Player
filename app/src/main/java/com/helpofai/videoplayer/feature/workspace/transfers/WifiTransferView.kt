@@ -77,9 +77,9 @@ fun WifiTransferView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
                             .background(Color.Black.copy(alpha = 0.2f))
-                            .padding(12.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
