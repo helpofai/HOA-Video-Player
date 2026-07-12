@@ -40,7 +40,6 @@ import com.helpofai.videoplayer.feature.watch_party.discovery.WatchPartyDeviceDi
 import com.helpofai.videoplayer.feature.watch_party.discovery.DiscoveredHost
 import com.helpofai.videoplayer.feature.watch_party.ui.host_dashboard.WatchPartyHostDashboard
 import com.helpofai.videoplayer.feature.watch_party.ui.client_dashboard.WatchPartyClientDashboard
-import com.helpofai.videoplayer.feature.watch_party.ui.mini_player.WatchPartyMiniPlayer
 import com.helpofai.videoplayer.feature.watch_party.ui.session_browser.WatchPartySessionBrowserView
 import com.helpofai.videoplayer.feature.watch_party.ui.join_room.WatchPartyJoinRoomScreen
 import com.helpofai.videoplayer.feature.watch_party.ui.host_setup.WatchPartyHostRoomSetupScreen
@@ -201,44 +200,6 @@ fun WatchPartyMainTab(
                 }
             }
 
-            // Draggable Floating Mini Player
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                WatchPartyMiniPlayer(
-                    session = session,
-                    onOpenFullPlayer = {
-                        if (!isClientMode) {
-                            val v = session.video
-                            if (v != null) {
-                                onVideoClick(v)
-                            } else {
-                                android.widget.Toast.makeText(context, "No active video. Play a video from your library.", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            val streamPort = session.port
-                            val hostIp = if (session.hostIp.isNotBlank()) session.hostIp else "192.168.1.100"
-                            val videoId = session.video?.id ?: 9999L
-                            val streamUri = android.net.Uri.parse("http://$hostIp:$streamPort/video?v=$videoId&t=${System.currentTimeMillis()}")
-                            val currentVideo = session.video ?: com.helpofai.videoplayer.core.model.Video(
-                                id = 9999L,
-                                uri = streamUri,
-                                title = "Watch Party Stream",
-                                duration = 0L,
-                                size = 0L,
-                                dateAdded = System.currentTimeMillis(),
-                                path = "http_stream"
-                            )
-                            val correctedVideo = currentVideo.copy(
-                                uri = streamUri,
-                                path = "http_stream"
-                            )
-                            onVideoClick(correctedVideo)
-                        }
-                    }
-                )
-            }
         } else {
             // Setup Screen
             Column(

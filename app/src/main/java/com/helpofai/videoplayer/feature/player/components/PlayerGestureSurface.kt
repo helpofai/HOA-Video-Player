@@ -264,7 +264,7 @@ fun PlayerGestureSurface(
                         val seekAmountMs = (seekAccumulatorLocal / screenWidth) * 120000
                         val dur = viewModel.videoPlayer.player.duration.coerceAtLeast(0L)
                         val newPos = if (dur > 0L) (startPosition + seekAmountMs.toLong()).coerceIn(0L, dur) else startPosition
-                        viewModel.videoPlayer.player.seekTo(newPos)
+                        viewModel.seekTo(newPos)
                     } else if (isAdjustingVolBright) {
                         if (lastBrightness >= 0f && isGesturesAllowed) viewModel.preferencesUseCase.saveBrightness(lastBrightness)
                         if (lastVolume >= 0f && isVolumeAllowed) viewModel.preferencesUseCase.saveVolume(lastVolume)
@@ -359,7 +359,7 @@ fun PlayerGestureSurface(
 
                             if (offset.x < leftBound) {
                                 if (isSeekAllowed) {
-                                    viewModel.videoPlayer.seekBack()
+                                    viewModel.seekBack()
                                     val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
                                     onSeekAccumulationChange(newSeek)
                                     onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
@@ -368,7 +368,7 @@ fun PlayerGestureSurface(
                                 }
                             } else if (offset.x > rightBound) {
                                 if (isSeekAllowed) {
-                                    viewModel.videoPlayer.seekForward()
+                                    viewModel.seekForward()
                                     val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
                                     onSeekAccumulationChange(newSeek)
                                     onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
@@ -378,13 +378,9 @@ fun PlayerGestureSurface(
                             } else {
                                 // Center double tap -> toggle play/pause
                                 if (isPlayPauseAllowed) {
-                                    if (isPlaying) {
-                                        viewModel.videoPlayer.pause()
-                                        onPlayPauseToggle(true) // show ad popup
-                                    } else {
-                                        viewModel.videoPlayer.play()
-                                        onPlayPauseToggle(false)
-                                    }
+                                    val wasPlaying = isPlaying
+                                    viewModel.togglePlayPause()
+                                    onPlayPauseToggle(!wasPlaying)
                                 } else {
                                     onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Play/Pause is disabled by Host"))
                                 }

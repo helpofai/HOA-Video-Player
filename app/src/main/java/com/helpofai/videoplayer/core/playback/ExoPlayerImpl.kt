@@ -180,6 +180,7 @@ class ExoPlayerImpl @Inject constructor(
             })
         }
         _player = newPlayer
+        isReleased = false
         return newPlayer
     }
 
@@ -212,6 +213,12 @@ class ExoPlayerImpl @Inject constructor(
 
     fun prepare(mediaItem: MediaItem, playWhenReady: Boolean) {
         val currentPlayer = _player ?: initializePlayer()
+        val currentUri = currentPlayer.currentMediaItem?.localConfiguration?.uri
+        val newUri = mediaItem.localConfiguration?.uri
+        if (currentUri != null && currentUri == newUri) {
+            currentPlayer.playWhenReady = playWhenReady
+            return
+        }
         currentPlayer.setMediaItem(mediaItem)
         currentPlayer.prepare()
         currentPlayer.playWhenReady = playWhenReady

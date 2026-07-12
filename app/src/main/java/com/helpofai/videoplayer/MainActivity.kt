@@ -71,6 +71,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    @Inject
+    lateinit var videoPlayer: com.helpofai.videoplayer.core.playback.VideoPlayer
+
     override fun onCreate(savedInstanceState: Bundle?) {
         requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         super.onCreate(savedInstanceState)
@@ -222,6 +225,63 @@ class MainActivity : ComponentActivity() {
 
                         // Global Watch Party notification toast overlay — renders on ANY page
                         WatchPartyNotificationOverlay()
+
+                        // Global Mini Player overlay — renders on ANY page
+                        com.helpofai.videoplayer.core.playback.GlobalMiniPlayer(
+                            videoPlayer = videoPlayer,
+                            onRestore = { video ->
+                                val encodedUri  = Uri.encode(video.uri.toString())
+                                val encodedPath = Uri.encode(video.path)
+                                // Navigate back to player, dropping active mini player state
+                                com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().dismissMiniPlayer()
+                                navController.navigate("player/$encodedUri?path=$encodedPath") {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        )
+
+                        // Client watch party auto-start silent preview listener
+                        val sessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
+                        val activeSession by sessionManager.activeSession.collectAsState()
+                        val isClientMode by sessionManager.isClientModeFlow.collectAsState()
+                        val isFullPlayerActive by sessionManager.isFullPlayerActive.collectAsState()
+
+                        androidx.compose.runtime.LaunchedEffect(activeSession, isClientMode, isFullPlayerActive) {
+                            val session = activeSession
+                            if (isClientMode && session != null) {
+                                val hostVideo = session.video
+                                if (hostVideo != null && session.isPlaying) {
+                                    if (!isFullPlayerActive) {
+                                        val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
+                                        if (!miniPlayerManager.isMiniPlayerActive.value) {
+                                            val streamPort = session.port
+                                            val hostIp = if (session.hostIp.isNotBlank()) session.hostIp else "127.0.0.1"
+                                            val videoId = hostVideo.id
+                                            val streamUri = Uri.parse("http://$hostIp:$streamPort/video?v=$videoId&t=${System.currentTimeMillis()}")
+                                            val clientVideo = hostVideo.copy(
+                                                uri = streamUri,
+                                                path = "http_stream"
+                                            )
+                                            
+                                            // Prepare and play the stream silently
+                                            videoPlayer.player.volume = 0f
+                                            videoPlayer.prepare(androidx.media3.common.MediaItem.fromUri(streamUri))
+                                            videoPlayer.play()
+                                            
+                                            miniPlayerManager.showMiniPlayer(clientVideo)
+                                        }
+                                    }
+                                } else {
+                                    val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
+                                    if (miniPlayerManager.isMiniPlayerActive.value && !isFullPlayerActive) {
+                                        miniPlayerManager.dismissMiniPlayer()
+                                        videoPlayer.pause()
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

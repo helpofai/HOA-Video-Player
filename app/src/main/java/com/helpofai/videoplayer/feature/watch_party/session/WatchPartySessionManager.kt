@@ -12,8 +12,12 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.json.JSONObject
 import org.json.JSONArray
+
+data class PlaybackCommand(val isPlaying: Boolean, val positionMs: Long)
 
 class WatchPartySessionManager {
     companion object {
@@ -29,6 +33,9 @@ class WatchPartySessionManager {
 
     private val _isFullPlayerActive = MutableStateFlow(false)
     val isFullPlayerActive: StateFlow<Boolean> = _isFullPlayerActive.asStateFlow()
+
+    private val _playbackCommands = MutableSharedFlow<PlaybackCommand>()
+    val playbackCommands = _playbackCommands.asSharedFlow()
 
     fun setFullPlayerActive(active: Boolean) {
         _isFullPlayerActive.value = active
@@ -545,6 +552,9 @@ class WatchPartySessionManager {
                                         val playPause = action.optBoolean("isPlaying")
                                         val position = action.optLong("position")
                                         updatePlaybackState(position, playPause)
+                                        CoroutineScope(Dispatchers.IO).launch {
+                                            _playbackCommands.emit(PlaybackCommand(playPause, position))
+                                        }
                                     }
                                 }
                             }

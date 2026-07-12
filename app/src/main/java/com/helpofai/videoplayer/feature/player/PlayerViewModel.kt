@@ -64,7 +64,7 @@ class PlayerViewModel @Inject constructor(
     private val mediaAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer,
     private val audioQualityAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.AudioQualityAnalyzer,
     val videoEnhancementManager: com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager,
-    savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val watchPartySessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
@@ -122,6 +122,56 @@ class PlayerViewModel @Inject constructor(
     private val _watchPartyVideoTitle = MutableStateFlow<String?>(null)
     val watchPartyVideoTitle = _watchPartyVideoTitle.asStateFlow()
 
+    var isManuallyPaused: Boolean = false
+    private var lastClientActionTime: Long = 0L
+
+    fun onClientPlayPauseToggle(play: Boolean) {
+        lastClientActionTime = System.currentTimeMillis()
+        isManuallyPaused = !play
+        val session = watchPartySessionManager.activeSession.value
+        if (session != null) {
+            watchPartySessionManager.sendPlaybackControl(play, videoPlayer.player.currentPosition)
+        }
+        if (play) videoPlayer.play() else videoPlayer.pause()
+    }
+
+    fun onClientSeekRequest(pos: Long) {
+        lastClientActionTime = System.currentTimeMillis()
+        val session = watchPartySessionManager.activeSession.value
+        if (session != null) {
+            watchPartySessionManager.sendPlaybackControl(videoPlayer.player.isPlaying, pos)
+        }
+        videoPlayer.seekTo(pos)
+    }
+
+    fun seekTo(pos: Long) {
+        if (watchPartySessionManager.isClientMode) {
+            onClientSeekRequest(pos)
+        } else {
+            videoPlayer.player.seekTo(pos)
+        }
+    }
+
+    fun seekForward() {
+        val newPos = videoPlayer.player.currentPosition + 10000L
+        seekTo(newPos)
+    }
+
+    fun seekBack() {
+        val newPos = (videoPlayer.player.currentPosition - 10000L).coerceAtLeast(0L)
+        seekTo(newPos)
+    }
+
+    fun togglePlayPause() {
+        val play = !videoPlayer.player.playWhenReady
+        isManuallyPaused = !play
+        if (watchPartySessionManager.isClientMode) {
+            onClientPlayPauseToggle(play)
+        } else {
+            if (play) videoPlayer.play() else videoPlayer.pause()
+        }
+    }
+
     private val _mediaCompatibilityReport = MutableStateFlow<com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer.MediaCompatibilityReport?>(null)
     val mediaCompatibilityReport = _mediaCompatibilityReport.asStateFlow()
 
@@ -159,6 +209,7 @@ class PlayerViewModel @Inject constructor(
             val originalUri = Uri.parse(Uri.decode(videoUriString))
             val watchPartySessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
             watchPartySessionManager.setFullPlayerActive(true)
+            videoPlayer.player.volume = 1f
             val activeSession = watchPartySessionManager.activeSession.value
             
             val isClient = watchPartySessionManager.isClientMode && activeSession != null
@@ -300,9 +351,36 @@ class PlayerViewModel @Inject constructor(
                                 videoPlayer.pause()
                             }
 
-                            val drift = kotlin.math.abs(exoState.currentPosition - session.currentPositionMs)
-                            if (drift > 2500L) {
-                                videoPlayer.seekTo(session.currentPositionMs)
+                            val isActionTimeout = System.currentTimeMillis() - lastClientActionTime > 2500L
+                            if (isActionTimeout) {
+                                val drift = kotlin.math.abs(exoState.currentPosition - session.currentPositionMs)
+                                if (drift > 2500L) {
+                                    videoPlayer.seekTo(session.currentPositionMs)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Host-side: Observe client control requests (only when allowPlayPause and allowSeek permissions are granted)
+                if (!isClient) {
+                    launch {
+                        watchPartySessionManager.playbackCommands.collect { cmd ->
+                            val activeSession = watchPartySessionManager.activeSession.value
+                            if (activeSession != null) {
+                                if (activeSession.allowPlayPause) {
+                                    if (cmd.isPlaying && !videoPlayer.player.isPlaying) {
+                                        videoPlayer.play()
+                                    } else if (!cmd.isPlaying && videoPlayer.player.isPlaying) {
+                                        videoPlayer.pause()
+                                    }
+                                }
+                                if (activeSession.allowSeek) {
+                                    val drift = kotlin.math.abs(videoPlayer.player.currentPosition - cmd.positionMs)
+                                    if (drift > 2500L) {
+                                        videoPlayer.player.seekTo(cmd.positionMs)
+                                    }
+                                }
                             }
                         }
                     }
@@ -496,6 +574,7 @@ class PlayerViewModel @Inject constructor(
     }
     
     fun playVideo(path: String) {
+        isManuallyPaused = false
         viewModelScope.launch {
             // Record current playback position before switching
             currentVideoPath?.let { oldPath ->
@@ -579,12 +658,39 @@ class PlayerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().setFullPlayerActive(false)
-        currentVideoPath?.let { path ->
+        val path = currentVideoPath
+        if (path != null) {
             viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
                 playbackManager.recordPlaybackState(path, lastZoomLevel)
             }
         }
-        videoPlayer.release()
+        
+        val shouldMinimize = !isManuallyPaused
+        if (shouldMinimize) {
+            // Ensure player continues playing in the mini-player (since lifecycle ON_PAUSE paused it)
+            videoPlayer.play()
+            
+            // Minimize playing video to the app's global floating mini player
+            val videoUriString = savedStateHandle.get<String>("videoUri")
+            val videoUri = if (videoUriString != null) Uri.parse(Uri.decode(videoUriString)) else Uri.EMPTY
+            val videoPath = savedStateHandle.get<String>("path")?.let { Uri.decode(it) } ?: videoUri.path ?: ""
+            val videoTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
+            
+            val currentVideo = com.helpofai.videoplayer.core.model.Video(
+                id = videoPath.hashCode().toLong(),
+                uri = videoUri,
+                title = videoTitle,
+                duration = videoPlayer.player.duration,
+                size = 0L,
+                dateAdded = 0L,
+                path = videoPath
+            )
+            com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(currentVideo)
+        } else {
+            // Stop and release player normally
+            videoPlayer.release()
+            com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().dismissMiniPlayer()
+        }
     }
     
     fun addBookmark(timeMs: Long, label: String) {

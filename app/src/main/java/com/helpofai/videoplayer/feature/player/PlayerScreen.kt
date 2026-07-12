@@ -703,15 +703,14 @@ fun PlayerScreen(
                 lastPlayedPosition = null,
                 onPlayPauseClick = {
                     if (isPlayPauseAllowed) {
-                        if (isPlaying) viewModel.videoPlayer.pause()
-                        else viewModel.videoPlayer.play()
+                        viewModel.togglePlayPause()
                     } else {
                         android.widget.Toast.makeText(context, "Host has disabled play/pause control", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
                 onSeek = { pos -> 
                     if (isSeekAllowed) {
-                        viewModel.videoPlayer.player.seekTo(pos) 
+                        viewModel.seekTo(pos) 
                     } else {
                         android.widget.Toast.makeText(context, "Host has disabled seeking", android.widget.Toast.LENGTH_SHORT).show()
                     }
