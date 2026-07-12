@@ -218,17 +218,24 @@ class PlayerViewModel @Inject constructor(
                 if (originalUri.scheme == "http" && originalUri.path?.contains("/video") == true) {
                     originalUri
                 } else {
-                    Uri.parse("http://${activeSession?.hostIp}:${activeSession?.port ?: 9980}/video?v=${activeSession?.video?.id ?: 9999}&t=${System.currentTimeMillis()}")
+                    val hostVideo = activeSession.video
+                    val videoId = hostVideo?.id ?: 9999L
+                    Uri.parse("http://${activeSession.hostIp}:${activeSession.port}/video?v=$videoId&t=${System.currentTimeMillis()}")
                 }
             } else {
                 originalUri
             }
-            
+
+            val title = if (isClient) {
+                activeSession.video?.title ?: "Watch Party"
+            } else {
+                null
+            }            
             currentVideoPath = if (isClient) "http_stream" else (videoPathString?.let { Uri.decode(it) } ?: uri.path)
             _currentPathFlow.value = currentVideoPath
 
             // For client mode, show the real video title from the host session
-            if (isClient && activeSession?.video != null) {
+            if (isClient && activeSession.video != null) {
                 _watchPartyVideoTitle.value = activeSession.video.title
             }
             

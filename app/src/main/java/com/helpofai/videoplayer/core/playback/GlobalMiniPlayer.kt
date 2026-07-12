@@ -76,18 +76,36 @@ fun GlobalMiniPlayer(
     var offsetX by remember { mutableStateOf<Float>(screenWidthPx - cardWidthPx - marginPx) }
     var offsetY by remember { mutableStateOf<Float>(screenHeightPx - cardHeightPx - marginPx - bottomOffsetPx) }
 
-    // State observers
-    var isPlaying by remember { mutableStateOf(videoPlayer.player.isPlaying) }
+    // Auto-clamp position on orientation/screen size changes so it never flies off-screen!
+    LaunchedEffect(screenWidthPx, screenHeightPx) {
+        offsetX = offsetX.coerceIn(0f, screenWidthPx - cardWidthPx)
+        offsetY = offsetY.coerceIn(0f, screenHeightPx - cardHeightPx)
+    }
 
-    DisposableEffect(videoPlayer.player) {
+    // State observers - safe from released players
+    var isPlaying by remember { 
+        mutableStateOf(if (!videoPlayer.isReleased) videoPlayer.player.isPlaying else false) 
+    }
+
+    DisposableEffect(videoPlayer.player, videoPlayer.isReleased) {
+        if (videoPlayer.isReleased) return@DisposableEffect onDispose {}
+        
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
             }
         }
-        videoPlayer.player.addListener(listener)
+        try {
+            videoPlayer.player.addListener(listener)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         onDispose {
-            videoPlayer.player.removeListener(listener)
+            try {
+                videoPlayer.player.removeListener(listener)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -115,18 +133,20 @@ fun GlobalMiniPlayer(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Seamlessly bind singleton ExoPlayer surface directly
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            useController = false
-                            player = videoPlayer.player
-                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp))
-                )
+                if (!videoPlayer.isReleased) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                useController = false
+                                player = videoPlayer.player
+                                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
 
                 // Dark subtle overlay gradient for controls visibility
                 Box(
@@ -166,7 +186,9 @@ fun GlobalMiniPlayer(
                 // Play/Pause Button overlay (Center)
                 IconButton(
                     onClick = {
-                        if (isPlaying) videoPlayer.pause() else videoPlayer.play()
+                        if (!videoPlayer.isReleased) {
+                            if (isPlaying) videoPlayer.pause() else videoPlayer.play()
+                        }
                     },
                     modifier = Modifier
                         .align(Alignment.Center)
