@@ -224,8 +224,19 @@ fun DynamicTopBar(
                             )
                         }
                         // Playlist root
-                        else -> {
+                        tab == 2 -> {
                             TabTitleText("Playlists")
+                        }
+                        // Transfers tab
+                        tab == 3 -> {
+                            TabTitleText("Transfers")
+                        }
+                        // Watch Party tab
+                        tab == 4 -> {
+                            TabTitleText("Watch Party")
+                        }
+                        else -> {
+                            TabTitleText("HOA Player")
                         }
                     }
                 }
@@ -257,8 +268,8 @@ fun DynamicTopBar(
                 }
             }
 
-            // Search — always visible in every context
-            DynamicActionIcon(visible = true) {
+            // Search — only visible in media tabs (Home, Folders, Playlists)
+            DynamicActionIcon(visible = isHome || isFolderRoot || isFolderDetail || isPlaylistRoot || isPlaylistDetail) {
                 IconButton(onClick = onSearchClick) {
                     Icon(
                         Icons.Default.Search,

@@ -237,12 +237,18 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(
+                        top = if (selectedTab == 3 || selectedTab == 4) paddingValues.calculateTopPadding() else 0.dp,
+                        bottom = paddingValues.calculateBottomPadding()
+                    )
                     .then(
                         if (selectedTab != 3 && selectedTab != 4) Modifier.verticalScroll(rememberScrollState())
                         else Modifier
                     )
             ) {
+                if (selectedTab != 3 && selectedTab != 4) {
+                    Spacer(Modifier.height(paddingValues.calculateTopPadding()))
+                }
                 if (selectedTab == 0) {
                     com.helpofai.videoplayer.feature.library.components.LibraryHomeTab(
                         state = state,
