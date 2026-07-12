@@ -21,7 +21,18 @@ class WatchPartySessionManager {
         fun getInstance(): WatchPartySessionManager = instance
     }
 
-    var isClientMode: Boolean = false
+    private val _isClientMode = MutableStateFlow(false)
+    var isClientMode: Boolean
+        get() = _isClientMode.value
+        set(value) { _isClientMode.value = value }
+    val isClientModeFlow = _isClientMode.asStateFlow()
+
+    private val _isFullPlayerActive = MutableStateFlow(false)
+    val isFullPlayerActive: StateFlow<Boolean> = _isFullPlayerActive.asStateFlow()
+
+    fun setFullPlayerActive(active: Boolean) {
+        _isFullPlayerActive.value = active
+    }
 
     private var currentTunnelPort: Int = 9990
     private var currentStreamPort: Int = 9980

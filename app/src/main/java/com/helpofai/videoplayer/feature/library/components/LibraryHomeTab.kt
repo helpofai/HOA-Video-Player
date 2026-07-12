@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -73,7 +74,7 @@ fun LibraryHomeTab(
         Spacer(modifier = Modifier.height(8.dp))
     }
 
-    // Active Streaming Watch Party Session Popup/Card
+    // Active Streaming Watch Party Session Card (Live Video Preview)
     val sessionManager = remember { com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance() }
     val activeSession by sessionManager.activeSession.collectAsState()
     if (activeSession?.video != null) {
@@ -82,6 +83,63 @@ fun LibraryHomeTab(
         val isHost = !sessionManager.isClientMode
         val labelText = if (isHost) "HOSTING STREAM" else "LIVE WATCH PARTY"
         val labelColor = if (isHost) androidx.compose.ui.graphics.Color(0xFF7C5CE7) else androidx.compose.ui.graphics.Color(0xFFE74C3C)
+
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+        var isLifecycleResumed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+        val isFullPlayerActive by sessionManager.isFullPlayerActive.collectAsState()
+
+        androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                isLifecycleResumed = event == androidx.lifecycle.Lifecycle.Event.ON_RESUME
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+
+        var previewPlayer by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<androidx.media3.exoplayer.ExoPlayer?>(null) }
+
+        androidx.compose.runtime.DisposableEffect(video.id, isLifecycleResumed, isFullPlayerActive) {
+            if (isLifecycleResumed && !isFullPlayerActive) {
+                val player = androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
+                    repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
+                    volume = 0f
+                    playWhenReady = session.isPlaying
+                }
+                
+                val videoUri = if (session.hostIp.isNotBlank() && session.hostIp != "127.0.0.1" && !isHost) {
+                    android.net.Uri.parse("http://${session.hostIp}:${session.port}/video?t=${System.currentTimeMillis()}")
+                } else {
+                    video.uri
+                }
+                
+                player.setMediaItem(androidx.media3.common.MediaItem.fromUri(videoUri))
+                player.prepare()
+                if (session.currentPositionMs > 0L) {
+                    player.seekTo(session.currentPositionMs)
+                }
+                previewPlayer = player
+            }
+            onDispose {
+                previewPlayer?.apply {
+                    playWhenReady = false
+                    stop()
+                    release()
+                }
+                previewPlayer = null
+            }
+        }
+
+        androidx.compose.runtime.LaunchedEffect(session.isPlaying, session.currentPositionMs) {
+            previewPlayer?.let { player ->
+                player.playWhenReady = session.isPlaying
+                if (kotlin.math.abs(player.currentPosition - session.currentPositionMs) > 2000L) {
+                    player.seekTo(session.currentPositionMs)
+                }
+            }
+        }
 
         androidx.compose.material3.Card(
             colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF111520)),
@@ -126,6 +184,68 @@ fun LibraryHomeTab(
                     )
                 }
 
+                // Live Video Stream Rendering
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                        .background(androidx.compose.ui.graphics.Color.Black),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    if (previewPlayer != null && !isFullPlayerActive) {
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx ->
+                                androidx.media3.ui.PlayerView(ctx).apply {
+                                    useController = false
+                                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                    player = previewPlayer
+                                    layoutParams = android.widget.FrameLayout.LayoutParams(
+                                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                }
+                            },
+                            update = { view ->
+                                view.player = previewPlayer
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        // Pulsing gradient mockup
+                        val infiniteTransition = rememberInfiniteTransition(label = "gradient")
+                        val animatedOffset by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 1000f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(3000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "offset"
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                        colors = listOf(androidx.compose.ui.graphics.Color(0xFF2C3E50), androidx.compose.ui.graphics.Color(0xFF3498DB))
+                                    )
+                                )
+                        )
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                        colors = listOf(androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color(0xFF00CEC9).copy(alpha = 0.2f), androidx.compose.ui.graphics.Color.Transparent),
+                                        start = androidx.compose.ui.geometry.Offset(animatedOffset, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(animatedOffset + 200f, 200f)
+                                    )
+                                )
+                        )
+                    }
+                }
+
                 androidx.compose.material3.Text(
                     text = video.title,
                     color = androidx.compose.ui.graphics.Color.White,
@@ -141,8 +261,15 @@ fun LibraryHomeTab(
                     fontSize = 11.sp
                 )
 
+                val correctedVideo = if (!isHost) {
+                    val streamUri = android.net.Uri.parse("http://${session.hostIp}:${session.port}/video?t=${System.currentTimeMillis()}")
+                    video.copy(uri = streamUri, path = "http_stream")
+                } else {
+                    video
+                }
+
                 androidx.compose.material3.Button(
-                    onClick = { onVideoClick(video) },
+                    onClick = { onVideoClick(correctedVideo) },
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = labelColor),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     modifier = Modifier
@@ -158,6 +285,7 @@ fun LibraryHomeTab(
             }
         }
     }
+
 
     // 1.5 Resume Playback (Folder Context)
     val resumeData = androidx.compose.runtime.remember(state.videos) {

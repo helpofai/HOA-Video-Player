@@ -34,19 +34,20 @@ class WatchPartyVideoStreamServer {
     private var videoFile: File? = null
     private var videoUri: Uri? = null
     private var appContext: Context? = null
+    private var activeServerSocket: java.net.ServerSocket? = null
 
-    /** Start serving [file]. Stops any previously running server first. */
     fun start(file: File, port: Int = VIDEO_STREAM_PORT) {
         stop()
         videoFile = file
         android.util.Log.d("VideoStreamServer", "Starting server for file on port $port")
         serverJob = CoroutineScope(Dispatchers.IO).launch {
-            var serverSocket: ServerSocket? = null
+            var serverSocket: java.net.ServerSocket? = null
             try {
-                serverSocket = ServerSocket().apply {
+                serverSocket = java.net.ServerSocket().apply {
                     reuseAddress = true
                     bind(java.net.InetSocketAddress(port))
                 }
+                activeServerSocket = serverSocket
                 while (isActive) {
                     val client = serverSocket.accept().apply {
                         try {
@@ -61,23 +62,35 @@ class WatchPartyVideoStreamServer {
                 android.util.Log.e("VideoStreamServer", "Server socket exception: ${e.message}")
             } finally {
                 try { serverSocket?.close() } catch (e: Exception) {}
+                if (activeServerSocket === serverSocket) {
+                    activeServerSocket = null
+                }
             }
         }
     }
 
-    /** Start serving video via content or file [uri] using the [context]. */
     fun start(context: Context, uri: Uri, port: Int = VIDEO_STREAM_PORT) {
         stop()
         appContext = context.applicationContext
+        
+        val resolvedPath = getFilePathFromUri(context, uri)
+        val file = resolvedPath?.let { File(it) }
+        if (file != null && file.exists()) {
+            android.util.Log.d("VideoStreamServer", "Resolved content URI to file: ${file.absolutePath}")
+            start(file, port)
+            return
+        }
+
         videoUri = uri
         android.util.Log.d("VideoStreamServer", "Starting server for URI on port $port")
         serverJob = CoroutineScope(Dispatchers.IO).launch {
-            var serverSocket: ServerSocket? = null
+            var serverSocket: java.net.ServerSocket? = null
             try {
-                serverSocket = ServerSocket().apply {
+                serverSocket = java.net.ServerSocket().apply {
                     reuseAddress = true
                     bind(java.net.InetSocketAddress(port))
                 }
+                activeServerSocket = serverSocket
                 while (isActive) {
                     val client = serverSocket.accept().apply {
                         try {
@@ -92,11 +105,18 @@ class WatchPartyVideoStreamServer {
                 android.util.Log.e("VideoStreamServer", "Server socket exception: ${e.message}")
             } finally {
                 try { serverSocket?.close() } catch (e: Exception) {}
+                if (activeServerSocket === serverSocket) {
+                    activeServerSocket = null
+                }
             }
         }
     }
 
     fun stop() {
+        try {
+            activeServerSocket?.close()
+        } catch (e: Exception) {}
+        activeServerSocket = null
         serverJob?.cancel()
         serverJob = null
         videoFile = null
@@ -110,7 +130,7 @@ class WatchPartyVideoStreamServer {
         try {
             socket.soTimeout = 30_000
             val input = socket.getInputStream().bufferedReader(Charsets.UTF_8)
-            val output = java.io.BufferedOutputStream(socket.getOutputStream(), 128 * 1024)
+            val output = socket.getOutputStream()
 
             // Read HTTP request headers
             val requestLine = input.readLine() ?: return
@@ -252,22 +272,9 @@ class WatchPartyVideoStreamServer {
     }
 
     private fun streamFilePortion(file: File, output: OutputStream, start: Long, length: Long) {
+        val buffer = ByteArray(128 * 1024) // 128KB chunks
+        var remaining = length
         try {
-            val destChannel = java.nio.channels.Channels.newChannel(output)
-            RandomAccessFile(file, "r").use { raf ->
-                val srcChannel = raf.channel
-                var transferred = 0L
-                while (transferred < length) {
-                    val count = srcChannel.transferTo(start + transferred, length - transferred, destChannel)
-                    if (count <= 0) break
-                    transferred += count
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("VideoStreamServer", "NIO file transfer failed, falling back to buffer copy: ${e.message}")
-            // Fallback to traditional buffer copy
-            val buffer = ByteArray(128 * 1024) // 128KB chunks
-            var remaining = length
             RandomAccessFile(file, "r").use { raf ->
                 raf.seek(start)
                 while (remaining > 0) {
@@ -278,62 +285,40 @@ class WatchPartyVideoStreamServer {
                     remaining -= read
                 }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("VideoStreamServer", "Error streaming file portion: ${e.message}", e)
         }
     }
 
     private fun streamUriPortion(context: Context, uri: Uri, output: OutputStream, start: Long, length: Long) {
-        var pfd: android.os.ParcelFileDescriptor? = null
-        var dupPfd: android.os.ParcelFileDescriptor? = null
-        var fis: java.io.FileInputStream? = null
-        var success = false
-
+        val buffer = ByteArray(128 * 1024) // 128KB chunks
+        var remaining = length
         try {
-            pfd = context.contentResolver.openFileDescriptor(uri, "r")
-            if (pfd != null) {
-                dupPfd = pfd.dup()
-                fis = java.io.FileInputStream(dupPfd.fileDescriptor)
-                val srcChannel = fis.channel
-                val destChannel = java.nio.channels.Channels.newChannel(output)
-                var transferred = 0L
-                while (transferred < length) {
-                    val count = srcChannel.transferTo(start + transferred, length - transferred, destChannel)
-                    if (count <= 0) break
-                    transferred += count
-                }
-                success = true
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("VideoStreamServer", "Failed to stream URI via NIO channel, falling back to buffer copy: ${e.message}")
-        } finally {
-            try { fis?.close() } catch(e: Exception){}
-            try { dupPfd?.close() } catch(e: Exception){}
-            try { pfd?.close() } catch(e: Exception){}
-        }
-
-        if (!success) {
-            // Fallback to sequential read and skip
-            try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    var skipped = 0L
-                    while (skipped < start) {
-                        val skipAmt = inputStream.skip(start - skipped)
-                        if (skipAmt <= 0) break
-                        skipped += skipAmt
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                java.io.FileInputStream(pfd.fileDescriptor).use { fis ->
+                    val channel = fis.channel
+                    try {
+                        channel.position(start)
+                    } catch (e: Exception) {
+                        var skipped = 0L
+                        while (skipped < start) {
+                            val skipAmt = fis.skip(start - skipped)
+                            if (skipAmt <= 0) break
+                            skipped += skipAmt
+                        }
                     }
                     
-                    val buffer = ByteArray(128 * 1024) // 128KB chunks
-                    var remaining = length
                     while (remaining > 0) {
                         val toRead = minOf(buffer.size.toLong(), remaining).toInt()
-                        val read = inputStream.read(buffer, 0, toRead)
+                        val read = fis.read(buffer, 0, toRead)
                         if (read <= 0) break
                         output.write(buffer, 0, read)
                         remaining -= read
                     }
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("VideoStreamServer", "Fallback stream failed: ${e.message}", e)
             }
+        } catch (e: Exception) {
+            android.util.Log.e("VideoStreamServer", "Error streaming URI portion: ${e.message}", e)
         }
     }
 
@@ -356,5 +341,22 @@ class WatchPartyVideoStreamServer {
             fileName.endsWith(".3gp", true)  -> "video/3gpp"
             else -> "video/mp4"
         }
+    }
+    private fun getFilePathFromUri(context: Context, uri: Uri): String? {
+        if (uri.scheme == "file") return uri.path
+        if (uri.scheme != "content") return null
+        var path: String? = null
+        try {
+            val projection = arrayOf(android.provider.MediaStore.Video.Media.DATA)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(android.provider.MediaStore.Video.Media.DATA)
+                    if (idx != -1) {
+                        path = cursor.getString(idx)
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+        return path
     }
 }

@@ -186,7 +186,7 @@ fun PlayerTopToolbar(
                                 modifier = Modifier.padding(end = 8.dp)
                             ) {
                                 Text(
-                                    text = if (isHost) "STREAMING" else "LIVE",
+                                    text = "LIVE STREAMING",
                                     fontSize = 7.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isHost) Color.Red else Color(0xFF00FFCC),

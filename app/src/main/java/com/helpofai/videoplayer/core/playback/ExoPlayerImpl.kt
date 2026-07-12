@@ -73,7 +73,19 @@ class ExoPlayerImpl @Inject constructor(
     private fun initializePlayer(): ExoPlayer {
         val renderersFactory = com.helpofai.videoplayer.feature.player.decoder.SmartDecoderEngine.getOptimalRenderersFactory(context)
 
-        val newPlayer = ExoPlayer.Builder(context, renderersFactory).build().apply {
+        val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                15_000,     // minBufferMs (15 seconds)
+                50_000,     // maxBufferMs (50 seconds)
+                1_500,      // bufferForPlaybackMs (1.5 seconds instant start)
+                3_000       // bufferForPlaybackAfterRebufferMs (3 seconds)
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
+
+        val newPlayer = ExoPlayer.Builder(context, renderersFactory)
+            .setLoadControl(loadControl)
+            .build().apply {
             setAudioAttributes(AudioAttributes.DEFAULT, true)
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {

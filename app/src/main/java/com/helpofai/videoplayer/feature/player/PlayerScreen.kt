@@ -194,6 +194,12 @@ fun PlayerScreen(
     }
 
     val playlist by viewModel.playlist.collectAsState()
+    val isPlayPauseAllowed by viewModel.isPlayPauseAllowed.collectAsState()
+    val isSeekAllowed by viewModel.isSeekAllowed.collectAsState()
+    val isVolumeAllowed by viewModel.isVolumeAllowed.collectAsState()
+    val isAudioTrackAllowed by viewModel.isAudioTrackAllowed.collectAsState()
+    val isSubtitleToggleAllowed by viewModel.isSubtitleToggleAllowed.collectAsState()
+    val isGesturesAllowed by viewModel.isGesturesAllowed.collectAsState()
 
     // AB Repeat State
     var abRepeatA by remember { mutableStateOf<Long?>(null) }
@@ -537,7 +543,11 @@ fun PlayerScreen(
                     selectedSpeedIndex = idx
                     savedSpeedBeforeBoost = savedSpeed
                     autoHideTrigger++
-                }
+                },
+                isPlayPauseAllowed = isPlayPauseAllowed,
+                isSeekAllowed = isSeekAllowed,
+                isVolumeAllowed = isVolumeAllowed,
+                isGesturesAllowed = isGesturesAllowed
             )
         }
         
@@ -585,12 +595,20 @@ fun PlayerScreen(
                     }
                 },
                 onAudioClick = {
-                    trackSelectorInitialTab = 0
-                    activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
+                    if (isAudioTrackAllowed) {
+                        trackSelectorInitialTab = 0
+                        activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled changing audio tracks", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onSubtitlesClick = {
-                    trackSelectorInitialTab = 1
-                    activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
+                    if (isSubtitleToggleAllowed) {
+                        trackSelectorInitialTab = 1
+                        activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled subtitle control", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onScreenshotClick = {
                     viewModel.takeScreenshot(context) { path ->
@@ -606,8 +624,20 @@ fun PlayerScreen(
                         ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
-                onVideoEnhancerClick = { showVideoEnhancer = true },
-                onVideoAdjustmentsClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.VIDEO_ADJUSTMENTS },
+                onVideoEnhancerClick = {
+                    if (isGesturesAllowed) {
+                        showVideoEnhancer = true
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled video enhancements", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onVideoAdjustmentsClick = {
+                    if (isGesturesAllowed) {
+                        activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.VIDEO_ADJUSTMENTS
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled video adjustments", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onMoreClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.MORE_POPUP },
                 isToolsExpanded = isToolsExpanded,
                 onToolsExpandedChange = { isToolsExpanded = it },
@@ -627,7 +657,7 @@ fun PlayerScreen(
             // Streaming/LIVE tag
             if (activeSession != null) {
                 val isHost = !sessionManager.isClientMode
-                val tagText = if (isHost) "STREAMING" else "LIVE"
+                val tagText = "LIVE STREAMING"
                 val tagColor = if (isHost) Color(0xFF7C5CE7) else Color(0xFFE74C3C)
                 Surface(
                     color = tagColor,
@@ -672,10 +702,20 @@ fun PlayerScreen(
                 bookmarks = emptyList(), // Pass actual bookmarks later if needed
                 lastPlayedPosition = null,
                 onPlayPauseClick = {
-                    if (isPlaying) viewModel.videoPlayer.pause()
-                    else viewModel.videoPlayer.play()
+                    if (isPlayPauseAllowed) {
+                        if (isPlaying) viewModel.videoPlayer.pause()
+                        else viewModel.videoPlayer.play()
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled play/pause control", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 },
-                onSeek = { pos -> viewModel.videoPlayer.player.seekTo(pos) },
+                onSeek = { pos -> 
+                    if (isSeekAllowed) {
+                        viewModel.videoPlayer.player.seekTo(pos) 
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled seeking", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onNextClick = { viewModel.playNextVideo() },
                 onPrevClick = { viewModel.playPrevVideo() },
                 onFullscreenClick = {
@@ -686,6 +726,7 @@ fun PlayerScreen(
                         ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
+                isSeekEnabled = isSeekAllowed,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

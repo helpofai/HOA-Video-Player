@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -66,6 +67,8 @@ class PlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    private val watchPartySessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
+
     // Legacy Resume Prompt state
     var showResumePrompt by mutableStateOf(false)
         private set
@@ -89,6 +92,31 @@ class PlayerViewModel @Inject constructor(
         
     private val _playlist = MutableStateFlow<List<com.helpofai.videoplayer.core.model.Video>>(emptyList())
     val playlist = _playlist.asStateFlow()
+
+    // Watch Party Permissions Flow
+    val isPlayPauseAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowPlayPause
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isSeekAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowSeek
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isVolumeAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowVolume
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isAudioTrackAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowAudioTrack
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isSubtitleToggleAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowSubtitleToggle
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isGesturesAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowGestures
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     // Holds the real video title for watch party clients (since path is "http_stream")
     private val _watchPartyVideoTitle = MutableStateFlow<String?>(null)
@@ -130,12 +158,17 @@ class PlayerViewModel @Inject constructor(
         if (videoUriString != null) {
             val originalUri = Uri.parse(Uri.decode(videoUriString))
             val watchPartySessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
+            watchPartySessionManager.setFullPlayerActive(true)
             val activeSession = watchPartySessionManager.activeSession.value
             
             val isClient = watchPartySessionManager.isClientMode && activeSession != null
             // Client always streams from host HTTP server; host plays its local file
             val uri = if (isClient) {
-                Uri.parse("http://${activeSession?.hostIp}:${activeSession?.port ?: 9980}/video")
+                if (originalUri.scheme == "http" && originalUri.path?.contains("/video") == true) {
+                    originalUri
+                } else {
+                    Uri.parse("http://${activeSession?.hostIp}:${activeSession?.port ?: 9980}/video?v=${activeSession?.video?.id ?: 9999}&t=${System.currentTimeMillis()}")
+                }
             } else {
                 originalUri
             }
@@ -188,7 +221,7 @@ class PlayerViewModel @Inject constructor(
                                 val currentVideoId = currentVideo.id.toString()
                                 if (currentVideoId != lastVideoId) {
                                     lastVideoId = currentVideoId
-                                    val streamUri = Uri.parse("http://${session.hostIp}:${session.port}/video")
+                                    val streamUri = Uri.parse("http://${session.hostIp}:${session.port}/video?v=${currentVideoId}&t=${System.currentTimeMillis()}")
                                     playbackManager.prepareVideo(
                                         path = "http_stream",
                                         uri = streamUri,
@@ -248,7 +281,7 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
 
-                // Client synchronization handler: only acts when ExoPlayer is STATE_READY
+                // Client synchronization handler: sync play state and seek position dynamically
                 launch {
                     combine(
                         watchPartySessionManager.activeSession,
@@ -256,9 +289,10 @@ class PlayerViewModel @Inject constructor(
                     ) { session, exoState -> Pair(session, exoState) }
                     .collect { (session, exoState) ->
                         if (session != null && watchPartySessionManager.isClientMode) {
-                            val isReady = exoState.playbackState == androidx.media3.common.Player.STATE_READY
-                            val isEnded = exoState.playbackState == androidx.media3.common.Player.STATE_ENDED
-                            if (!isReady || isEnded) return@collect
+                            val state = exoState.playbackState
+                            val isIdle = state == androidx.media3.common.Player.STATE_IDLE
+                            val isEnded = state == androidx.media3.common.Player.STATE_ENDED
+                            if (isIdle || isEnded) return@collect
 
                             if (session.isPlaying && !exoState.isPlaying) {
                                 videoPlayer.play()
@@ -267,7 +301,7 @@ class PlayerViewModel @Inject constructor(
                             }
 
                             val drift = kotlin.math.abs(exoState.currentPosition - session.currentPositionMs)
-                            if (drift > 2000L) {
+                            if (drift > 2500L) {
                                 videoPlayer.seekTo(session.currentPositionMs)
                             }
                         }
@@ -289,12 +323,38 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
 
-                repository.getVideosWithMetadata().collect { allVideos ->
-                    val currentParent = currentVideoPath?.let { java.io.File(it).parent }
-                    if (currentParent != null) {
-                        val folderVideos = allVideos.filter { java.io.File(it.path).parent == currentParent }
-                            .sortedBy { it.title }
-                        _playlist.value = folderVideos
+                launch {
+                    if (isClient) {
+                        combine(
+                            watchPartySessionManager.activeSession,
+                            repository.getVideosWithMetadata()
+                        ) { session, allVideos -> Pair(session, allVideos) }
+                        .collect { (session, allVideos) ->
+                            if (session != null) {
+                                if (session.allowFolderQueue) {
+                                    val hostFolder = session.video?.path?.let { java.io.File(it).parentFile?.name }
+                                    val folderVideos = allVideos.filter { 
+                                        (java.io.File(it.path).parentFile?.name ?: "") == hostFolder 
+                                    }.sortedBy { it.title }
+                                    _playlist.value = folderVideos
+                                } else {
+                                    val currentStreamVideo = session.video?.let { v ->
+                                        val streamUri = Uri.parse("http://${session.hostIp}:${session.port}/video?v=${v.id}&t=${System.currentTimeMillis()}")
+                                        v.copy(uri = streamUri, path = "http_stream")
+                                    }
+                                    _playlist.value = if (currentStreamVideo != null) listOf(currentStreamVideo) else emptyList()
+                                }
+                            }
+                        }
+                    } else {
+                        repository.getVideosWithMetadata().collect { allVideos ->
+                            val currentParent = currentVideoPath?.let { java.io.File(it).parent }
+                            if (currentParent != null) {
+                                val folderVideos = allVideos.filter { java.io.File(it.path).parent == currentParent }
+                                    .sortedBy { it.title }
+                                _playlist.value = folderVideos
+                            }
+                        }
                     }
                 }
             }
@@ -363,6 +423,7 @@ class PlayerViewModel @Inject constructor(
     private fun observePlaybackState() {
         viewModelScope.launch {
             videoPlayer.playbackState.collect { state ->
+                if (watchPartySessionManager.isClientMode) return@collect
                 if (state.playbackState == androidx.media3.common.Player.STATE_READY && !hasShownResumePromptForCurrentVideo) {
                     hasShownResumePromptForCurrentVideo = true
                     if (resumePosition > 0L) {
@@ -517,6 +578,7 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().setFullPlayerActive(false)
         currentVideoPath?.let { path ->
             viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
                 playbackManager.recordPlaybackState(path, lastZoomLevel)

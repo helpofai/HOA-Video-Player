@@ -82,7 +82,7 @@ fun WatchPartyMainTab(
     // Navigation state — which sub-page to show
     var showHostSetup by remember { mutableStateOf(false) }
     var showJoinRoom by remember { mutableStateOf(false) }
-    var isClientMode by remember { mutableStateOf(false) }
+    val isClientMode by sessionManager.isClientModeFlow.collectAsState()
     var showQrDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showActiveRoom by remember { mutableStateOf(true) }
@@ -90,7 +90,7 @@ fun WatchPartyMainTab(
     val pendingDeepLink by sessionManager.pendingDeepLink.collectAsState()
     LaunchedEffect(pendingDeepLink) {
         if (pendingDeepLink != null) {
-            isClientMode = true
+            sessionManager.isClientMode = true
             showJoinRoom = true
             showActiveRoom = true
         }
@@ -125,7 +125,6 @@ fun WatchPartyMainTab(
     
     // Auto discovery trigger
     LaunchedEffect(isClientMode) {
-        sessionManager.isClientMode = isClientMode
         if (isClientMode) {
             discoveryService.startDiscovery()
         } else {
@@ -151,7 +150,7 @@ fun WatchPartyMainTab(
             onBack = { showJoinRoom = false },
             onJoinSuccess = {
                 showJoinRoom = false
-                isClientMode = true
+                sessionManager.isClientMode = true
                 showActiveRoom = true
             }
         )
@@ -194,7 +193,7 @@ fun WatchPartyMainTab(
                         onDisconnect = {
                             clientManager.disconnect()
                             sessionManager.endSession()
-                            isClientMode = false
+                            sessionManager.isClientMode = false
                             Toast.makeText(context, "Disconnected from watch party room", Toast.LENGTH_SHORT).show()
                         },
                         onBack = { showActiveRoom = false }
@@ -220,7 +219,8 @@ fun WatchPartyMainTab(
                         } else {
                             val streamPort = session.port
                             val hostIp = if (session.hostIp.isNotBlank()) session.hostIp else "192.168.1.100"
-                            val streamUri = android.net.Uri.parse("http://$hostIp:$streamPort/video")
+                            val videoId = session.video?.id ?: 9999L
+                            val streamUri = android.net.Uri.parse("http://$hostIp:$streamPort/video?v=$videoId&t=${System.currentTimeMillis()}")
                             val currentVideo = session.video ?: com.helpofai.videoplayer.core.model.Video(
                                 id = 9999L,
                                 uri = streamUri,
@@ -293,7 +293,7 @@ fun WatchPartyMainTab(
                         modifier = Modifier
                             .weight(1f)
                             .clickable {
-                                isClientMode = false
+                                sessionManager.isClientMode = false
                                 showHostSetup = true
                             },
                         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),

@@ -7,6 +7,8 @@
 local.properties
 keyStorePath
 node_modules
+host-room-and-join-room.md
+*.log
 # Gradle files
 .gradle/
 build/

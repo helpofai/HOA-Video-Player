@@ -72,7 +72,8 @@ fun ThinRainbowSeekBar(
     bookmarks: List<Long>,
     lastPlayedPosition: Long?,
     onSeek: (Float) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSeekEnabled: Boolean = true
 ) {
     val rainbowColor = getAnimatedRainbowColor()
     var dragPosition by remember { mutableStateOf<Float?>(null) }
@@ -83,32 +84,37 @@ fun ThinRainbowSeekBar(
         modifier = modifier
             .height(24.dp)
             .fillMaxWidth()
-            .pointerInput(max) {
-                detectTapGestures { offset ->
-                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                    onSeek(fraction * max)
-                }
-            }
-            .pointerInput(max) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                        dragPosition = fraction * max
-                    },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                        dragPosition = fraction * max
-                    },
-                    onDragEnd = {
-                        dragPosition?.let { onSeek(it) }
-                        dragPosition = null
-                    },
-                    onDragCancel = {
-                        dragPosition = null
-                    }
-                )
-            }
+            .then(
+                if (isSeekEnabled) {
+                    Modifier
+                        .pointerInput(max) {
+                            detectTapGestures { offset ->
+                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                onSeek(fraction * max)
+                            }
+                        }
+                        .pointerInput(max) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                    dragPosition = fraction * max
+                                },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                    dragPosition = fraction * max
+                                },
+                                onDragEnd = {
+                                    dragPosition?.let { onSeek(it) }
+                                    dragPosition = null
+                                },
+                                onDragCancel = {
+                                    dragPosition = null
+                                }
+                            )
+                        }
+                } else Modifier
+            )
     ) {
         val trackHeight = 2.dp.toPx()
         val thumbRadius = 4.dp.toPx()
@@ -191,6 +197,7 @@ fun PlayerBottomController(
     onNextClick: () -> Unit,
     onPrevClick: () -> Unit,
     onFullscreenClick: () -> Unit,
+    isSeekEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -243,6 +250,7 @@ fun PlayerBottomController(
                             sliderValue = it
                             onSeek(it.toLong())
                         },
+                        isSeekEnabled = isSeekEnabled,
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 12.dp)

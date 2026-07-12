@@ -72,8 +72,16 @@ fun PlayerGestureSurface(
     onToolsExpandedChange: (Boolean) -> Unit,
     onPlayPauseToggle: (Boolean) -> Unit,
     onFeedbackEvent: (FeedbackEvent) -> Unit,
-    onLongPressStateChange: (Boolean, Float, Float, Float, Float, Int, Float) -> Unit // visible, cx, cy, fx, fy, idx, savedSpeed
+    onLongPressStateChange: (Boolean, Float, Float, Float, Float, Int, Float) -> Unit, // visible, cx, cy, fx, fy, idx, savedSpeed
+    isPlayPauseAllowed: Boolean = true,
+    isSeekAllowed: Boolean = true,
+    isVolumeAllowed: Boolean = true,
+    isGesturesAllowed: Boolean = true
 ) {
+    val isPlayPauseAllowed by rememberUpdatedState(isPlayPauseAllowed)
+    val isSeekAllowed by rememberUpdatedState(isSeekAllowed)
+    val isVolumeAllowed by rememberUpdatedState(isVolumeAllowed)
+    val isGesturesAllowed by rememberUpdatedState(isGesturesAllowed)
     val isPlaying by rememberUpdatedState(isPlaying)
     val isToolsExpanded by rememberUpdatedState(isToolsExpanded)
     val isControllerVisible by rememberUpdatedState(isControllerVisible)
@@ -200,38 +208,50 @@ fun PlayerGestureSurface(
                                 val isLeftSide = change.position.x < screenWidth / 2
 
                                 if (isSeeking) {
-                                    seekAccumulatorLocal += dragAmount.x
-                                    val seekAmountMs = (seekAccumulatorLocal / screenWidth) * 120000
-                                    val duration = viewModel.videoPlayer.player.duration
-                                    val safeDuration = if (duration > 0) duration else Long.MAX_VALUE
-                                    val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, safeDuration)
+                                    if (isSeekAllowed) {
+                                        seekAccumulatorLocal += dragAmount.x
+                                        val seekAmountMs = (seekAccumulatorLocal / screenWidth) * 120000
+                                        val duration = viewModel.videoPlayer.player.duration
+                                        val safeDuration = if (duration > 0) duration else Long.MAX_VALUE
+                                        val newPos = (startPosition + seekAmountMs.toLong()).coerceIn(0, safeDuration)
 
-                                    val currentSecs = newPos / 1000
-                                    val m = currentSecs / 60
-                                    val s = currentSecs % 60
-                                    val sign = if (seekAmountMs >= 0) "+" else ""
-                                    val diffSecs = (seekAmountMs / 1000).toInt()
-                                    onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.AutoMirrored.Filled.CompareArrows, String.format("%02d:%02d (%s%ds)", m, s, sign, diffSecs)))
+                                        val currentSecs = newPos / 1000
+                                        val m = currentSecs / 60
+                                        val s = currentSecs % 60
+                                        val sign = if (seekAmountMs >= 0) "+" else ""
+                                        val diffSecs = (seekAmountMs / 1000).toInt()
+                                        onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.AutoMirrored.Filled.CompareArrows, String.format("%02d:%02d (%s%ds)", m, s, sign, diffSecs)))
+                                    } else {
+                                        onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
+                                    }
                                     change.consume()
                                 } else if (isAdjustingVolBright) {
                                     accumulatedY += dragAmount.y
                                     val delta = -accumulatedY / screenHeight * 1.5f
 
                                     if (isLeftSide) {
-                                        activity?.window?.let { window ->
-                                            val params = window.attributes
-                                            val newB = (initialBrightness + delta).coerceIn(0f, 1f)
-                                            params.screenBrightness = newB
-                                            window.attributes = params
-                                            lastBrightness = newB
-                                            onFeedbackEvent(FeedbackEvent(FeedbackType.BRIGHTNESS, Icons.Default.BrightnessMedium, "${(params.screenBrightness * 100).toInt()}%", value = params.screenBrightness, color = Color(0xFFFFEB3B)))
+                                        if (isGesturesAllowed) {
+                                            activity?.window?.let { window ->
+                                                val params = window.attributes
+                                                val newB = (initialBrightness + delta).coerceIn(0f, 1f)
+                                                params.screenBrightness = newB
+                                                window.attributes = params
+                                                lastBrightness = newB
+                                                onFeedbackEvent(FeedbackEvent(FeedbackType.BRIGHTNESS, Icons.Default.BrightnessMedium, "${(params.screenBrightness * 100).toInt()}%", value = params.screenBrightness, color = Color(0xFFFFEB3B)))
+                                            }
+                                        } else {
+                                            onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Gestures are disabled by Host"))
                                         }
                                     } else {
-                                        val newVolFloat = initialVolume + delta
-                                        val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
-                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                        lastVolume = newVolFloat.coerceIn(0f, 1f)
-                                        onFeedbackEvent(FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3)))
+                                        if (isVolumeAllowed) {
+                                            val newVolFloat = initialVolume + delta
+                                            val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
+                                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                            lastVolume = newVolFloat.coerceIn(0f, 1f)
+                                            onFeedbackEvent(FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3)))
+                                        } else {
+                                            onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Volume gesture is disabled by Host"))
+                                        }
                                     }
                                     change.consume()
                                 }
@@ -239,15 +259,15 @@ fun PlayerGestureSurface(
                         }
                     } while (event.changes.any { it.pressed })
 
-                    if (isSeeking) {
+                    if (isSeeking && isSeekAllowed) {
                         val screenWidth = size.width
                         val seekAmountMs = (seekAccumulatorLocal / screenWidth) * 120000
                         val dur = viewModel.videoPlayer.player.duration.coerceAtLeast(0L)
                         val newPos = if (dur > 0L) (startPosition + seekAmountMs.toLong()).coerceIn(0L, dur) else startPosition
                         viewModel.videoPlayer.player.seekTo(newPos)
                     } else if (isAdjustingVolBright) {
-                        if (lastBrightness >= 0f) viewModel.preferencesUseCase.saveBrightness(lastBrightness)
-                        if (lastVolume >= 0f) viewModel.preferencesUseCase.saveVolume(lastVolume)
+                        if (lastBrightness >= 0f && isGesturesAllowed) viewModel.preferencesUseCase.saveBrightness(lastBrightness)
+                        if (lastVolume >= 0f && isVolumeAllowed) viewModel.preferencesUseCase.saveVolume(lastVolume)
                     }
                     onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L))
                 }
@@ -338,23 +358,35 @@ fun PlayerGestureSurface(
                             val rightBound = leftBound + centerWidth
 
                             if (offset.x < leftBound) {
-                                viewModel.videoPlayer.seekBack()
-                                val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
-                                onSeekAccumulationChange(newSeek)
-                                onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
+                                if (isSeekAllowed) {
+                                    viewModel.videoPlayer.seekBack()
+                                    val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
+                                    onSeekAccumulationChange(newSeek)
+                                    onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
+                                } else {
+                                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
+                                }
                             } else if (offset.x > rightBound) {
-                                viewModel.videoPlayer.seekForward()
-                                val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
-                                onSeekAccumulationChange(newSeek)
-                                onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
+                                if (isSeekAllowed) {
+                                    viewModel.videoPlayer.seekForward()
+                                    val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
+                                    onSeekAccumulationChange(newSeek)
+                                    onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
+                                } else {
+                                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
+                                }
                             } else {
                                 // Center double tap -> toggle play/pause
-                                if (isPlaying) {
-                                    viewModel.videoPlayer.pause()
-                                    onPlayPauseToggle(true) // show ad popup
+                                if (isPlayPauseAllowed) {
+                                    if (isPlaying) {
+                                        viewModel.videoPlayer.pause()
+                                        onPlayPauseToggle(true) // show ad popup
+                                    } else {
+                                        viewModel.videoPlayer.play()
+                                        onPlayPauseToggle(false)
+                                    }
                                 } else {
-                                    viewModel.videoPlayer.play()
-                                    onPlayPauseToggle(false)
+                                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Play/Pause is disabled by Host"))
                                 }
                             }
                         }

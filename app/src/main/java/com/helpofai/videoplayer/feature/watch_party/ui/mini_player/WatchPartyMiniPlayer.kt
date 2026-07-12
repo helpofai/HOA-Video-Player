@@ -60,6 +60,7 @@ fun WatchPartyMiniPlayer(
     // Track tab/lifecycle visibility to stop background streaming when player screen opens
     val lifecycleOwner = LocalLifecycleOwner.current
     var isLifecycleResumed by remember { mutableStateOf(true) }
+    val isFullPlayerActive by com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().isFullPlayerActive.collectAsState()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -75,9 +76,9 @@ fun WatchPartyMiniPlayer(
     // Setup miniature ExoPlayer instance for live preview
     var exoPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
 
-    // Initialize/release ExoPlayer based on streaming status and lifecycle resume state
-    DisposableEffect(isStreaming, session.video?.id, isLifecycleResumed) {
-        if (isStreaming && session.video != null && isLifecycleResumed) {
+    // Initialize/release ExoPlayer based on streaming status, lifecycle resume state, and full-screen player status
+    DisposableEffect(isStreaming, session.video?.id, isLifecycleResumed, isFullPlayerActive) {
+        if (isStreaming && session.video != null && isLifecycleResumed && !isFullPlayerActive) {
             val player = ExoPlayer.Builder(context).build().apply {
                 repeatMode = Player.REPEAT_MODE_OFF
                 // Mute preview player so it doesn't conflict with main audio
@@ -103,7 +104,11 @@ fun WatchPartyMiniPlayer(
         }
 
         onDispose {
-            exoPlayer?.release()
+            exoPlayer?.apply {
+                playWhenReady = false
+                stop()
+                release()
+            }
             exoPlayer = null
         }
     }
@@ -168,7 +173,7 @@ fun WatchPartyMiniPlayer(
                         .background(Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isStreaming && exoPlayer != null && isLifecycleResumed) {
+                    if (isStreaming && exoPlayer != null && isLifecycleResumed && !isFullPlayerActive) {
                         // Render actual video frame preview
                         AndroidView(
                             factory = { ctx ->

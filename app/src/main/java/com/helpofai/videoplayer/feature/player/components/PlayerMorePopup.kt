@@ -384,15 +384,29 @@ fun PlayerMorePopup(
                             
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            Button(
-                                onClick = {
-                                    watchPartySessionManager.endSession()
-                                    Toast.makeText(context, "Watch Party closed", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f), contentColor = Color.Red),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("End Watch Party Room", fontWeight = FontWeight.Bold)
+                            if (watchPartySessionManager.isClientMode) {
+                                Button(
+                                    onClick = {
+                                        watchPartySessionManager.endSession()
+                                        watchPartySessionManager.isClientMode = false
+                                        Toast.makeText(context, "Disconnected from watch party", Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f), contentColor = Color.Red),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Disconnect Watch Party", fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        watchPartySessionManager.endSession()
+                                        Toast.makeText(context, "Watch Party closed", Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f), contentColor = Color.Red),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("End Watch Party Room", fontWeight = FontWeight.Bold)
+                                }
                             }
                         } else {
                             Text(
@@ -514,32 +528,35 @@ fun PlayerMorePopup(
                         // Watch Party Tick — enables streaming of currently playing video
                         // When ticked ON: sets the current video as the streaming source (no picker dialog)
                         // When ticked OFF: clears the streaming source and ends any active session
-                        val isSyncModeEnabled by watchPartySessionManager.isSyncModeEnabled.collectAsState()
-                        ShortcutToggle("Watch Party Synchronized Mode", isSyncModeEnabled) { isChecked ->
-                            watchPartySessionManager.setSyncMode(isChecked)
-                            if (isChecked) {
-                                val currentVideo = videos.firstOrNull { it.path == currentVideoPath } ?: run {
-                                    currentVideoPath?.let { path ->
-                                        com.helpofai.videoplayer.core.model.Video(
-                                            id = path.hashCode().toLong(),
-                                            uri = android.net.Uri.fromFile(java.io.File(path)),
-                                            title = java.io.File(path).name,
-                                            duration = 0L,
-                                            size = 0L,
-                                            dateAdded = 0L,
-                                            path = path
-                                        )
+                        val isClient = watchPartySessionManager.isClientMode
+                        if (!isClient) {
+                            val isSyncModeEnabled by watchPartySessionManager.isSyncModeEnabled.collectAsState()
+                            ShortcutToggle("Watch Party Synchronized Mode", isSyncModeEnabled) { isChecked ->
+                                watchPartySessionManager.setSyncMode(isChecked)
+                                if (isChecked) {
+                                    val currentVideo = videos.firstOrNull { it.path == currentVideoPath } ?: run {
+                                        currentVideoPath?.let { path ->
+                                            com.helpofai.videoplayer.core.model.Video(
+                                                id = path.hashCode().toLong(),
+                                                uri = android.net.Uri.fromFile(java.io.File(path)),
+                                                title = java.io.File(path).name,
+                                                duration = 0L,
+                                                size = 0L,
+                                                dateAdded = 0L,
+                                                path = path
+                                            )
+                                        }
                                     }
-                                }
-                                if (currentVideo != null) {
-                                    watchPartySessionManager.setStreamingVideo(currentVideo)
-                                    Toast.makeText(context, "Watch Party Sync Mode: ON", Toast.LENGTH_SHORT).show()
+                                    if (currentVideo != null) {
+                                        watchPartySessionManager.setStreamingVideo(currentVideo)
+                                        Toast.makeText(context, "Watch Party Sync Mode: ON", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Watch Party Sync Mode: ON (No video loaded)", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else {
-                                    Toast.makeText(context, "Watch Party Sync Mode: ON (No video loaded)", Toast.LENGTH_SHORT).show()
+                                    watchPartySessionManager.setStreamingVideo(null)
+                                    Toast.makeText(context, "Watch Party Sync Mode: OFF", Toast.LENGTH_SHORT).show()
                                 }
-                            } else {
-                                watchPartySessionManager.setStreamingVideo(null)
-                                Toast.makeText(context, "Watch Party Sync Mode: OFF", Toast.LENGTH_SHORT).show()
                             }
                         }
                         

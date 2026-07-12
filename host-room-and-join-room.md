@@ -14,8 +14,15 @@ After "room creation and joining feature" section, create new dynamic section in
 
 After all this build dynamic mini video player at the top of watch party page ( if host and client connected done and videos already streming) with "streming in full player" button. when user click "streming in full player" button videos play in main player. also add videos stremining popup in app main home page after 'feature video slider in hero section'. also implement streming tag for only when video is streming(host player screen streming tag and client player show live tag).
 
-Remember streming video have all controls avalable in main video player have so user can use based on there needs, like (audio track, subtitel, video enhancement, etc in now playingscreen top tool bar have, also all three dot tool slider page have video streming enable options also) when host devise enable all controls or some controls when room is created. when host play or streming any video from any folder if this folder have more videos(5) and host enable folder option, then client player can see all videos in playingscreen tool's playing queue section, if host not enable then only current playing video file will show.
-
+Remember streming video have all controls avalable in main video player have in room permision so client devise user can use based on
+there needs, like (audio track, subtitel, video enhancement, etc in now playingscreen top tool bar have, also all
+three dot tool slider page have video streming enable options also) when host devise enable all controls or some
+controls when room is created for client devise, if host devise push video client devise still play this video (if
+host already give permition in room creation). when host play or streming any video from any folder if this folder
+have more videos(5) and host enable folder option, then client player can see all videos in playingscreen tool's
+playing queue section, if host not
+enable then only current playing video file will only show client playing queue section, if host not enable then only current
+playing video file will show.
 Also implement playingscreen tool's watch party section when it is a host devise- show rooms list with how many user joined (9,13,17, etc dynamicaly), which user play which video with real time, realtime view data(time of video),etc that make advance and profasonal.
 
 **make "Watch Party" one page** use part or components (sub-pages, contaners, section) and .kt files
