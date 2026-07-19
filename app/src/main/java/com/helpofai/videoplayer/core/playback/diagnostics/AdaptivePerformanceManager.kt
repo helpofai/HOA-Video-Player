@@ -37,7 +37,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AdaptivePerformanceManager @Inject constructor(
-    private val videoPlayer: VideoPlayer,
+    private val videoPlayer: dagger.Lazy<VideoPlayer>,
     private val capabilityDetector: DeviceCapabilityDetector
 ) {
     private val _canRunBackgroundTasks = MutableStateFlow(true)
@@ -50,7 +50,7 @@ class AdaptivePerformanceManager @Inject constructor(
         scope.launch {
             // 1. Instantly listen to player updates to pause background tasks immediately when playback starts.
             launch {
-                videoPlayer.playbackState.collectLatest { state ->
+                videoPlayer.get().playbackState.collectLatest { state ->
                     if (state.isPlaying) {
                         _canRunBackgroundTasks.value = false
                     } else {
@@ -61,7 +61,7 @@ class AdaptivePerformanceManager @Inject constructor(
 
             // 2. Periodically check device thermals, RAM, and battery state (e.g., every 5 seconds)
             while (isActive) {
-                if (!videoPlayer.playbackState.value.isPlaying) {
+                if (!videoPlayer.get().playbackState.value.isPlaying) {
                     checkSystemHealth()
                 }
                 delay(5000)

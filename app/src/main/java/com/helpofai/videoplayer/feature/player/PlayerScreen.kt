@@ -251,7 +251,20 @@ fun PlayerScreen(
             audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (prefVol * maxVol).toInt(), 0)
         }
 
+        // Smart Pause on Headphone Disconnection
+        val headphoneReceiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
+                if (intent?.action == android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                    viewModel.videoPlayer.pause()
+                }
+            }
+        }
+        val noisyFilter = android.content.IntentFilter(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+        context.registerReceiver(headphoneReceiver, noisyFilter)
+
         onDispose {
+            try { context.unregisterReceiver(headphoneReceiver) } catch (e: Exception) {}
+            viewModel.videoPlayer.player.clearVideoSurface()
             com.helpofai.videoplayer.MainActivity.isPlayerActive = false
         }
     }
@@ -305,8 +318,16 @@ fun PlayerScreen(
         insetsController?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         
+        val decorView = window?.decorView
+        val insetsListener = android.view.View.OnApplyWindowInsetsListener { view, insets ->
+            insetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            view.onApplyWindowInsets(insets)
+        }
+        decorView?.setOnApplyWindowInsetsListener(insetsListener)
+        
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            decorView?.setOnApplyWindowInsetsListener(null)
             // Exit immersive mode
             insetsController?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             window?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, true) }
@@ -396,6 +417,9 @@ fun PlayerScreen(
         }
     }
 
+    // SubtitleView reference for reactive style updates
+    var sbView by remember { mutableStateOf<androidx.media3.ui.SubtitleView?>(null) }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // Player View
         AndroidView(
@@ -404,22 +428,19 @@ fun PlayerScreen(
                     player = viewModel.videoPlayer.player
                     useController = false
                     keepScreenOn = true
-                    subtitleView?.visibility = android.view.View.VISIBLE
-                    // Set subtitle style to look professional
-                    subtitleView?.setStyle(
-                        androidx.media3.ui.CaptionStyleCompat(
-                            android.graphics.Color.WHITE,
-                            android.graphics.Color.TRANSPARENT,
-                            android.graphics.Color.TRANSPARENT,
-                            androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW,
-                            android.graphics.Color.BLACK,
-                            null
-                        )
-                    )
+                    subtitleView?.let { sv ->
+                        sv.visibility = android.view.View.VISIBLE
+                        sbView = sv
+                    }
+                    // Apply user-preference subtitle style from SubtitleStyleManager
+                    val styleManager = viewModel.subtitleStyleManager
+                    subtitleView?.let { styleManager.applyToSubtitleView(it, styleManager.currentConfig()) }
                 }
             },
             update = { playerView ->
                 playerView.resizeMode = resizeMode
+                // Keep subtitleView ref updated
+                playerView.subtitleView?.let { sbView = it }
             },
             onRelease = { playerView ->
                 playerView.player = null
@@ -430,83 +451,18 @@ fun PlayerScreen(
                 translationX = offsetX
                 translationY = offsetY
                 this.rotationZ = rotationZ
-
-                // Real-time GPU-accelerated video enhancement filter using RenderEffect (API 31+)
-                if (enhancementConfig.preset != "original") {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        val matrix = android.graphics.ColorMatrix()
-                        
-                        // 1. Saturation & Vibrance (boost color saturation)
-                        val s = 1f + (enhancementConfig.saturation + enhancementConfig.vibrance * 0.5f) * enhancementConfig.strength
-                        matrix.setSaturation(s.coerceIn(0f, 3f))
-                        
-                        // 2. Contrast & Brightness (Color matrix math)
-                        val c = 1f + enhancementConfig.contrast * enhancementConfig.strength
-                        val b = enhancementConfig.brightness * 255f * enhancementConfig.strength
-                        
-                        val contrastMatrix = android.graphics.ColorMatrix(floatArrayOf(
-                            c, 0f, 0f, 0f, b + (1f - c) * 128f,
-                            0f, c, 0f, 0f, b + (1f - c) * 128f,
-                            0f, 0f, c, 0f, b + (1f - c) * 128f,
-                            0f, 0f, 0f, 1f, 0f
-                        ))
-                        matrix.postConcat(contrastMatrix)
-                        
-                        // 3. Color Temperature (Warm / Cool tints)
-                        val temp = enhancementConfig.colorTemperature * enhancementConfig.strength
-                        if (temp != 0f) {
-                            val rShift = if (temp > 0f) temp * 30f else temp * 20f
-                            val bShift = if (temp < 0f) -temp * 30f else -temp * 20f
-                            val gShift = if (temp > 0f) temp * 10f else 0f
-                            
-                            val tempMatrix = android.graphics.ColorMatrix(floatArrayOf(
-                                1f, 0f, 0f, 0f, rShift,
-                                0f, 1f, 0f, 0f, gShift,
-                                0f, 0f, 1f, 0f, bShift,
-                                0f, 0f, 0f, 1f, 0f
-                            ))
-                            matrix.postConcat(tempMatrix)
-                        }
-                        
-                        try {
-                            val androidRenderEffect = android.graphics.RenderEffect.createColorFilterEffect(
-                                android.graphics.ColorMatrixColorFilter(matrix)
-                            )
-                            this.renderEffect = androidRenderEffect.asComposeRenderEffect()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
             }
         )
-        
-        // Dynamic Video Enhancer Overlay
-        if (enhancementConfig.preset != "original") {
-            val strength = enhancementConfig.strength
-            val overlayColor = when (enhancementConfig.preset) {
-                "cinema" -> Color(0x8B4513).copy(alpha = 0.12f * strength) // Warm cinema brown
-                "vivid" -> Color(0x0055FF).copy(alpha = 0.1f * strength) // Cool vivid blue
-                "amoled" -> Color(0x000000).copy(alpha = 0.15f * strength) // Deep black lift
-                "hdr" -> Color(0xFFFFFF).copy(alpha = 0.08f * strength) // Brightness boost
-                "anime" -> Color(0xFFC0CB).copy(alpha = 0.08f * strength) // Soft pink vibrant
-                "sports" -> Color(0x00FF00).copy(alpha = 0.06f * strength) // Grass enhancement green
-                "low_light" -> Color(0xFFFFFF).copy(alpha = 0.18f * strength) // Strong shadow lift
-                else -> {
-                    // Custom or auto overlay based on color temperature and brightness
-                    if (enhancementConfig.colorTemperature > 0f) {
-                        Color(0xFFB000).copy(alpha = 0.1f * enhancementConfig.colorTemperature * strength)
-                    } else if (enhancementConfig.colorTemperature < 0f) {
-                        Color(0x00B0FF).copy(alpha = 0.1f * (-enhancementConfig.colorTemperature) * strength)
-                    } else {
-                        Color.Transparent
-                    }
-                }
-            }
-            if (overlayColor != Color.Transparent) {
-                Box(modifier = Modifier.fillMaxSize().background(overlayColor))
+
+        // Reactively apply subtitle style whenever user preferences change
+        LaunchedEffect(sbView) {
+            if (sbView == null) return@LaunchedEffect
+            viewModel.subtitleStyleManager.config.collect { config ->
+                sbView?.let { viewModel.subtitleStyleManager.applyToSubtitleView(it, config) }
             }
         }
+        
+
 
         if (!isInPipMode) {
             if (!isControlsLocked) {
@@ -558,6 +514,10 @@ fun PlayerScreen(
                 isVisible = isControllerVisible,
                 title = currentVideoTitle,
                 onBackClick = onNavigateBack,
+                onMinimizeClick = {
+                    viewModel.minimizePlayer()
+                    onNavigateBack()
+                },
                 onLockClick = { isControlsLocked = true },
                 onSpeedClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SPEED_DIAL },
                 onEqClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.EQUALIZER },
@@ -605,7 +565,7 @@ fun PlayerScreen(
                 onSubtitlesClick = {
                     if (isSubtitleToggleAllowed) {
                         trackSelectorInitialTab = 1
-                        activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_AUDIO
+                        activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.TRACK_SELECTOR_SUBTITLE
                     } else {
                         android.widget.Toast.makeText(context, "Host has disabled subtitle control", android.widget.Toast.LENGTH_SHORT).show()
                     }
@@ -726,6 +686,8 @@ fun PlayerScreen(
                     }
                 },
                 isSeekEnabled = isSeekAllowed,
+                abRepeatA = abRepeatA,
+                abRepeatB = abRepeatB,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
@@ -869,6 +831,7 @@ fun PlayerScreen(
                 )
             },
             onLoadExternalSubtitle = { subtitlePickerLauncher.launch("*/*") },
+            onOpenSubtitleStyle = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SUBTITLE_STYLE },
             onFeedbackEvent = { feedbackEvent = it }
         )
         val mediaReport by viewModel.mediaCompatibilityReport.collectAsState()

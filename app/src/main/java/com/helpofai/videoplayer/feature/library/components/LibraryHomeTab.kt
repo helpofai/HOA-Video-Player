@@ -45,7 +45,7 @@ import androidx.compose.ui.draw.clip
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.feature.library.LibraryState
 import com.helpofai.videoplayer.feature.library.ads.*
-import com.helpofai.videoplayer.feature.playlist.SmartPlaylistEngine
+
 
 @Composable
 fun LibraryHomeTab(
@@ -55,8 +55,7 @@ fun LibraryHomeTab(
     onFavoriteClick: (Video) -> Unit,
     onRenameClick: (Video) -> Unit,
     onDeleteClick: (Video) -> Unit,
-    onShareClick: (Video) -> Unit,
-    onNavigateToPlaylists: (String?) -> Unit
+    onShareClick: (Video) -> Unit
 ) {
 
     // 1. Premium Slider Section (Lightweight & High Performance)
@@ -412,27 +411,4 @@ fun LibraryHomeTab(
 
 
 
-    // 7. Smart Playlists
-    LibrarySectionTitle("Smart Playlists")
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            LibraryCollectionChip("All Playlists", "Browse all", modifier = Modifier.width(140.dp), onClick = {
-                onNavigateToPlaylists(null)
-            })
-        }
-        val homePlaylists = SmartPlaylistEngine.generatePlaylists(state.videos)
-        homePlaylists.forEach { playlist ->
-            item {
-                LibraryCollectionChip(playlist.title, "${playlist.videos.size} items", modifier = Modifier.width(160.dp), onClick = {
-                    onNavigateToPlaylists(playlist.id)
-                })
-            }
-        }
-    }
-    AdAfterSmartPlaylists()
-    Spacer(modifier = Modifier.height(32.dp))
 }

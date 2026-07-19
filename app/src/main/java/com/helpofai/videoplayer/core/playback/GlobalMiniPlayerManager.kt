@@ -32,6 +32,13 @@ class GlobalMiniPlayerManager private constructor() {
     private val _isMiniPlayerActive = MutableStateFlow(false)
     val isMiniPlayerActive: StateFlow<Boolean> = _isMiniPlayerActive.asStateFlow()
 
+    private val _isInPipMode = MutableStateFlow(false)
+    val isInPipMode: StateFlow<Boolean> = _isInPipMode.asStateFlow()
+
+    fun setInPipMode(inPip: Boolean) {
+        _isInPipMode.value = inPip
+    }
+
     fun showMiniPlayer(video: Video) {
         _activeVideo.value = video
         _isMiniPlayerActive.value = true

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -75,7 +76,8 @@ fun TrackSelectorBottomSheet(
     player: Player,
     initialTab: Int = 0,
     onDismissRequest: () -> Unit,
-    onLoadExternalSubtitle: () -> Unit = {}
+    onLoadExternalSubtitle: () -> Unit = {},
+    onOpenSubtitleStyle: () -> Unit = {}
 ) {
     // Stub states for advanced features
     var useSwDecoder by remember { mutableStateOf(false) }
@@ -317,6 +319,30 @@ fun TrackSelectorBottomSheet(
                             Column {
                                 Text("Open Local Subtitle", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 Text(".srt, .vtt, .ass", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        SectionHeader("Customize")
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.1f))
+                                .clickable {
+                                    onOpenSubtitleStyle()
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.FormatSize, contentDescription = "Customize", tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text("Subtitle Style & Appearance", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Text("Font, color, position, delay, encoding", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                             }
                         }
                     }

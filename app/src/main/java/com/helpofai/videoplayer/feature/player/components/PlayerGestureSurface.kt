@@ -188,18 +188,23 @@ fun PlayerGestureSurface(
                                 val dragAmount = change.position - change.previousPosition
 
                                 if (!isSeeking && !isAdjustingVolBright) {
-                                    startPosition = viewModel.videoPlayer.player.currentPosition
-                                    initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
-                                    activity?.window?.let { window ->
-                                        var currentBrightness = window.attributes.screenBrightness
-                                        if (currentBrightness < 0) currentBrightness = 0.5f
-                                        initialBrightness = currentBrightness
-                                    }
+                                    val totalDistanceX = kotlin.math.abs(change.position.x - down.position.x)
+                                    val totalDistanceY = kotlin.math.abs(change.position.y - down.position.y)
 
-                                    if (kotlin.math.abs(dragAmount.x) > kotlin.math.abs(dragAmount.y) * 1.5f) {
-                                        isSeeking = true
-                                    } else if (kotlin.math.abs(dragAmount.y) > kotlin.math.abs(dragAmount.x) * 1.5f) {
-                                        isAdjustingVolBright = true
+                                    if (totalDistanceX > touchSlop || totalDistanceY > touchSlop) {
+                                        startPosition = viewModel.videoPlayer.player.currentPosition
+                                        initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
+                                        activity?.window?.let { window ->
+                                            var currentBrightness = window.attributes.screenBrightness
+                                            if (currentBrightness < 0) currentBrightness = 0.5f
+                                            initialBrightness = currentBrightness
+                                        }
+
+                                        if (totalDistanceX > totalDistanceY * 1.5f) {
+                                            isSeeking = true
+                                        } else if (totalDistanceY > totalDistanceX * 1.5f) {
+                                            isAdjustingVolBright = true
+                                        }
                                     }
                                 }
 

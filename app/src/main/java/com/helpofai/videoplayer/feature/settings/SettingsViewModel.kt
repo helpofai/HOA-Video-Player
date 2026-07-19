@@ -67,6 +67,55 @@ class SettingsViewModel @Inject constructor(
         false
     )
 
+    // Subtitle Style StateFlows
+    val subtitleFontSize = settingsRepository.subtitleFontSize.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "medium"
+    )
+
+    val subtitleFontColor = settingsRepository.subtitleFontColor.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        android.graphics.Color.WHITE
+    )
+
+    val subtitleBgColor = settingsRepository.subtitleBgColor.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        android.graphics.Color.TRANSPARENT
+    )
+
+    val subtitleEdgeType = settingsRepository.subtitleEdgeType.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "drop_shadow"
+    )
+
+    val subtitleEdgeColor = settingsRepository.subtitleEdgeColor.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        android.graphics.Color.BLACK
+    )
+
+    val subtitlePosition = settingsRepository.subtitlePosition.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        0.88f
+    )
+
+    val subtitleDelayMs = settingsRepository.subtitleDelayMs.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        0
+    )
+
+    val subtitleEncoding = settingsRepository.subtitleEncoding.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "auto"
+    )
+
     fun setPlaybackSpeed(speed: Float) {
         viewModelScope.launch {
             settingsRepository.setDefaultPlaybackSpeed(speed)
@@ -100,6 +149,55 @@ class SettingsViewModel @Inject constructor(
     fun clearWatchHistory() {
         viewModelScope.launch {
             videoRepository.clearAllWatchHistory()
+        }
+    }
+
+    // Subtitle Style Setters
+    fun setSubtitleFontSize(size: String) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleFontSize(size)
+        }
+    }
+
+    fun setSubtitleFontColor(color: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleFontColor(color)
+        }
+    }
+
+    fun setSubtitleBgColor(color: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleBgColor(color)
+        }
+    }
+
+    fun setSubtitleEdgeType(edgeType: String) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleEdgeType(edgeType)
+        }
+    }
+
+    fun setSubtitleEdgeColor(color: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleEdgeColor(color)
+        }
+    }
+
+    fun setSubtitlePosition(position: Float) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitlePosition(position)
+        }
+    }
+
+    fun setSubtitleDelayMs(delayMs: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleDelayMs(delayMs)
+        }
+    }
+
+    fun setSubtitleEncoding(encoding: String) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleEncoding(encoding)
         }
     }
 }

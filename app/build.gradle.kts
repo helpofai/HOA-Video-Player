@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.documentfile)
+    implementation(libs.junrar)
 
     // Coil
     implementation(libs.coil.compose)
@@ -108,6 +109,7 @@ dependencies {
     implementation(libs.media3.exoplayer.dash)
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
+    implementation(libs.media3.effect)
 
     // Room
     implementation(libs.room.runtime)

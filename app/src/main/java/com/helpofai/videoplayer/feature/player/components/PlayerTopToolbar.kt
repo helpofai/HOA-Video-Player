@@ -88,6 +88,7 @@ fun PlayerTopToolbar(
     isVisible: Boolean,
     title: String,
     onBackClick: () -> Unit,
+    onMinimizeClick: () -> Unit,
     onLockClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onEqClick: () -> Unit,
@@ -160,7 +161,18 @@ fun PlayerTopToolbar(
                         tint = Color.White
                     )
                 }
-                
+
+                IconButton(
+                    onClick = onMinimizeClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Default.KeyboardArrowDown, 
+                        contentDescription = "Minimize to Mini Player",
+                        tint = Color.White
+                    )
+                }
+
                 Spacer(modifier = Modifier.width(8.dp))
                 
                 if (!isToolsExpanded) {
@@ -174,8 +186,11 @@ fun PlayerTopToolbar(
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             modifier = Modifier
-                                .weight(1f, fill = false)
-                                .basicMarquee(iterations = Int.MAX_VALUE)
+                                .weight(1f)
+                                .basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    animationMode = androidx.compose.foundation.MarqueeAnimationMode.Immediately
+                                )
                                 .padding(end = 8.dp)
                         )
                         if (isStreaming) {

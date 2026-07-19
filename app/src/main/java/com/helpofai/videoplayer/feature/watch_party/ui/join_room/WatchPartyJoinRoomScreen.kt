@@ -30,7 +30,7 @@ import com.helpofai.videoplayer.feature.watch_party.discovery.DiscoveredHost
 import com.helpofai.videoplayer.feature.watch_party.notification.WatchPartyNotificationManager
 
 // Colors
-private val BgDeep       = Color(0xFF090B10)
+private val BgDeep       = Color.Transparent
 private val BgCard       = Color(0xFF111520)
 private val AccentPurple = Color(0xFF7C5CE7)
 private val AccentCyan   = Color(0xFF00CEC9)

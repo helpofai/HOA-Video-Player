@@ -32,7 +32,7 @@ fun WatchPartyClientDashboardView(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0C0E12))
+            .background(Color.Transparent)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

@@ -63,10 +63,29 @@ object AdManager {
     private const val TAG = "AdManager"
 
     // ── Ad Unit IDs ───────────────────────────────────────────────────────────
-    val BANNER_AD_UNIT_ID       = BuildConfig.ADMOB_BANNER_ID
-    val INTERSTITIAL_AD_UNIT_ID = BuildConfig.ADMOB_INTERSTITIAL_ID
-    val REWARDED_AD_UNIT_ID     = BuildConfig.ADMOB_REWARDED_ID
-    val NATIVE_AD_UNIT_ID       = BuildConfig.ADMOB_NATIVE_ID
+    val BANNER_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        "ca-app-pub-3940256099942544/6300978111" // AdMob Official Banner Test ID
+    } else {
+        BuildConfig.ADMOB_BANNER_ID
+    }
+
+    val INTERSTITIAL_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        "ca-app-pub-3940256099942544/1033173712" // AdMob Official Interstitial Test ID
+    } else {
+        BuildConfig.ADMOB_INTERSTITIAL_ID
+    }
+
+    val REWARDED_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        "ca-app-pub-3940256099942544/5354046379" // AdMob Official Rewarded Test ID
+    } else {
+        BuildConfig.ADMOB_REWARDED_ID
+    }
+
+    val NATIVE_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        "ca-app-pub-3940256099942544/2247696110" // AdMob Official Native Advanced Test ID
+    } else {
+        BuildConfig.ADMOB_NATIVE_ID
+    }
 
     // ── Frequency / Timing ────────────────────────────────────────────────────
     /** Minimum gap (ms) between two interstitial shows. Default: 3 minutes. */

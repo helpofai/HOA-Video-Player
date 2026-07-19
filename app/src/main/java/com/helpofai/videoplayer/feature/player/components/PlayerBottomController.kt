@@ -73,7 +73,9 @@ fun ThinRainbowSeekBar(
     lastPlayedPosition: Long?,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
-    isSeekEnabled: Boolean = true
+    isSeekEnabled: Boolean = true,
+    abRepeatA: Long? = null,
+    abRepeatB: Long? = null
 ) {
     val rainbowColor = getAnimatedRainbowColor()
     var dragPosition by remember { mutableStateOf<Float?>(null) }
@@ -161,6 +163,30 @@ fun ThinRainbowSeekBar(
                 )
             }
         }
+
+        // A-B Repeat Markers
+        if (max > 0) {
+            abRepeatA?.let { startMs ->
+                val fraction = (startMs.toFloat() / max).coerceIn(0f, 1f)
+                val x = size.width * fraction
+                drawLine(
+                    color = Color(0xFF00CEC9), // Cyan marker
+                    start = Offset(x, centerY - 8.dp.toPx()),
+                    end = Offset(x, centerY + 8.dp.toPx()),
+                    strokeWidth = 3.dp.toPx()
+                )
+            }
+            abRepeatB?.let { endMs ->
+                val fraction = (endMs.toFloat() / max).coerceIn(0f, 1f)
+                val x = size.width * fraction
+                drawLine(
+                    color = Color(0xFFFD79A8), // Magenta marker
+                    start = Offset(x, centerY - 8.dp.toPx()),
+                    end = Offset(x, centerY + 8.dp.toPx()),
+                    strokeWidth = 3.dp.toPx()
+                )
+            }
+        }
         
         // Active track
         val activeWidth = size.width * currentProgress
@@ -198,6 +224,8 @@ fun PlayerBottomController(
     onPrevClick: () -> Unit,
     onFullscreenClick: () -> Unit,
     isSeekEnabled: Boolean = true,
+    abRepeatA: Long? = null,
+    abRepeatB: Long? = null,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -251,6 +279,8 @@ fun PlayerBottomController(
                             onSeek(it.toLong())
                         },
                         isSeekEnabled = isSeekEnabled,
+                        abRepeatA = abRepeatA,
+                        abRepeatB = abRepeatB,
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 12.dp)

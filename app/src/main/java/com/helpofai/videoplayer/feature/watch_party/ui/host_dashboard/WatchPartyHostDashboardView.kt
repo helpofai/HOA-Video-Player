@@ -55,7 +55,7 @@ fun WatchPartyHostDashboardView(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0C0E12))
+            .background(Color.Transparent)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -67,12 +67,12 @@ fun WatchPartyHostDashboardView(
         ) {
             Column {
                 Text(session.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                Text(session.video?.title ?: "No Media Selected", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
+                Text(session.video?.title ?: "No Media Selected", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             
             Button(
                 onClick = onCloseSession,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.2f), contentColor = Color.Red)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.2f), contentColor = MaterialTheme.colorScheme.error)
             ) {
                 Text("End Session", style = MaterialTheme.typography.labelSmall)
             }

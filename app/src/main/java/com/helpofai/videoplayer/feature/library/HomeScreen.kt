@@ -90,7 +90,7 @@ import com.helpofai.videoplayer.feature.library.components.DynamicTopBar
 import com.helpofai.videoplayer.feature.library.components.LibrarySkeletonLoader
 import com.helpofai.videoplayer.feature.library.components.LibraryStorageDashboard
 import com.helpofai.videoplayer.feature.permissions.hasRequiredPermissions
-import com.helpofai.videoplayer.feature.playlist.SmartPlaylistEngine
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION")
@@ -123,8 +123,9 @@ fun HomeScreen(
     var showSortFilter by remember { mutableStateOf(false) }
     var showExitPopup by remember { mutableStateOf(false) }
     val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
+    val isMiniPlayerActive by com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.collectAsState()
 
-    androidx.activity.compose.BackHandler(enabled = selectedFolder != null || selectedTab != 0) {
+    androidx.activity.compose.BackHandler(enabled = true) {
         if (selectedFolder != null) {
             selectedFolder = null
         } else if (selectedTab != 0) {
@@ -167,9 +168,7 @@ fun HomeScreen(
             DynamicTopBar(
                 selectedTab       = selectedTab,
                 selectedFolder    = selectedFolder,
-                playlistTitle     = if (selectedTab == 2 && selectedFolder != null)
-                    SmartPlaylistEngine.generatePlaylists(state.videos).find { it.id == selectedFolder }?.title
-                    else null,
+                playlistTitle     = null,
                 videoCount        = state.videos.size,
                 scrollBehavior    = scrollBehavior,
                 onBackClick       = { selectedFolder = null },
@@ -199,15 +198,6 @@ fun HomeScreen(
                     label = { Text("Folders", style = MaterialTheme.typography.labelMedium) }
                 )
                 NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { 
-                        if (selectedTab == 2) selectedFolder = null
-                        selectedTab = 2 
-                    },
-                    icon = { Icon(Icons.Default.List, contentDescription = "Playlists", modifier = Modifier.size(24.dp)) },
-                    label = { Text("Playlists", style = MaterialTheme.typography.labelMedium) }
-                )
-                NavigationBarItem(
                     selected = selectedTab == 5,
                     onClick = { 
                         if (selectedTab == 5) selectedFolder = null
@@ -215,12 +205,6 @@ fun HomeScreen(
                     },
                     icon = { Icon(Icons.Default.Description, contentDescription = "Files", modifier = Modifier.size(24.dp)) },
                     label = { Text("Files", style = MaterialTheme.typography.labelMedium) }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    icon = { Icon(Icons.Default.SwapHoriz, contentDescription = "Transfers", modifier = Modifier.size(24.dp)) },
-                    label = { Text("Transfers", style = MaterialTheme.typography.labelMedium) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 4,
@@ -267,11 +251,7 @@ fun HomeScreen(
                         onFavoriteClick = onFavoriteClick,
                         onRenameClick = { videoToRename = it },
                         onDeleteClick = { videoToDelete = it },
-                        onShareClick = onShareClick,
-                        onNavigateToPlaylists = {
-                            selectedTab = 2
-                            selectedFolder = it
-                        }
+                        onShareClick = onShareClick
                     )
                 } else if (selectedTab == 1) {
                     com.helpofai.videoplayer.feature.library.components.LibraryFoldersTab(
@@ -286,23 +266,7 @@ fun HomeScreen(
                         onDeleteClick = { videoToDelete = it },
                         onShareClick = onShareClick
                     )
-                } else if (selectedTab == 2) {
-                    com.helpofai.videoplayer.feature.library.components.LibraryPlaylistsTab(
-                        state = state,
-                        selectedFolder = selectedFolder,
-                        isTablet = isTablet,
-                        onPlaylistClick = { selectedFolder = it },
-                        onVideoClick = onVideoClick,
-                        onFavoriteClick = onFavoriteClick,
-                        onRenameClick = { videoToRename = it },
-                        onDeleteClick = { videoToDelete = it },
-                        onShareClick = onShareClick
-                    )
-                } else if (selectedTab == 3) {
-                    com.helpofai.videoplayer.feature.workspace.transfers.TransfersTab(
-                        isTablet = isTablet,
-                        videos = state.videos
-                    )
+
                 } else if (selectedTab == 4) {
                     WatchPartyMainTab(
                         videos = state.videos,
@@ -365,10 +329,30 @@ fun HomeScreen(
 
     if (showExitPopup) {
         com.helpofai.videoplayer.feature.library.components.ExitPopup(
-            onDismiss = { showExitPopup = false },
+            onDismiss = { 
+                showExitPopup = false
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && isMiniPlayerActive) {
+                    val params = android.app.PictureInPictureParams.Builder()
+                        .setAspectRatio(android.util.Rational(16, 9))
+                        .build()
+                    activity?.enterPictureInPictureMode(params)
+                } else {
+                    activity?.moveTaskToBack(true)
+                }
+            },
+            onNoClick = {
+                showExitPopup = false
+            },
             onBackground = { 
                 showExitPopup = false
-                activity?.moveTaskToBack(true)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && isMiniPlayerActive) {
+                    val params = android.app.PictureInPictureParams.Builder()
+                        .setAspectRatio(android.util.Rational(16, 9))
+                        .build()
+                    activity?.enterPictureInPictureMode(params)
+                } else {
+                    activity?.moveTaskToBack(true)
+                }
             },
             onExit = { activity?.finish() }
         )

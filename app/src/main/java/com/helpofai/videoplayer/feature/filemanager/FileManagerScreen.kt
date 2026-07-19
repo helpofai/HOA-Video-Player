@@ -1173,17 +1173,6 @@ fun FileManagerScreen(
                     }
 
                     if (!node.isDirectory) {
-                        FileManagerMenuItem(
-                            title = "Share via Wi-Fi Web Portal",
-                            icon = Icons.Default.Wifi,
-                            color = ExplorerAccentC
-                        ) {
-                            activeNodeMenu = null
-                            com.helpofai.videoplayer.feature.workspace.transfers.TransfersFileServer.getInstance().shareFile(node.path)
-                            Toast.makeText(context, "${node.name} shared on Web Portal", Toast.LENGTH_SHORT).show()
-                            onNavigateToTab(3)
-                        }
-
                         if (node.isVideo) {
                             FileManagerMenuItem(
                                 title = "Play in Watch Party Room",
@@ -1202,7 +1191,7 @@ fun FileManagerScreen(
                                 )
                                 val sessionMgr = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
                                 if (sessionMgr.activeSession.value == null) {
-                                    val ip = com.helpofai.videoplayer.feature.workspace.transfers.TransfersNetworkHelper.getLocalIpAddress()
+                                    val ip = getLocalIpAddress()
                                     val device = android.os.Build.MODEL
                                     sessionMgr.createSession(
                                         name = "Quick Room",
@@ -1767,4 +1756,24 @@ private fun FileManagerInfoRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = ExplorerTextSub)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = ExplorerTextPri)
     }
+}
+
+private fun getLocalIpAddress(): String {
+    try {
+        val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+        while (interfaces.hasMoreElements()) {
+            val networkInterface = interfaces.nextElement()
+            if (networkInterface.isLoopback || !networkInterface.isUp) continue
+            val addresses = networkInterface.inetAddresses
+            while (addresses.hasMoreElements()) {
+                val address = addresses.nextElement()
+                if (!address.isLoopbackAddress && address is java.net.Inet4Address) {
+                    return address.hostAddress ?: "127.0.0.1"
+                }
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    return "127.0.0.1"
 }

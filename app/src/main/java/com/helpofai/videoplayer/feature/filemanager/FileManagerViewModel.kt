@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -41,6 +42,22 @@ data class RecycleBinItem(
 data class SafBookmark(
     val uriString: String,
     val displayName: String
+)
+
+data class ExtractionProgress(
+    val fileName: String = "",
+    val percentage: Int = 0,
+    val progressFraction: Float = 0f,
+    val isActive: Boolean = false
+)
+
+data class StorageStats(
+    val totalBytes: Long,
+    val freeBytes: Long,
+    val videoBytes: Long,
+    val audioBytes: Long,
+    val imageBytes: Long,
+    val otherBytes: Long
 )
 
 @HiltViewModel
@@ -84,9 +101,27 @@ class FileManagerViewModel @Inject constructor(
     private val _filterOption = MutableStateFlow(FileManagerFilterOption.ALL)
     val filterOption = _filterOption.asStateFlow()
 
+    // ── Storage and Media Visualizer States ────────────────────────────────────
+    private val _storageStats = MutableStateFlow<StorageStats?>(null)
+    val storageStats = _storageStats.asStateFlow()
+
+    private val _recentFiles = MutableStateFlow<List<FileManagerNode>>(emptyList())
+    val recentFiles = _recentFiles.asStateFlow()
+
+    private val _showHiddenFiles = MutableStateFlow(false)
+    val showHiddenFiles = _showHiddenFiles.asStateFlow()
+
     // ── Clipboard State ───────────────────────────────────────────────────────
     private val _clipboard = MutableStateFlow<FileManagerClipboard?>(null)
     val clipboard = _clipboard.asStateFlow()
+
+    // ── Extraction Progress State ─────────────────────────────────────────────
+    private val _extractionProgress = MutableStateFlow(ExtractionProgress())
+    val extractionProgress = _extractionProgress.asStateFlow()
+
+    fun dismissExtractionProgress() {
+        _extractionProgress.value = ExtractionProgress()
+    }
 
     // ── Favorites / Pinned Folders ────────────────────────────────────────────
     private val _pinnedPaths = MutableStateFlow<Set<String>>(emptySet())
@@ -120,6 +155,8 @@ class FileManagerViewModel @Inject constructor(
         loadPinnedPaths()
         loadSafBookmarks()
         loadRootDirectory()
+        calculateStorageStats()
+        loadRecentFiles()
     }
 
     fun loadRootDirectory(directory: File = _currentRoot.value) {
@@ -228,13 +265,16 @@ class FileManagerViewModel @Inject constructor(
         
         val filteredFiles = files.filter { file ->
             val ext = file.extension.lowercase()
-            when (_filterOption.value) {
+            val matchesFilter = when (_filterOption.value) {
                 FileManagerFilterOption.ALL -> true
                 FileManagerFilterOption.VIDEOS -> file.isDirectory || ext in videoExtensions
                 FileManagerFilterOption.AUDIO -> file.isDirectory || ext in audioExtensions
                 FileManagerFilterOption.SUBTITLES -> file.isDirectory || ext in subtitleExtensions
                 FileManagerFilterOption.IMAGES -> file.isDirectory || ext in imageExtensions
             }
+            val isHidden = file.name.startsWith(".") || file.isHidden
+            val matchesHidden = _showHiddenFiles.value || !isHidden
+            matchesFilter && matchesHidden
         }
 
         val mappedNodes = filteredFiles.map { file ->
@@ -270,13 +310,16 @@ class FileManagerViewModel @Inject constructor(
         
         val filteredFiles = files.filter { file ->
             val ext = file.name?.substringAfterLast('.', "")?.lowercase() ?: ""
-            when (_filterOption.value) {
+            val matchesFilter = when (_filterOption.value) {
                 FileManagerFilterOption.ALL -> true
                 FileManagerFilterOption.VIDEOS -> file.isDirectory || ext in videoExtensions
                 FileManagerFilterOption.AUDIO -> file.isDirectory || ext in audioExtensions
                 FileManagerFilterOption.SUBTITLES -> file.isDirectory || ext in subtitleExtensions
                 FileManagerFilterOption.IMAGES -> file.isDirectory || ext in imageExtensions
             }
+            val isHidden = (file.name ?: "").startsWith(".")
+            val matchesHidden = _showHiddenFiles.value || !isHidden
+            matchesFilter && matchesHidden
         }
 
         val mappedNodes = filteredFiles.map { file ->
@@ -720,29 +763,110 @@ class FileManagerViewModel @Inject constructor(
     fun unzipNode(node: FileManagerNode) {
         if (_isBrowsingSaf.value) return
         viewModelScope.launch(Dispatchers.IO) {
+            _extractionProgress.value = ExtractionProgress(fileName = "Scanning zip...", percentage = 0, progressFraction = 0f, isActive = true)
             val destDir = File(node.file!!.parentFile, node.name.substringBeforeLast("."))
             if (!destDir.exists()) destDir.mkdirs()
 
-            ZipInputStream(FileInputStream(node.file)).use { zipIn ->
-                var entry = zipIn.nextEntry
-                while (entry != null) {
-                    val filePath = File(destDir, entry.name)
-                    if (!entry.isDirectory) {
-                        filePath.parentFile?.mkdirs()
-                        FileOutputStream(filePath).use { fos ->
-                            val buffer = ByteArray(4096)
-                            var len: Int
-                            while (zipIn.read(buffer).also { len = it } > 0) {
-                                fos.write(buffer, 0, len)
-                            }
-                        }
-                    } else {
-                        filePath.mkdirs()
+            try {
+                var totalUncompressedSize = 0L
+                ZipInputStream(FileInputStream(node.file)).use { zipIn ->
+                    var entry = zipIn.nextEntry
+                    while (entry != null) {
+                        totalUncompressedSize += entry.size
+                        zipIn.closeEntry()
+                        entry = zipIn.nextEntry
                     }
-                    zipIn.closeEntry()
-                    entry = zipIn.nextEntry
                 }
+
+                var bytesExtracted = 0L
+                ZipInputStream(FileInputStream(node.file)).use { zipIn ->
+                    var entry = zipIn.nextEntry
+                    while (entry != null) {
+                        val filePath = File(destDir, entry.name)
+                        if (!entry.isDirectory) {
+                            filePath.parentFile?.mkdirs()
+                            FileOutputStream(filePath).use { fos ->
+                                val buffer = ByteArray(4096)
+                                var len: Int
+                                while (zipIn.read(buffer).also { len = it } > 0) {
+                                    fos.write(buffer, 0, len)
+                                    bytesExtracted += len
+                                    val percent = (bytesExtracted.toFloat() / totalUncompressedSize.coerceAtLeast(1L) * 100).toInt().coerceIn(0, 100)
+                                    _extractionProgress.value = ExtractionProgress(
+                                        fileName = entry.name,
+                                        percentage = percent,
+                                        progressFraction = bytesExtracted.toFloat() / totalUncompressedSize.coerceAtLeast(1L),
+                                        isActive = true
+                                    )
+                                }
+                            }
+                        } else {
+                            filePath.mkdirs()
+                        }
+                        zipIn.closeEntry()
+                        entry = zipIn.nextEntry
+                    }
+                }
+
+                _extractionProgress.value = _extractionProgress.value.copy(percentage = 100, progressFraction = 1f)
+                delay(800)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _extractionProgress.value = ExtractionProgress(isActive = false)
             }
+
+            withContext(Dispatchers.Main) {
+                loadRootDirectory()
+                videoRepository.refreshVideos()
+            }
+        }
+    }
+
+    fun unrarNode(node: FileManagerNode) {
+        if (_isBrowsingSaf.value) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _extractionProgress.value = ExtractionProgress(fileName = "Scanning rar...", percentage = 0, progressFraction = 0f, isActive = true)
+            val destDir = File(node.file!!.parentFile, node.name.substringBeforeLast("."))
+            if (!destDir.exists()) destDir.mkdirs()
+
+            try {
+                val archive = com.github.junrar.Archive(node.file)
+                try {
+                    val headers = archive.fileHeaders
+                    val totalUncompressedSize = headers.sumOf { it.fullUnpackSize }
+                    var bytesExtracted = 0L
+
+                    for (header in headers) {
+                        val destFile = File(destDir, header.fileNameString)
+                        if (header.isDirectory) {
+                            destFile.mkdirs()
+                        } else {
+                            destFile.parentFile?.mkdirs()
+                            FileOutputStream(destFile).use { fos ->
+                                archive.extractFile(header, fos)
+                            }
+                            bytesExtracted += header.fullUnpackSize
+                            val percent = (bytesExtracted.toFloat() / totalUncompressedSize.coerceAtLeast(1L) * 100).toInt().coerceIn(0, 100)
+                            _extractionProgress.value = ExtractionProgress(
+                                fileName = header.fileNameString,
+                                percentage = percent,
+                                progressFraction = bytesExtracted.toFloat() / totalUncompressedSize.coerceAtLeast(1L),
+                                isActive = true
+                            )
+                        }
+                    }
+                    _extractionProgress.value = _extractionProgress.value.copy(percentage = 100, progressFraction = 1f)
+                    delay(800)
+                } finally {
+                    archive.close()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _extractionProgress.value = ExtractionProgress(isActive = false)
+            }
+
             withContext(Dispatchers.Main) {
                 loadRootDirectory()
                 videoRepository.refreshVideos()
@@ -769,7 +893,25 @@ class FileManagerViewModel @Inject constructor(
 
     private fun loadPinnedPaths() {
         val prefs = context.getSharedPreferences("filemanager_prefs", Context.MODE_PRIVATE)
-        _pinnedPaths.value = prefs.getStringSet("pinned_paths", emptySet()) ?: emptySet()
+        val saved = prefs.getStringSet("pinned_paths", null)
+        if (saved == null) {
+            val defaults = mutableSetOf<String>()
+            val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (downloadDir.exists()) defaults.add(downloadDir.absolutePath)
+            val dcimDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
+            val cameraDir = File(dcimDir, "Camera")
+            if (cameraDir.exists()) defaults.add(cameraDir.absolutePath)
+            else if (dcimDir.exists()) defaults.add(dcimDir.absolutePath)
+            val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            if (moviesDir.exists()) defaults.add(moviesDir.absolutePath)
+            val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+            if (musicDir.exists()) defaults.add(musicDir.absolutePath)
+
+            _pinnedPaths.value = defaults
+            savePinnedPaths(defaults)
+        } else {
+            _pinnedPaths.value = saved
+        }
     }
 
     // ── Recycle Bin Logic ─────────────────────────────────────────────────────
@@ -939,6 +1081,121 @@ class FileManagerViewModel @Inject constructor(
             mb >= 1.0 -> String.format("%.2f MB", mb)
             kb >= 1.0 -> String.format("%.2f KB", kb)
             else -> "$bytes B"
+        }
+    }
+
+    fun toggleShowHiddenFiles() {
+        _showHiddenFiles.value = !_showHiddenFiles.value
+        refreshCurrentDir()
+    }
+
+    fun calculateStorageStats() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val path = Environment.getExternalStorageDirectory().path
+                val stat = android.os.StatFs(path)
+                val totalBytes = stat.blockSizeLong * stat.blockCountLong
+                val freeBytes = stat.blockSizeLong * stat.availableBlocksLong
+                
+                var videoBytes = 0L
+                var audioBytes = 0L
+                var imageBytes = 0L
+
+                val contentResolver = context.contentResolver
+                
+                contentResolver.query(
+                    android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(android.provider.MediaStore.Video.Media.SIZE),
+                    null, null, null
+                )?.use { cursor ->
+                    val sizeCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media.SIZE)
+                    while (cursor.moveToNext()) {
+                        videoBytes += cursor.getLong(sizeCol)
+                    }
+                }
+
+                contentResolver.query(
+                    android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(android.provider.MediaStore.Audio.Media.SIZE),
+                    null, null, null
+                )?.use { cursor ->
+                    val sizeCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.SIZE)
+                    while (cursor.moveToNext()) {
+                        audioBytes += cursor.getLong(sizeCol)
+                    }
+                }
+
+                contentResolver.query(
+                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(android.provider.MediaStore.Images.Media.SIZE),
+                    null, null, null
+                )?.use { cursor ->
+                    val sizeCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Images.Media.SIZE)
+                    while (cursor.moveToNext()) {
+                        imageBytes += cursor.getLong(sizeCol)
+                    }
+                }
+
+                val usedBytes = totalBytes - freeBytes
+                val otherBytes = (usedBytes - videoBytes - audioBytes - imageBytes).coerceAtLeast(0L)
+
+                _storageStats.value = StorageStats(
+                    totalBytes = totalBytes,
+                    freeBytes = freeBytes,
+                    videoBytes = videoBytes,
+                    audioBytes = audioBytes,
+                    imageBytes = imageBytes,
+                    otherBytes = otherBytes
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun loadRecentFiles() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val list = mutableListOf<FileManagerNode>()
+            val contentResolver = context.contentResolver
+            val uri = android.provider.MediaStore.Files.getContentUri("external")
+            val projection = arrayOf(
+                android.provider.MediaStore.Files.FileColumns.DATA,
+                android.provider.MediaStore.Files.FileColumns.SIZE,
+                android.provider.MediaStore.Files.FileColumns.DATE_MODIFIED
+            )
+            val selection = "${android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE} != ${android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_NONE}"
+            val sortOrder = "${android.provider.MediaStore.Files.FileColumns.DATE_MODIFIED} DESC LIMIT 15"
+
+            try {
+                contentResolver.query(uri, projection, selection, null, sortOrder)?.use { cursor ->
+                    val dataCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Files.FileColumns.DATA)
+                    val sizeCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Files.FileColumns.SIZE)
+                    while (cursor.moveToNext() && list.size < 10) {
+                        val path = cursor.getString(dataCol) ?: continue
+                        val file = File(path)
+                        if (file.exists() && !file.isDirectory) {
+                            val ext = file.extension.lowercase()
+                            list.add(
+                                FileManagerNode(
+                                    file = file,
+                                    isDirectory = false,
+                                    isExpanded = false,
+                                    depth = 0,
+                                    isVideo = ext in videoExtensions,
+                                    isSubtitle = ext in subtitleExtensions,
+                                    isAudio = ext in audioExtensions,
+                                    childCount = 0,
+                                    formattedSize = formatSize(cursor.getLong(sizeCol))
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            _recentFiles.value = list
         }
     }
 }

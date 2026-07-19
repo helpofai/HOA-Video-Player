@@ -156,7 +156,7 @@ fun WatchPartyMainTab(
         return
     }
 
-    Box(modifier = modifier.fillMaxSize().background(Color(0xFF0C0E12))) {
+    Box(modifier = modifier.fillMaxSize().background(Color.Transparent)) {
         if (activeSession != null && showActiveRoom) {
             val session = activeSession!!
             Column(modifier = Modifier.fillMaxSize()) {

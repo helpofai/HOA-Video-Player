@@ -54,7 +54,7 @@ fun WatchPartyClientDashboard(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF090B10))
+            .background(Color.Transparent)
             .padding(16.dp)
     ) {
         // Top Bar

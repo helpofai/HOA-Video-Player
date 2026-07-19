@@ -143,88 +143,95 @@ class MainActivity : ComponentActivity() {
                                 )
                         )
 
+                        val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
+                        val isInPipMode by miniPlayerManager.isInPipMode.collectAsState()
                         val navController = rememberNavController()
-                        NavHost(navController = navController, startDestination = startDestination) {
-                            composable("splash") {
-                                AnimatedSplashScreen(
-                                    onSplashFinished = {
-                                        val nextRoute = if (privacyRepository.isLockEnabled()) {
-                                            "pin"
-                                        } else if (!hasRequiredPermissions(this@MainActivity)) {
-                                            "permissions"
-                                        } else {
-                                            "home"
+
+                        if (!isInPipMode || isPlayerActive) {
+                            NavHost(navController = navController, startDestination = startDestination) {
+                                composable("splash") {
+                                    AnimatedSplashScreen(
+                                        onSplashFinished = {
+                                            val nextRoute = if (privacyRepository.isLockEnabled()) {
+                                                "pin"
+                                            } else if (!hasRequiredPermissions(this@MainActivity)) {
+                                                "permissions"
+                                            } else {
+                                                "home"
+                                            }
+                                            navController.navigate(nextRoute) {
+                                                popUpTo("splash") { inclusive = true }
+                                            }
                                         }
-                                        navController.navigate(nextRoute) {
-                                            popUpTo("splash") { inclusive = true }
+                                    )
+                                }
+                                composable("pin") {
+                                    PinScreen(
+                                        privacyRepository = privacyRepository,
+                                        onSuccess = {
+                                            val nextRoute = if (!hasRequiredPermissions(this@MainActivity)) "permissions" else "home"
+                                            navController.navigate(nextRoute) {
+                                                popUpTo("pin") { inclusive = true }
+                                            }
                                         }
-                                    }
-                                )
-                            }
-                            composable("pin") {
-                                PinScreen(
-                                    privacyRepository = privacyRepository,
-                                    onSuccess = {
-                                        val nextRoute = if (!hasRequiredPermissions(this@MainActivity)) "permissions" else "home"
-                                        navController.navigate(nextRoute) {
-                                            popUpTo("pin") { inclusive = true }
+                                    )
+                                }
+                                composable("permissions") {
+                                    PermissionScreen(
+                                        onPermissionsGranted = {
+                                            navController.navigate("home") {
+                                                popUpTo("permissions") { inclusive = true }
+                                            }
                                         }
-                                    }
-                                )
-                            }
-                            composable("permissions") {
-                                PermissionScreen(
-                                    onPermissionsGranted = {
-                                        navController.navigate("home") {
-                                            popUpTo("permissions") { inclusive = true }
+                                    )
+                                }
+                                composable("home") {
+                                    HomeScreen(
+                                        onVideoClick = { video ->
+                                            val encodedUri  = Uri.encode(video.uri.toString())
+                                            val encodedPath = Uri.encode(video.path)
+                                            navController.navigate("player/$encodedUri?path=$encodedPath")
+                                        },
+                                        onSettingsClick = {
+                                            navController.navigate("settings")
                                         }
-                                    }
-                                )
-                            }
-                            composable("home") {
-                                HomeScreen(
-                                    onVideoClick = { video ->
-                                        val encodedUri  = Uri.encode(video.uri.toString())
-                                        val encodedPath = Uri.encode(video.path)
-                                        navController.navigate("player/$encodedUri?path=$encodedPath")
-                                    },
-                                    onSettingsClick = {
-                                        navController.navigate("settings")
-                                    }
-                                )
-                            }
-                            composable("settings") {
-                                SettingsScreen(
-                                    onBackClick = { navController.popBackStack() }
-                                )
-                            }
-                            composable(
-                                route = "player/{videoUri}?path={path}",
-                                arguments = listOf(
-                                    navArgument("videoUri") { type = NavType.StringType },
-                                    navArgument("path") { 
-                                        type = NavType.StringType 
-                                        nullable = true
-                                    }
-                                )
-                            ) {
-                                PlayerScreen(
-                                    onNavigateBack = {
-                                        // Disable PiP before showing ad because launching the Ad Activity triggers onUserLeaveHint
-                                        isPlayerActive = false
-                                        AdManager.showInterstitialAd(this@MainActivity) {
-                                            navController.popBackStack()
+                                    )
+                                }
+                                composable("settings") {
+                                    SettingsScreen(
+                                        onBackClick = { navController.popBackStack() }
+                                    )
+                                }
+                                composable(
+                                    route = "player/{videoUri}?path={path}",
+                                    arguments = listOf(
+                                        navArgument("videoUri") { type = NavType.StringType },
+                                        navArgument("path") { 
+                                            type = NavType.StringType 
+                                            nullable = true
                                         }
-                                    }
-                                )
+                                    )
+                                ) {
+                                    PlayerScreen(
+                                        onNavigateBack = {
+                                            // Disable PiP before showing ad because launching the Ad Activity triggers onUserLeaveHint
+                                            isPlayerActive = false
+                                            AdManager.showInterstitialAd(this@MainActivity) {
+                                                navController.popBackStack()
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
 
-                        // Global Watch Party join request overlay — renders on ANY page
-                        WatchPartyJoinRequestOverlay()
+                        if (!isInPipMode) {
+                            // Global Watch Party join request overlay — renders on ANY page
+                            WatchPartyJoinRequestOverlay()
 
-                        // Global Watch Party notification toast overlay — renders on ANY page
-                        WatchPartyNotificationOverlay()
+                            // Global Watch Party notification toast overlay — renders on ANY page
+                            WatchPartyNotificationOverlay()
+                        }
 
                         // Global Mini Player overlay — renders on ANY page
                         com.helpofai.videoplayer.core.playback.GlobalMiniPlayer(
@@ -248,12 +255,27 @@ class MainActivity : ComponentActivity() {
                         val isClientMode by sessionManager.isClientModeFlow.collectAsState()
                         val isFullPlayerActive by sessionManager.isFullPlayerActive.collectAsState()
 
+                        class HostStreamingState {
+                            var lastVideoPath: String? = null
+                            var lastIsPlaying: Boolean = false
+                        }
+                        val hostState = androidx.compose.runtime.remember { HostStreamingState() }
+
                         androidx.compose.runtime.LaunchedEffect(activeSession, isClientMode, isFullPlayerActive) {
                             val session = activeSession
                             if (isClientMode && session != null) {
                                 val hostVideo = session.video
-                                if (hostVideo != null && session.isPlaying) {
-                                    if (!isFullPlayerActive) {
+                                val isPlaying = session.isPlaying
+                                val videoPath = hostVideo?.path
+
+                                val streamingStarted = (isPlaying && !hostState.lastIsPlaying) ||
+                                                       (videoPath != null && videoPath != hostState.lastVideoPath && isPlaying)
+
+                                hostState.lastIsPlaying = isPlaying
+                                hostState.lastVideoPath = videoPath
+
+                                if (hostVideo != null && isPlaying) {
+                                    if (!isFullPlayerActive && streamingStarted) {
                                         val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
                                         if (!miniPlayerManager.isMiniPlayerActive.value) {
                                             val streamPort = session.port
@@ -280,6 +302,9 @@ class MainActivity : ComponentActivity() {
                                         videoPlayer.pause()
                                     }
                                 }
+                            } else {
+                                hostState.lastIsPlaying = false
+                                hostState.lastVideoPath = null
                             }
                         }
                     }
@@ -308,12 +333,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && isPlayerActive) {
+        val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
+            (isPlayerActive || miniPlayerManager.isMiniPlayerActive.value)) {
             val params = android.app.PictureInPictureParams.Builder()
                 .setAspectRatio(android.util.Rational(16, 9))
                 .build()
             enterPictureInPictureMode(params)
         }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
+            .setInPipMode(isInPictureInPictureMode)
     }
     
     companion object {

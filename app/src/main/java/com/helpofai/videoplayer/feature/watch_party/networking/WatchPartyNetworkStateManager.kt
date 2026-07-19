@@ -1,4 +1,4 @@
-﻿package com.helpofai.videoplayer.feature.watch_party.networking
+package com.helpofai.videoplayer.feature.watch_party.networking
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -41,6 +41,9 @@ class WatchPartyNetworkStateManager private constructor(private val context: Con
     private val _networkMode = MutableStateFlow(NetworkMode.NONE)
     val networkMode: StateFlow<NetworkMode> = _networkMode.asStateFlow()
 
+    private val _isMetered = MutableStateFlow(false)
+    val isMetered: StateFlow<Boolean> = _isMetered.asStateFlow()
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -69,10 +72,12 @@ class WatchPartyNetworkStateManager private constructor(private val context: Con
             val hotspotOn = checkHotspotEnabled()
             val ip = getLocalIp()
             val ssid = getWifiSsid()
+            val metered = checkMetered()
             _isWifiConnected.value = wifiConnected
             _isHotspotEnabled.value = hotspotOn
             _localIpAddress.value = ip
             _wifiSsid.value = ssid
+            _isMetered.value = metered
             _networkMode.value = when {
                 hotspotOn     -> NetworkMode.WIFI_HOTSPOT
                 wifiConnected -> NetworkMode.WIFI_CLIENT
@@ -85,6 +90,10 @@ class WatchPartyNetworkStateManager private constructor(private val context: Con
         val network = connectivityManager.activeNetwork ?: return false
         val caps = connectivityManager.getNetworkCapabilities(network) ?: return false
         caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    } catch (e: Exception) { false }
+
+    private fun checkMetered(): Boolean = try {
+        connectivityManager.isActiveNetworkMetered
     } catch (e: Exception) { false }
 
     private fun checkHotspotEnabled(): Boolean {

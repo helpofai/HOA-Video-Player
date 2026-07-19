@@ -135,6 +135,8 @@ class WatchPartySessionManager {
     private var serverJob: kotlinx.coroutines.Job? = null
     private var clientJob: kotlinx.coroutines.Job? = null
     private var discoveryUdpJob: kotlinx.coroutines.Job? = null
+    private var hostServerSocket: java.net.ServerSocket? = null
+    private var hostDiscoveryUdpSocket: java.net.DatagramSocket? = null
 
     private val clientSockets = java.util.concurrent.CopyOnWriteArrayList<java.net.Socket>()
     private var hostSocket: java.net.Socket? = null
@@ -367,6 +369,11 @@ class WatchPartySessionManager {
     }
     
     fun endSession() {
+        try { hostServerSocket?.close() } catch(e: Exception){}
+        hostServerSocket = null
+        try { hostDiscoveryUdpSocket?.close() } catch(e: Exception){}
+        hostDiscoveryUdpSocket = null
+
         serverJob?.cancel()
         serverJob = null
         clientJob?.cancel()
@@ -452,6 +459,7 @@ class WatchPartySessionManager {
                     reuseAddress = true
                     bind(java.net.InetSocketAddress(port))
                 }
+                hostServerSocket = serverSocket
                 android.util.Log.d("WatchPartySession", "Host: ServerSocket bound successfully on port $port")
                 
                 // Collect and broadcast Host state changes in real-time
@@ -792,6 +800,7 @@ class WatchPartySessionManager {
                     reuseAddress = true
                     bind(java.net.InetSocketAddress(8079))
                 }
+                hostDiscoveryUdpSocket = socket
                 val buffer = ByteArray(1024)
                 while (isActive) {
                     val packet = java.net.DatagramPacket(buffer, buffer.size)

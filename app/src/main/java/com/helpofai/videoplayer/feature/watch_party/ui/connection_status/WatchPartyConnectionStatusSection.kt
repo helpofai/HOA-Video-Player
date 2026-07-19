@@ -1,4 +1,4 @@
-﻿package com.helpofai.videoplayer.feature.watch_party.ui.connection_status
+package com.helpofai.videoplayer.feature.watch_party.ui.connection_status
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -44,6 +44,7 @@ fun WatchPartyConnectionStatusSection(modifier: Modifier = Modifier) {
     val localIp   by networkMgr.localIpAddress.collectAsState()
     val ssid      by networkMgr.wifiSsid.collectAsState()
     val mode      by networkMgr.networkMode.collectAsState()
+    val isMetered by networkMgr.isMetered.collectAsState()
 
     var bgKeepAlive by remember { mutableStateOf(prefs.backgroundKeepAlive) }
     var autoWifi    by remember { mutableStateOf(prefs.autoWifiEnabled) }
@@ -130,6 +131,40 @@ fun WatchPartyConnectionStatusSection(modifier: Modifier = Modifier) {
                         null, tint = modeColor, modifier = Modifier.size(16.dp)
                     )
                     Text(modeText, color = modeColor, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+
+            // Metered Connection Warning Banner
+            if (isAnyNetworkActive && isMetered) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(WarnAmber.copy(alpha = 0.08f))
+                        .border(BorderStroke(1.dp, WarnAmber.copy(alpha = 0.15f)))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        null, tint = WarnAmber, modifier = Modifier.size(16.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Metered Hotspot / Connection Detected",
+                            color = WarnAmber,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Set this connection to 'Metered' in system Wi-Fi details to prevent clients from draining host's mobile data during watch party sessions.",
+                            color = TextSub,
+                            fontSize = 10.sp,
+                            lineHeight = 14.sp
+                        )
+                    }
                 }
             }
 

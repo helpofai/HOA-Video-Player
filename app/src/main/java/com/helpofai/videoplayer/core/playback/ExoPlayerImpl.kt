@@ -42,9 +42,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class ExoPlayerImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val audioEffectManager: AudioEffectManager
+    private val audioEffectManager: AudioEffectManager,
+    private val videoEnhancementManager: com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager
 ) : VideoPlayer {
 
     private var _player: ExoPlayer? = null
@@ -87,6 +89,13 @@ class ExoPlayerImpl @Inject constructor(
             .setLoadControl(loadControl)
             .build().apply {
             setAudioAttributes(AudioAttributes.DEFAULT, true)
+            setVideoEffects(
+                listOf(
+                    com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementGlEffect {
+                        videoEnhancementManager.config.value
+                    }
+                )
+            )
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _playbackState.update { it.copy(isPlaying = isPlaying) }

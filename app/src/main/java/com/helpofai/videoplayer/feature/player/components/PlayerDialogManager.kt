@@ -50,6 +50,7 @@ import com.helpofai.videoplayer.feature.player.TrackSelectorBottomSheet
 import com.helpofai.videoplayer.feature.player.VideoInfoDialog
 import com.helpofai.videoplayer.feature.player.AudioEqualizerSheet
 import com.helpofai.videoplayer.feature.player.PlaybackSpeedSheet
+import com.helpofai.videoplayer.feature.player.SubtitleStyleSettingsSheet
 
 enum class PlayerDialogType {
     TRACK_SELECTOR_AUDIO,
@@ -63,7 +64,8 @@ enum class PlayerDialogType {
     MORE_POPUP,
     AD_POPUP,
     BOOKMARKS_SHEET,
-    DIAGNOSTICS
+    DIAGNOSTICS,
+    SUBTITLE_STYLE
 }
 
 @Composable
@@ -103,6 +105,7 @@ fun PlayerDialogManager(
     onGenerateAutoChapters: (onStart: () -> Unit, onComplete: (Boolean) -> Unit) -> Unit,
     // Subtitles
     onLoadExternalSubtitle: () -> Unit,
+    onOpenSubtitleStyle: () -> Unit,
     onFeedbackEvent: (FeedbackEvent) -> Unit
 ) {
     if (activeDialog == null) return
@@ -113,7 +116,8 @@ fun PlayerDialogManager(
                 player = viewModel.videoPlayer.player,
                 initialTab = 0,
                 onDismissRequest = onDismissRequest,
-                onLoadExternalSubtitle = onLoadExternalSubtitle
+                onLoadExternalSubtitle = onLoadExternalSubtitle,
+                onOpenSubtitleStyle = onOpenSubtitleStyle
             )
         }
         PlayerDialogType.TRACK_SELECTOR_SUBTITLE -> {
@@ -121,7 +125,8 @@ fun PlayerDialogManager(
                 player = viewModel.videoPlayer.player,
                 initialTab = 1,
                 onDismissRequest = onDismissRequest,
-                onLoadExternalSubtitle = onLoadExternalSubtitle
+                onLoadExternalSubtitle = onLoadExternalSubtitle,
+                onOpenSubtitleStyle = onOpenSubtitleStyle
             )
         }
         PlayerDialogType.DECODER_SELECTOR -> {
@@ -247,6 +252,12 @@ fun PlayerDialogManager(
             val playbackState by viewModel.videoPlayer.playbackState.collectAsState()
             VideoDiagnosticsSheet(
                 state = playbackState,
+                onDismissRequest = onDismissRequest
+            )
+        }
+        PlayerDialogType.SUBTITLE_STYLE -> {
+            SubtitleStyleSettingsSheet(
+                styleManager = viewModel.subtitleStyleManager,
                 onDismissRequest = onDismissRequest
             )
         }

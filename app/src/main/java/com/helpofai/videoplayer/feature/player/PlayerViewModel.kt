@@ -63,6 +63,7 @@ class PlayerViewModel @Inject constructor(
     private val playbackManager: com.helpofai.videoplayer.core.playback.MediaPlaybackManager,
     private val mediaAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer,
     private val audioQualityAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.AudioQualityAnalyzer,
+    val subtitleStyleManager: com.helpofai.videoplayer.core.media.SubtitleStyleManager,
     val videoEnhancementManager: com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -361,7 +362,7 @@ class PlayerViewModel @Inject constructor(
                             val isActionTimeout = System.currentTimeMillis() - lastClientActionTime > 2500L
                             if (isActionTimeout) {
                                 val drift = kotlin.math.abs(exoState.currentPosition - session.currentPositionMs)
-                                if (drift > 2500L) {
+                                if (drift > 1500L) {
                                     videoPlayer.seekTo(session.currentPositionMs)
                                 }
                             }
@@ -384,7 +385,7 @@ class PlayerViewModel @Inject constructor(
                                 }
                                 if (activeSession.allowSeek) {
                                     val drift = kotlin.math.abs(videoPlayer.player.currentPosition - cmd.positionMs)
-                                    if (drift > 2500L) {
+                                    if (drift > 1500L) {
                                         videoPlayer.player.seekTo(cmd.positionMs)
                                     }
                                 }
@@ -662,6 +663,32 @@ class PlayerViewModel @Inject constructor(
 
 
 
+    private var isMinimizing = false
+
+    fun minimizePlayer() {
+        isMinimizing = true
+        
+        // Prepare mini-player data
+        val videoUriString = savedStateHandle.get<String>("videoUri")
+        val videoUri = if (videoUriString != null) android.net.Uri.parse(android.net.Uri.decode(videoUriString)) else android.net.Uri.EMPTY
+        val videoPath = savedStateHandle.get<String>("path")?.let { android.net.Uri.decode(it) } ?: videoUri.path ?: ""
+        val videoTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
+        
+        val currentVideo = com.helpofai.videoplayer.core.model.Video(
+            id = videoPath.hashCode().toLong(),
+            uri = videoUri,
+            title = videoTitle,
+            duration = videoPlayer.player.duration,
+            size = 0L,
+            dateAdded = 0L,
+            path = videoPath
+        )
+        com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(currentVideo)
+        
+        // Continue playing in the background
+        videoPlayer.play()
+    }
+
     override fun onCleared() {
         super.onCleared()
         com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().setFullPlayerActive(false)
@@ -672,28 +699,7 @@ class PlayerViewModel @Inject constructor(
             }
         }
         
-        val shouldMinimize = !isManuallyPaused
-        if (shouldMinimize) {
-            // Ensure player continues playing in the mini-player (since lifecycle ON_PAUSE paused it)
-            videoPlayer.play()
-            
-            // Minimize playing video to the app's global floating mini player
-            val videoUriString = savedStateHandle.get<String>("videoUri")
-            val videoUri = if (videoUriString != null) Uri.parse(Uri.decode(videoUriString)) else Uri.EMPTY
-            val videoPath = savedStateHandle.get<String>("path")?.let { Uri.decode(it) } ?: videoUri.path ?: ""
-            val videoTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
-            
-            val currentVideo = com.helpofai.videoplayer.core.model.Video(
-                id = videoPath.hashCode().toLong(),
-                uri = videoUri,
-                title = videoTitle,
-                duration = videoPlayer.player.duration,
-                size = 0L,
-                dateAdded = 0L,
-                path = videoPath
-            )
-            com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(currentVideo)
-        } else {
+        if (!isMinimizing) {
             // Stop and release player normally
             videoPlayer.release()
             com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().dismissMiniPlayer()
