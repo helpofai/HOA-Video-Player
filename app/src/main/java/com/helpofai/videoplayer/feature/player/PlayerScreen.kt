@@ -139,6 +139,12 @@ fun PlayerScreen(
     
     // Rotation State
     var isLandscape by remember { mutableStateOf(false) }
+    var isManualOrientationLocked by remember { mutableStateOf(false) }
+
+    val currentVideoPath by viewModel.currentPathFlow.collectAsState()
+    LaunchedEffect(currentVideoPath) {
+        isManualOrientationLocked = false
+    }
     
     // Dialog State
     var activeDialog by remember { mutableStateOf<com.helpofai.videoplayer.feature.player.components.PlayerDialogType?>(null) }
@@ -264,7 +270,6 @@ fun PlayerScreen(
 
         onDispose {
             try { context.unregisterReceiver(headphoneReceiver) } catch (e: Exception) {}
-            viewModel.videoPlayer.player.clearVideoSurface()
             com.helpofai.videoplayer.MainActivity.isPlayerActive = false
         }
     }
@@ -350,17 +355,39 @@ fun PlayerScreen(
 
     // Auto-rotate and Play/Pause feedback
     DisposableEffect(viewModel.videoPlayer.player) {
-        val listener = object : androidx.media3.common.Player.Listener {
-            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    val isVideoLandscape = videoSize.width > videoSize.height
-                    isLandscape = isVideoLandscape
-                    activity?.requestedOrientation = if (isVideoLandscape) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        val player = viewModel.videoPlayer.player
+
+        fun applyAutoRotation(videoSize: androidx.media3.common.VideoSize) {
+            if (isManualOrientationLocked) return
+
+            if (videoSize.width > 0 && videoSize.height > 0) {
+                val isRotated = videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270
+                val effectiveWidth = if (isRotated) videoSize.height.toFloat() else videoSize.width.toFloat()
+                val effectiveHeight = if (isRotated) videoSize.width.toFloat() else videoSize.height.toFloat()
+                val aspectRatio = effectiveWidth / effectiveHeight
+
+                val targetOrientation = when {
+                    aspectRatio > 1.08f -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    aspectRatio < 0.92f -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+
+                isLandscape = targetOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
+                activity?.let { act ->
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        act.requestedOrientation = targetOrientation
                     }
                 }
+            }
+        }
+
+        // Apply auto-rotation immediately for already-prepared videos
+        applyAutoRotation(player.videoSize)
+
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                applyAutoRotation(videoSize)
             }
             
             override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
@@ -438,6 +465,7 @@ fun PlayerScreen(
                 }
             },
             update = { playerView ->
+                playerView.player = viewModel.videoPlayer.player
                 playerView.resizeMode = resizeMode
                 // Keep subtitleView ref updated
                 playerView.subtitleView?.let { sbView = it }
@@ -577,11 +605,12 @@ fun PlayerScreen(
                 },
                 onInfoClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.VIDEO_INFO },
                 onRotateClick = {
+                    isManualOrientationLocked = true
                     isLandscape = !isLandscape
                     activity?.requestedOrientation = if (isLandscape) {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                     } else {
-                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
                 },
                 onVideoEnhancerClick = {

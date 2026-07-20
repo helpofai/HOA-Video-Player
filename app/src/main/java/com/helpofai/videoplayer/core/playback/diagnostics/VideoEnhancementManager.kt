@@ -305,4 +305,40 @@ class VideoEnhancementManager @Inject constructor(
             colorCorrection = prefs.getBoolean("colorCorrection", false)
         )
     }
+
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    fun getMedia3Effects(config: VideoEnhancementConfig): List<androidx.media3.common.Effect> {
+        if (config.preset == "original" || (!config.autoEnhance && config.strength == 0f)) {
+            return emptyList()
+        }
+        val list = mutableListOf<androidx.media3.common.Effect>()
+        val s = config.strength
+
+        if (config.contrast != 0f) {
+            list.add(androidx.media3.effect.Contrast(config.contrast * s))
+        }
+
+        val totalSat = (config.saturation + config.vibrance * 0.5f) * s
+        if (totalSat != 0f) {
+            list.add(
+                androidx.media3.effect.HslAdjustment.Builder()
+                    .adjustSaturation(totalSat * 100f)
+                    .build()
+            )
+        }
+
+        if (config.colorTemperature != 0f) {
+            val temp = config.colorTemperature * s
+            val r = if (temp > 0f) 1f + temp * 0.2f else 1f + temp * 0.1f
+            val b = if (temp < 0f) 1f - temp * 0.2f else 1f - temp * 0.1f
+            list.add(
+                androidx.media3.effect.RgbAdjustment.Builder()
+                    .setRedScale(r)
+                    .setBlueScale(b)
+                    .build()
+            )
+        }
+
+        return list
+    }
 }

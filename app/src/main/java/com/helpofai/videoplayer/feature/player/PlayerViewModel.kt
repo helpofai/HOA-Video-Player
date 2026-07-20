@@ -30,11 +30,13 @@ import androidx.media3.common.MediaItem
 import com.helpofai.videoplayer.core.data.VideoRepository
 import com.helpofai.videoplayer.core.ffmpeg.FFmpegManager
 import com.helpofai.videoplayer.core.playback.VideoPlayer
+import com.helpofai.videoplayer.core.playback.AudioEffectManager
 import com.helpofai.videoplayer.feature.scenedetection.SceneDetectionEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -46,11 +48,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import javax.inject.Inject
-
-import com.helpofai.videoplayer.core.playback.AudioEffectManager
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     val videoPlayer: VideoPlayer,
@@ -69,8 +70,6 @@ class PlayerViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val watchPartySessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
-
-    // Legacy Resume Prompt state
     var showResumePrompt by mutableStateOf(false)
         private set
     var resumePosition: Long = 0L
@@ -87,6 +86,7 @@ class PlayerViewModel @Inject constructor(
         private set
         
     private val _currentPathFlow = MutableStateFlow<String?>(null)
+    val currentPathFlow: StateFlow<String?> = _currentPathFlow.asStateFlow()
         
     private val _videoMetadata = MutableStateFlow<com.helpofai.videoplayer.core.database.entities.VideoMetadataEntity?>(null)
     val videoMetadata = _videoMetadata.asStateFlow()

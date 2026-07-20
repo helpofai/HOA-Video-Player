@@ -89,13 +89,10 @@ class ExoPlayerImpl @Inject constructor(
             .setLoadControl(loadControl)
             .build().apply {
             setAudioAttributes(AudioAttributes.DEFAULT, true)
-            setVideoEffects(
-                listOf(
-                    com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementGlEffect {
-                        videoEnhancementManager.config.value
-                    }
-                )
-            )
+            val initialEffects = videoEnhancementManager.getMedia3Effects(videoEnhancementManager.config.value)
+            if (initialEffects.isNotEmpty()) {
+                setVideoEffects(initialEffects)
+            }
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _playbackState.update { it.copy(isPlaying = isPlaying) }
