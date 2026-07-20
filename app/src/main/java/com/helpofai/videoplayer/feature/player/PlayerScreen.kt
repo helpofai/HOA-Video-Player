@@ -28,7 +28,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -37,7 +36,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -360,10 +358,20 @@ fun PlayerScreen(
         fun applyAutoRotation(videoSize: androidx.media3.common.VideoSize) {
             if (isManualOrientationLocked) return
 
-            if (videoSize.width > 0 && videoSize.height > 0) {
-                val isRotated = videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270
-                val effectiveWidth = if (isRotated) videoSize.height.toFloat() else videoSize.width.toFloat()
-                val effectiveHeight = if (isRotated) videoSize.width.toFloat() else videoSize.height.toFloat()
+            val format = (player as? androidx.media3.exoplayer.ExoPlayer)?.videoFormat
+            val rawWidth = if (videoSize.width > 0) videoSize.width else (format?.width ?: 0)
+            val rawHeight = if (videoSize.height > 0) videoSize.height else (format?.height ?: 0)
+
+            if (rawWidth > 0 && rawHeight > 0) {
+                val rotationDegrees = if (videoSize.unappliedRotationDegrees != 0) {
+                    videoSize.unappliedRotationDegrees
+                } else {
+                    format?.rotationDegrees ?: 0
+                }
+
+                val isRotated = rotationDegrees == 90 || rotationDegrees == 270
+                val effectiveWidth = if (isRotated) rawHeight.toFloat() else rawWidth.toFloat()
+                val effectiveHeight = if (isRotated) rawWidth.toFloat() else rawHeight.toFloat()
                 val aspectRatio = effectiveWidth / effectiveHeight
 
                 val targetOrientation = when {
@@ -389,6 +397,14 @@ fun PlayerScreen(
             override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                 applyAutoRotation(videoSize)
             }
+
+            override fun onRenderedFirstFrame() {
+                applyAutoRotation(player.videoSize)
+            }
+
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                applyAutoRotation(player.videoSize)
+            }
             
             override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
                 val titleFromMeta = mediaMetadata.title?.toString()
@@ -408,6 +424,9 @@ fun PlayerScreen(
             }
             
             override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == androidx.media3.common.Player.STATE_READY) {
+                    applyAutoRotation(player.videoSize)
+                }
                 isBuffering = playbackState == androidx.media3.common.Player.STATE_BUFFERING
                 if (isBuffering) {
                     val tracks = viewModel.videoPlayer.player.currentTracks
