@@ -35,8 +35,8 @@ android {
         applicationId = "com.helpofai.videoplayer"
         minSdk = 30
         targetSdk = 36
-        versionCode = 3
-        versionName = "3.2.0"
+        versionCode = 4
+        versionName = "3.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -110,6 +110,9 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
     implementation(libs.media3.effect)
+    
+    // Community-compiled Media3 FFmpeg Audio Decoder (Fixes DTS, AC3)
+    implementation("com.github.capullo-tech:lib-media3-ffmpeg-android:main-SNAPSHOT")
 
     // Room
     implementation(libs.room.runtime)

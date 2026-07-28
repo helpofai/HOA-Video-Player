@@ -223,6 +223,7 @@ fun PlayerBottomController(
     onNextClick: () -> Unit,
     onPrevClick: () -> Unit,
     onFullscreenClick: () -> Unit,
+    onMinimizeClick: () -> Unit,
     isSeekEnabled: Boolean = true,
     abRepeatA: Long? = null,
     abRepeatB: Long? = null,
@@ -300,6 +301,17 @@ fun PlayerBottomController(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
+                    Box(
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
+                        AnimatedIconButton(
+                            icon = Icons.Default.KeyboardArrowDown,
+                            onClick = onMinimizeClick,
+                            size = 44.dp,
+                            iconSize = 28.dp
+                        )
+                    }
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(24.dp)

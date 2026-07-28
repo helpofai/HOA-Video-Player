@@ -42,9 +42,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.feature.library.LibraryState
 import com.helpofai.videoplayer.feature.library.ads.*
+import androidx.compose.ui.draw.shadow
+import com.helpofai.videoplayer.core.theme.frostedGlass
 
 
 @Composable
@@ -140,13 +145,12 @@ fun LibraryHomeTab(
             }
         }
 
-        androidx.compose.material3.Card(
-            colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF111520)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFF1E2535)),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        androidx.compose.foundation.layout.Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                .shadow(8.dp, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                .frostedGlass(cornerRadius = 14.dp, surfaceAlpha = 0.15f)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -284,6 +288,51 @@ fun LibraryHomeTab(
             }
         }
     }
+    // ── Smart Playlists Carousel ──
+    val allFolders = androidx.compose.runtime.remember(state.videos) { state.videos.groupBy { java.io.File(it.path).parentFile?.name ?: "Internal Storage" } }
+    LibrarySectionTitle("Smart Playlists")
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            LibraryCollectionChip(
+                title = "Downloads",
+                subtitle = "${allFolders.entries.find { it.key.contains("Download", ignoreCase = true) }?.value?.size ?: 0} Videos",
+                modifier = Modifier.width(140.dp),
+                onClick = { /* TODO filter */ }
+            )
+        }
+        item {
+            LibraryCollectionChip(
+                title = "Camera",
+                subtitle = "${allFolders.entries.find { it.key.contains("Camera", ignoreCase = true) }?.value?.size ?: 0} Videos",
+                modifier = Modifier.width(140.dp),
+                onClick = { /* TODO filter */ }
+            )
+        }
+        item {
+            LibraryCollectionChip(
+                title = "Favorites",
+                subtitle = "${state.videos.count { it.isFavorite }} Videos",
+                modifier = Modifier.width(140.dp),
+                onClick = { /* TODO filter */ }
+            )
+        }
+        item {
+            LibraryCollectionChip(
+                title = "Recent",
+                subtitle = "Last 30 Days",
+                modifier = Modifier.width(140.dp),
+                onClick = { /* TODO filter */ }
+            )
+        }
+        item {
+            // Perfect place for a small native ad at the end of the smart playlists
+            InlineItemAd(itemIndex = 4, adInterval = 4, nativeEvery = 4, bannerEvery = 0)
+        }
+    }
+    Spacer(modifier = Modifier.height(16.dp))
 
 
     // 1.5 Resume Playback (Folder Context)
@@ -360,13 +409,58 @@ fun LibraryHomeTab(
         val recommendations = recommendationsData.second
         
         if (recommendations.isNotEmpty()) {
-            LibrarySectionTitle("Recommended For You")
-            androidx.compose.material3.Text(
-                text = "From $recommendedFolder",
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
-            )
+            // Premium Recommended Section Header
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    androidx.compose.material3.Text(
+                        text = "Recommended",
+                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                
+                // Stylized Folder Badge
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .background(androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    androidx.compose.material3.Icon(
+                        Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    androidx.compose.material3.Text(
+                        text = recommendedFolder,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
+            }
+            
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)

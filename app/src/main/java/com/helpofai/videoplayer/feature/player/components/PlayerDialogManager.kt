@@ -200,6 +200,7 @@ fun PlayerDialogManager(
                     viewModel.analyzeVideoQuality()
                 },
                 onDiagnosticsClick = { onShowDialog(PlayerDialogType.DIAGNOSTICS) },
+                onDisplaySettingsClick = { onShowDialog(PlayerDialogType.VIDEO_ADJUSTMENTS) },
                 onDismissRequest = onDismissRequest
             )
         }

@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -48,6 +49,7 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.helpofai.videoplayer.core.model.Video
+import com.helpofai.videoplayer.core.theme.frostedGlass
 
 // ─── Section Title ────────────────────────────────────────────────────────────
 
@@ -71,13 +73,15 @@ fun LibraryCollectionChip(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    Card(
-        modifier = modifier.height(64.dp).clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .height(64.dp)
+            .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
+            .clickable(onClick = onClick)
+            .padding(12.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(12.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center
         ) {
             Text(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -167,10 +171,9 @@ fun LibraryFavoriteVideoCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable(onClick = onClick)
     ) {
-        Card(
-            modifier = Modifier.size(90.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        Box(
+            modifier = Modifier.size(90.dp)
+                .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
@@ -256,8 +259,7 @@ fun LibraryCompactVideoListItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
             .clickable(onClick = onClick)
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -20,7 +20,24 @@
 |
 |--------------------------------------------------------------------------
 */
-// DELETED: This mock stub is no longer needed.
-// The real FFmpegKit AAR is now pulled from Maven Central:
-//   io.github.trongnhan136:ffmpeg-kit-min-gpl:7.1.5
-// Delete this entire directory: app/src/main/java/com/arthenica/
+package com.helpofai.videoplayer.core.media
+
+object MediaConstants {
+    val VIDEO_EXTENSIONS = setOf(
+        "mp4", "mkv", "avi", "mov", "flv", "wmv", "webm", "3gp", 
+        "mpeg", "mpg", "ts", "m2ts", "m4v", "ogv", "vob", "asf", "rmvb",
+        "m3u8", "mpd", "divx" // Added for extended support
+    )
+    
+    val AUDIO_EXTENSIONS = setOf(
+        "mp3", "aac", "flac", "wav", "ogg", "opus", "m4a", "ac3", "eac3", "dts"
+    )
+
+    val SUBTITLE_EXTENSIONS = setOf(
+        "srt", "ass", "ssa", "vtt", "sub"
+    )
+
+    val IMAGE_EXTENSIONS = setOf(
+        "jpg", "jpeg", "png", "webp", "gif", "bmp"
+    )
+}

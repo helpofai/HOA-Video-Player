@@ -79,7 +79,7 @@ fun VideoEnhancerSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color(0xF20F1216), // Sleek, modern premium dark background
+        containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
         contentColor = Color.White,
         scrimColor = Color.Black.copy(alpha = 0.6f),
         dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.5f)) }

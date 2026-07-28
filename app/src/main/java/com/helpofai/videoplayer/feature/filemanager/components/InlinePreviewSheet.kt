@@ -35,9 +35,9 @@ fun InlinePreviewSheet(
     modifier: Modifier = Modifier
 ) {
     val ext = node.file?.extension?.lowercase() ?: ""
-    val isText = ext in setOf("txt", "srt", "vtt", "ass", "xml", "json", "html", "css", "log", "csv")
-    val isImage = ext in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
-    val isAudio = ext in setOf("mp3", "wav", "m4a", "ogg", "flac") || node.isAudio
+    val isText = ext in setOf("txt", "xml", "json", "html", "css", "log", "csv") || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS
+    val isImage = ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS
+    val isAudio = ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS || node.isAudio
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

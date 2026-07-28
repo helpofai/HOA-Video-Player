@@ -333,9 +333,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
-            (isPlayerActive || miniPlayerManager.isMiniPlayerActive.value)) {
+        val isMiniPlayerActive = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.value
+        if (isMiniPlayerActive) {
             val params = android.app.PictureInPictureParams.Builder()
                 .setAspectRatio(android.util.Rational(16, 9))
                 .build()

@@ -32,6 +32,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -88,7 +90,6 @@ fun PlayerTopToolbar(
     isVisible: Boolean,
     title: String,
     onBackClick: () -> Unit,
-    onMinimizeClick: () -> Unit,
     onLockClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onEqClick: () -> Unit,
@@ -162,17 +163,6 @@ fun PlayerTopToolbar(
                     )
                 }
 
-                IconButton(
-                    onClick = onMinimizeClick,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Default.KeyboardArrowDown, 
-                        contentDescription = "Minimize to Mini Player",
-                        tint = Color.White
-                    )
-                }
-
                 Spacer(modifier = Modifier.width(8.dp))
                 
                 if (!isToolsExpanded) {
@@ -221,7 +211,11 @@ fun PlayerTopToolbar(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .horizontalScroll(rememberScrollState()),
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
@@ -254,19 +248,17 @@ fun PlayerTopToolbar(
                         AnimatedIconButton(onClick = onVideoAdjustmentsClick, icon = Icons.Default.AspectRatio, contentDescription = "Adjustments")
                         
                         val context = androidx.compose.ui.platform.LocalContext.current
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            AnimatedIconButton(
-                                onClick = {
-                                    val activity = context as? android.app.Activity
-                                    val params = android.app.PictureInPictureParams.Builder()
-                                        .setAspectRatio(android.util.Rational(16, 9))
-                                        .build()
-                                    activity?.enterPictureInPictureMode(params)
-                                },
-                                icon = Icons.Default.PictureInPictureAlt,
-                                contentDescription = "Mini Player"
-                            )
-                        }
+                        AnimatedIconButton(
+                            onClick = {
+                                val activity = context as? android.app.Activity
+                                val params = android.app.PictureInPictureParams.Builder()
+                                    .setAspectRatio(android.util.Rational(16, 9))
+                                    .build()
+                                activity?.enterPictureInPictureMode(params)
+                            },
+                            icon = Icons.Default.PictureInPictureAlt,
+                            contentDescription = "Mini Player"
+                        )
                         AnimatedIconButton(onClick = onInfoClick, icon = Icons.Default.Info, contentDescription = "Info")
                     }
                 }

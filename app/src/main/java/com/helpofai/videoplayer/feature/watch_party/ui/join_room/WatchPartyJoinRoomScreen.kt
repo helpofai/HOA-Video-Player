@@ -31,13 +31,13 @@ import com.helpofai.videoplayer.feature.watch_party.notification.WatchPartyNotif
 
 // Colors
 private val BgDeep       = Color.Transparent
-private val BgCard       = Color(0xFF111520)
+private val BgCard: Color @Composable get() = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
 private val AccentPurple = Color(0xFF7C5CE7)
 private val AccentCyan   = Color(0xFF00CEC9)
 private val AccentGreen  = Color(0xFF00B894)
-private val TextPrimary  = Color(0xFFECF0F1)
-private val TextSub      = Color(0xFF8E9CB0)
-private val DivColor     = Color(0xFF1E2535)
+private val TextPrimary: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextSub: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val DivColor: Color @Composable get() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 private val WarnAmber    = Color(0xFFFDCB6E)
 
 @Composable

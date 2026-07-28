@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.helpofai.videoplayer.core.model.Video
+import com.helpofai.videoplayer.core.theme.frostedGlass
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartyDevice
 import com.helpofai.videoplayer.feature.watch_party.host.WatchPartyHostManager
@@ -53,6 +54,7 @@ import java.util.Collections
 @Composable
 fun WatchPartyMainTab(
     videos: List<Video>,
+    paddingValues: PaddingValues = PaddingValues(0.dp),
     onVideoClick: (Video) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -82,8 +84,6 @@ fun WatchPartyMainTab(
     var showHostSetup by remember { mutableStateOf(false) }
     var showJoinRoom by remember { mutableStateOf(false) }
     val isClientMode by sessionManager.isClientModeFlow.collectAsState()
-    var showQrDialog by remember { mutableStateOf(false) }
-    var showSettingsDialog by remember { mutableStateOf(false) }
     var showActiveRoom by remember { mutableStateOf(true) }
 
     val pendingDeepLink by sessionManager.pendingDeepLink.collectAsState()
@@ -94,33 +94,11 @@ fun WatchPartyMainTab(
             showActiveRoom = true
         }
     }
-    
-    // Toggle state parameters for connections and approvals
-    var clientJoinPending by remember { mutableStateOf(false) }
-    var clientSelectedHostForJoin by remember { mutableStateOf<DiscoveredHost?>(null) }
-    
-    // Subnet invitation popup on Client Device
-    var incomingSubnetInvitation by remember { mutableStateOf<WatchPartyInvitationDetails?>(null) }
-    
-    // Settings parameters
-    var maxUsers by remember { mutableStateOf(8) }
-    var sessionPassword by remember { mutableStateOf("") }
-    
-    // Retrieve actual device hardware statistics
-    val realDeviceName = remember { 
-        val brand = (android.os.Build.MANUFACTURER ?: "Android").replaceFirstChar { it.uppercase() }
-        val model = android.os.Build.MODEL ?: "Device"
-        "$brand $model"
-    }
-    
+
     // Real Network Detection
     val wifiSsid = remember { getWifiSsid(context) }
     val realIp = remember { getLocalIpAddress() }
-    val realBattery = remember { getDeviceBatteryLevel(context) }
     val isWifiActive = remember { isWifiConnected(context) }
-    
-    // Hotspot vs Subnet mode logic
-    val isSameSubnetMode = isWifiActive && wifiSsid != "Disconnected"
     
     // Auto discovery trigger
     LaunchedEffect(isClientMode) {
@@ -159,7 +137,14 @@ fun WatchPartyMainTab(
     Box(modifier = modifier.fillMaxSize().background(Color.Transparent)) {
         if (activeSession != null && showActiveRoom) {
             val session = activeSession!!
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = paddingValues.calculateTopPadding(),
+                        bottom = paddingValues.calculateBottomPadding() + 80.dp
+                    )
+            ) {
                 if (!isClientMode) {
                     // Show Host Dashboard
                     WatchPartyHostDashboard(
@@ -199,26 +184,29 @@ fun WatchPartyMainTab(
                     )
                 }
             }
-
         } else {
             // Setup Screen
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 0.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    .padding(
+                        top = paddingValues.calculateTopPadding(),
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = paddingValues.calculateBottomPadding() + 80.dp
+                    ),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 WatchPartyConnectionStatusSection()
 
                 if (activeSession != null) {
-                    Card(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showActiveRoom = true },
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                            .frostedGlass(cornerRadius = 16.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
+                            .clickable { showActiveRoom = true }
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -243,15 +231,14 @@ fun WatchPartyMainTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Card(
+                    Box(
                         modifier = Modifier
                             .weight(1f)
+                            .frostedGlass(cornerRadius = 16.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
                             .clickable {
                                 sessionManager.isClientMode = false
                                 showHostSetup = true
-                            },
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                            }
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -259,19 +246,18 @@ fun WatchPartyMainTab(
                         ) {
                             Icon(Icons.Default.Group, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Host Room", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Host Room", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                     
                     // Join Card
-                    Card(
+                    Box(
                         modifier = Modifier
                             .weight(1f)
+                            .frostedGlass(cornerRadius = 16.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
                             .clickable {
                                 showJoinRoom = true
-                            },
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                            }
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -279,7 +265,7 @@ fun WatchPartyMainTab(
                         ) {
                             Icon(Icons.Default.GroupAdd, contentDescription = null, tint = Color.Cyan, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Join Room", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Join Room", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }

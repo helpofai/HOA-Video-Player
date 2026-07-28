@@ -125,9 +125,9 @@ fun RecentFilesCarousel(
 private fun getRecentFileIconMeta(node: FileManagerNode): Pair<ImageVector, Color> {
     val ext = node.file?.extension?.lowercase() ?: ""
     return when {
-        node.isAudio || ext in setOf("mp3", "wav", "m4a", "ogg", "flac") -> Pair(Icons.Default.MusicNote, Color(0xFF00CEC9))
-        ext in setOf("jpg", "jpeg", "png", "webp", "gif") -> Pair(Icons.Default.Image, Color(0xFF00B894))
-        node.isSubtitle || ext in setOf("srt", "vtt", "ass") -> Pair(Icons.Default.Subtitles, Color(0xFFFFD200))
+        node.isAudio || ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS -> Pair(Icons.Default.MusicNote, Color(0xFF00CEC9))
+        ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS -> Pair(Icons.Default.Image, Color(0xFF00B894))
+        node.isSubtitle || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS -> Pair(Icons.Default.Subtitles, Color(0xFFFFD200))
         ext in setOf("zip", "rar", "7z", "tar") -> Pair(Icons.Default.Folder, Color(0xFF7C5CE7))
         else -> Pair(Icons.Default.Description, Color(0xFF8E9CB0))
     }

@@ -48,7 +48,7 @@ fun VideoDiagnosticsSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = Color.Black.copy(alpha = 0.45f) // Frosted glass aesthetic
     ) {
         Column(
             modifier = Modifier

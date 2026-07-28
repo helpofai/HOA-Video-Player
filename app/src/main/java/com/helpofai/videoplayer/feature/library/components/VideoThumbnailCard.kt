@@ -51,7 +51,8 @@ fun VideoThumbnailCard(
             .height(101.dp), // 16:9 ratio
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             

@@ -24,6 +24,7 @@ package com.helpofai.videoplayer.feature.player.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -94,11 +95,7 @@ fun PlayerFeedbackOverlay(
             modifier = modifier
                 .fillMaxSize()
                 .padding(32.dp),
-            contentAlignment = when (feedback.type) {
-                FeedbackType.BRIGHTNESS -> Alignment.CenterStart
-                FeedbackType.VOLUME -> Alignment.CenterEnd
-                else -> Alignment.Center
-            }
+            contentAlignment = Alignment.Center
         ) {
             when (feedback.type) {
                 FeedbackType.PLAY_PAUSE -> {
@@ -118,7 +115,8 @@ fun PlayerFeedbackOverlay(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color.Black.copy(alpha = 0.6f))
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
                             .padding(12.dp)
                             .scale(scale)
                             .alpha(alpha)
@@ -128,9 +126,9 @@ fun PlayerFeedbackOverlay(
                         feedback.value?.let { value ->
                             Box(
                                 modifier = Modifier
-                                    .width(8.dp)
+                                    .width(3.dp)
                                     .height(120.dp)
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(1.5.dp))
                                     .background(Color.White.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
@@ -157,7 +155,8 @@ fun PlayerFeedbackOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(RoundedCornerShape(32.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(32.dp))
                             .padding(horizontal = 24.dp, vertical = 16.dp)
                             .scale(scale)
                             .alpha(alpha)

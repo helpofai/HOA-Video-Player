@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,20 +49,21 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.documentfile.provider.DocumentFile
 import com.helpofai.videoplayer.core.model.Video
+import com.helpofai.videoplayer.core.theme.frostedGlass
 import kotlinx.coroutines.delay
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val ExplorerBgDeep    = Color(0xFF090B10)
-private val ExplorerBgCard    = Color(0xFF111520)
+private val ExplorerBgDeep: Color @Composable get() = MaterialTheme.colorScheme.background
+private val ExplorerBgCard: Color @Composable get() = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
 private val ExplorerAccentC   = Color(0xFF00CEC9)
 private val ExplorerAccentG   = Color(0xFF00B894)
 private val ExplorerAccentP   = Color(0xFF7C5CE7)
-private val ExplorerTextPri   = Color(0xFFECF0F1)
-private val ExplorerTextSub   = Color(0xFF8E9CB0)
-private val ExplorerDivider   = Color(0xFF1E2535)
+private val ExplorerTextPri: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+private val ExplorerTextSub: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val ExplorerDivider: Color @Composable get() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,14 +71,19 @@ fun FileManagerScreen(
     onVideoClick: (Video) -> Unit,
     onNavigateToTab: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: FileManagerViewModel = hiltViewModel()
+    paddingValues: PaddingValues = PaddingValues(0.dp),
+    viewModel: FileManagerViewModel = hiltViewModel(),
+    showBookmarksDialog: Boolean = false,
+    showTrashDialog: Boolean = false,
+    showCreateDialog: Boolean = false,
+    onDismissBookmarks: () -> Unit = {},
+    onDismissTrash: () -> Unit = {},
+    onDismissCreate: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val nodes by viewModel.nodes.collectAsState()
-    val currentRoot by viewModel.currentRoot.collectAsState()
     val isBrowsingSaf by viewModel.isBrowsingSaf.collectAsState()
     val activeSafTree by viewModel.activeSafTree.collectAsState()
-    val activeSafCurrentUri by viewModel.activeSafCurrentUri.collectAsState()
     val safBookmarks by viewModel.safBookmarks.collectAsState()
     
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -94,21 +101,17 @@ fun FileManagerScreen(
     var activeInfoNode by remember { mutableStateOf<FileManagerNode?>(null) }
     var renameInput by remember { mutableStateOf("") }
     
-    var showCreateDialog by remember { mutableStateOf(false) }
     var createNameInput by remember { mutableStateOf("") }
     var createTypeFolder by remember { mutableStateOf(true) }
 
-    var showTrashDialog by remember { mutableStateOf(false) }
-    var showBookmarksDialog by remember { mutableStateOf(false) }
-    
     // File Previews states
     var previewTextNode by remember { mutableStateOf<FileManagerNode?>(null) }
     var previewImageNode by remember { mutableStateOf<FileManagerNode?>(null) }
     var previewAudioNode by remember { mutableStateOf<FileManagerNode?>(null) }
     var textPreviewContent by remember { mutableStateOf("") }
 
-    val textExtensions = setOf("txt", "srt", "vtt", "ass", "xml", "json", "html", "css", "ini", "log", "csv")
-    val imgExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+    val textExtensions = setOf("txt", "xml", "json", "html", "css", "ini", "log", "csv") + com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS
+    val imgExtensions = com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS
 
     // SAF directory launcher
     val safLauncher = rememberLauncherForActivityResult(
@@ -224,136 +227,10 @@ fun FileManagerScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(ExplorerBgDeep)
         ) {
-        // ── Top Action Toolbar ────────────────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                "Explorer",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = ExplorerTextPri
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Bookmarks Manager Icon
-                IconButton(onClick = { showBookmarksDialog = true }) {
-                    Box {
-                        Icon(Icons.Default.Bookmarks, "Bookmarks", tint = ExplorerAccentC)
-                        if (safBookmarks.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(ExplorerAccentC)
-                                    .align(Alignment.TopEnd)
-                            )
-                        }
-                    }
-                }
-                // Recycle Bin Icon
-                IconButton(onClick = { showTrashDialog = true }) {
-                    Box {
-                        Icon(Icons.Default.DeleteSweep, "Trash Bin", tint = ExplorerAccentP)
-                        if (trashItems.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Red)
-                                    .align(Alignment.TopEnd)
-                            )
-                        }
-                    }
-                }
-                // Add Folder/File Icon
-                IconButton(onClick = {
-                    createNameInput = ""
-                    createTypeFolder = true
-                    showCreateDialog = true
-                }) {
-                    Icon(Icons.Default.CreateNewFolder, "Create folder/file", tint = ExplorerAccentC)
-                }
-            }
-        }
-
-        // ── Search & Filter Panel ─────────────────────────────────────────────
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { viewModel.updateSearchQuery(it) },
-            placeholder = { Text("Search files & folders...", color = ExplorerTextSub) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ExplorerTextSub) },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = ExplorerTextSub)
-                    }
-                }
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = ExplorerTextPri,
-                unfocusedTextColor = ExplorerTextPri,
-                focusedBorderColor = ExplorerAccentC,
-                unfocusedBorderColor = ExplorerDivider,
-                focusedContainerColor = ExplorerBgCard,
-                unfocusedContainerColor = ExplorerBgCard
-            ),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-        )
-
-        // ── Breadcrumb Path Navigation ────────────────────────────────────────
-        if (isBrowsingSaf) {
-            val activeTreeName = activeSafTree?.displayName ?: "Storage"
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { viewModel.navigateUp() }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = ExplorerTextPri)
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        activeTreeName,
-                        color = ExplorerAccentC,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        modifier = Modifier.clickable { viewModel.loadSafDirectory(activeSafTree!!, null) }
-                    )
-                    activeSafCurrentUri?.let { uri ->
-                        Text(" > ", color = ExplorerTextSub, fontSize = 11.sp)
-                        val name = DocumentFile.fromSingleUri(context, Uri.parse(uri))?.name ?: "Folder"
-                        Text(
-                            name,
-                            color = ExplorerAccentC,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        } else {
-            FileManagerPathHeader(
-                currentRoot = currentRoot,
-                onPathClick = { path -> viewModel.loadRootDirectory(path) },
-                onNavigateUp = { viewModel.navigateUp() }
-            )
-        }
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
+        // Explorer actions have been hoisted to the global DynamicTopBar.
+        // Removed Search & Filter Panel and Breadcrumb Path Navigation per user request
 
         // ── Pinned Favorites horizontal bar ───────────────────────────────────
         if (pinnedPaths.isNotEmpty() && searchQuery.isEmpty() && !isBrowsingSaf) {
@@ -460,7 +337,10 @@ fun FileManagerScreen(
         }
 
         // ── File Tree View ────────────────────────────────────────────────────
-        Box(modifier = Modifier.weight(1f)) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+        ) {
             if (nodes.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(
@@ -478,7 +358,9 @@ fun FileManagerScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(
+                        bottom = paddingValues.calculateBottomPadding() + 80.dp
+                    )
                 ) {
                     itemsIndexed(nodes, key = { _, node -> node.path }) { index, node ->
                         val isPinned = pinnedPaths.contains(node.path)
@@ -593,7 +475,7 @@ fun FileManagerScreen(
 
     // ── Dialog: Bookmarks Manager ─────────────────────────────────────────────
     if (showBookmarksDialog) {
-        Dialog(onDismissRequest = { showBookmarksDialog = false }) {
+        Dialog(onDismissRequest = onDismissBookmarks) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = ExplorerBgCard,
@@ -610,7 +492,7 @@ fun FileManagerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Storage Bookmarks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = ExplorerTextPri)
-                        IconButton(onClick = { showBookmarksDialog = false }) {
+                        IconButton(onClick = onDismissBookmarks) {
                             Icon(Icons.Default.Close, null, tint = ExplorerTextSub)
                         }
                     }
@@ -620,7 +502,7 @@ fun FileManagerScreen(
                     Button(
                         onClick = {
                             safLauncher.launch(null)
-                            showBookmarksDialog = false
+                            onDismissBookmarks()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = ExplorerAccentC, contentColor = Color.Black),
                         shape = RoundedCornerShape(12.dp),
@@ -653,7 +535,7 @@ fun FileManagerScreen(
                                         )
                                         .clickable {
                                             viewModel.loadRootDirectory()
-                                            showBookmarksDialog = false
+                                            onDismissBookmarks()
                                         }
                                         .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -678,7 +560,7 @@ fun FileManagerScreen(
                                         )
                                         .clickable {
                                             viewModel.loadSafDirectory(bookmark, null)
-                                            showBookmarksDialog = false
+                                            onDismissBookmarks()
                                         }
                                         .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -706,7 +588,7 @@ fun FileManagerScreen(
 
     // ── Dialog: Create Folder or Empty File ───────────────────────────────────
     if (showCreateDialog) {
-        Dialog(onDismissRequest = { showCreateDialog = false }) {
+        Dialog(onDismissRequest = onDismissCreate) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = ExplorerBgCard,
@@ -752,7 +634,7 @@ fun FileManagerScreen(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { showCreateDialog = false }) {
+                        TextButton(onClick = onDismissCreate) {
                             Text("Cancel", color = ExplorerTextSub)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -763,7 +645,7 @@ fun FileManagerScreen(
                                 } else {
                                     viewModel.createEmptyFile(createNameInput)
                                 }
-                                showCreateDialog = false
+                                onDismissCreate()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ExplorerAccentC, contentColor = Color.Black)
                         ) {
@@ -777,7 +659,7 @@ fun FileManagerScreen(
 
     // ── Dialog: Recycle Bin / Trash ───────────────────────────────────────────
     if (showTrashDialog) {
-        Dialog(onDismissRequest = { showTrashDialog = false }) {
+        Dialog(onDismissRequest = onDismissTrash) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = ExplorerBgCard,
@@ -794,7 +676,7 @@ fun FileManagerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Recycle Bin", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = ExplorerTextPri)
-                        IconButton(onClick = { showTrashDialog = false }) {
+                        IconButton(onClick = onDismissTrash) {
                             Icon(Icons.Default.Close, null, tint = ExplorerTextSub)
                         }
                     }
@@ -922,6 +804,8 @@ fun FileManagerScreen(
                         mediaPlayer.setDataSource(node.path)
                     } else {
                         mediaPlayer.setDataSource(context, Uri.parse(node.uriString!!))
+
+
                     }
                     mediaPlayer.prepare()
                     mediaPlayer.start()
@@ -1071,7 +955,7 @@ fun FileManagerScreen(
                     if (node.isDirectory) {
                         FileManagerMenuItem(
                             title = "Explore inside",
-                            icon = Icons.Default.Launch,
+                            icon = Icons.AutoMirrored.Filled.Launch,
                             color = ExplorerAccentC
                         ) {
                             activeNodeMenu = null
@@ -1306,6 +1190,7 @@ fun FileManagerScreen(
                     modifier = Modifier.padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1325,7 +1210,7 @@ fun FileManagerScreen(
                     if (node.file != null) {
                         FileManagerInfoRow(
                             label = "Last Modified",
-                            value = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(node.file.lastModified()))
+                            value = SimpleDateFormat("dd MMM yyyy, HH:mm", locale).format(Date(node.file.lastModified()))
                         )
                         
                         // Permissions Handling
@@ -1444,7 +1329,7 @@ private fun FileManagerPathHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onNavigateUp) {
-            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = ExplorerTextPri)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = ExplorerTextPri)
         }
         
         Spacer(modifier = Modifier.width(6.dp))
@@ -1576,16 +1461,16 @@ private fun resolveFileIconAndColor(node: FileManagerNode): Pair<ImageVector, Co
     }
     val ext = node.extension.lowercase()
     return when {
-        node.isVideo || ext in setOf("mp4", "mkv", "avi", "mov", "flv", "webm", "3gp", "ts", "m4v") -> {
+        node.isVideo || ext in com.helpofai.videoplayer.core.media.MediaConstants.VIDEO_EXTENSIONS -> {
             Pair(Icons.Default.PlayCircle, Color(0xFF2ECC71)) // Emerald Green
         }
-        node.isAudio || ext in setOf("mp3", "wav", "flac", "aac", "ogg", "m4a", "opus") -> {
+        node.isAudio || ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS -> {
             Pair(Icons.Default.MusicNote, Color(0xFF9B59B6)) // Amethyst Purple
         }
-        node.isSubtitle || ext in setOf("srt", "ass", "vtt", "sub", "ssa") -> {
+        node.isSubtitle || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS -> {
             Pair(Icons.Default.Subtitles, Color(0xFFF1C40F)) // Yellow
         }
-        ext in setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "svg") -> {
+        ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS + "svg" -> {
             Pair(Icons.Default.Image, Color(0xFF1ABC9C)) // Turquoise
         }
         ext in setOf("zip", "rar", "7z", "tar", "gz", "bz2", "xz") -> {
@@ -1601,10 +1486,10 @@ private fun resolveFileIconAndColor(node: FileManagerNode): Pair<ImageVector, Co
             Pair(Icons.Default.PictureInPicture, Color(0xFFE74C3C)) // Red
         }
         ext in setOf("doc", "docx", "rtf", "odt", "txt") -> {
-            Pair(Icons.Default.Article, Color(0xFF2980B9)) // Word Blue
+            Pair(Icons.AutoMirrored.Filled.Article, Color(0xFF2980B9)) // Word Blue
         }
         ext in setOf("xls", "xlsx", "csv", "ods") -> {
-            Pair(Icons.Default.List, Color(0xFF27AE60)) // Excel Green
+            Pair(Icons.AutoMirrored.Filled.List, Color(0xFF27AE60)) // Excel Green
         }
         else -> {
             Pair(Icons.Default.Description, Color(0xFF8E9CB0)) // ExplorerTextSub
@@ -1628,12 +1513,14 @@ private fun FileManagerNodeRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
             .height(IntrinsicSize.Min)
             .combinedClickable(
                 onClick = { onNodeClick(node) },
                 onLongClick = { onNodeLongClick(node) }
             )
-            .padding(vertical = 10.dp, horizontal = 16.dp),
+            .padding(vertical = 12.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (node.depth > 0) {
@@ -1663,7 +1550,7 @@ private fun FileManagerNodeRow(
         // Expanded/Collapsed caret for folders
         if (node.isDirectory) {
             Icon(
-                imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                imageVector = if (node.isExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = ExplorerTextSub,
                 modifier = Modifier
@@ -1724,7 +1611,7 @@ private fun FileManagerNodeRow(
                 onClick = { onExploreFolder(node) },
                 modifier = Modifier.size(28.dp)
             ) {
-                Icon(Icons.Default.ArrowForwardIos, contentDescription = "Enter", tint = ExplorerTextSub, modifier = Modifier.size(12.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = "Enter", tint = ExplorerTextSub, modifier = Modifier.size(12.dp))
             }
         }
     }

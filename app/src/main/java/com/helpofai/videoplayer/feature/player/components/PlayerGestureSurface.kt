@@ -134,7 +134,6 @@ fun PlayerGestureSurface(
                             if (isSeeking || isAdjustingVolBright) {
                                 isSeeking = false
                                 isAdjustingVolBright = false
-                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L))
                             }
                             isZooming = true
 
@@ -274,7 +273,6 @@ fun PlayerGestureSurface(
                         if (lastBrightness >= 0f && isGesturesAllowed) viewModel.preferencesUseCase.saveBrightness(lastBrightness)
                         if (lastVolume >= 0f && isVolumeAllowed) viewModel.preferencesUseCase.saveVolume(lastVolume)
                     }
-                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "", id = 9999L))
                 }
             }
             .pointerInput(longPressBoostSpeed) {
@@ -344,51 +342,37 @@ fun PlayerGestureSurface(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
-                        if (scale != 1.0f) {
-                            // Professional Reset Zoom Gesture
-                            onScaleChange(1.0f)
-                            onOffsetChange(0f, 0f)
-                            onFeedbackEvent(
-                                FeedbackEvent(
-                                    type = FeedbackType.ZOOM,
-                                    icon = Icons.Default.ZoomIn,
-                                    text = "Zoom: Fit (100%)",
-                                    color = Color(0xFF4CAF50)
-                                )
-                            )
-                        } else {
-                            val screenWidth = size.width
-                            val centerWidth = screenWidth * 0.3f // Center 30%
-                            val leftBound = (screenWidth - centerWidth) / 2
-                            val rightBound = leftBound + centerWidth
+                        val screenWidth = size.width
+                        val centerWidth = screenWidth * 0.3f // Center 30%
+                        val leftBound = (screenWidth - centerWidth) / 2
+                        val rightBound = leftBound + centerWidth
 
-                            if (offset.x < leftBound) {
-                                if (isSeekAllowed) {
-                                    viewModel.seekBack()
-                                    val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
-                                    onSeekAccumulationChange(newSeek)
-                                    onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
-                                } else {
-                                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
-                                }
-                            } else if (offset.x > rightBound) {
-                                if (isSeekAllowed) {
-                                    viewModel.seekForward()
-                                    val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
-                                    onSeekAccumulationChange(newSeek)
-                                    onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
-                                } else {
-                                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
-                                }
+                        if (offset.x < leftBound) {
+                            if (isSeekAllowed) {
+                                viewModel.seekBack()
+                                val newSeek = if (seekAccumulation > 0) -10 else seekAccumulation - 10
+                                onSeekAccumulationChange(newSeek)
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastRewind, "${newSeek}s"))
                             } else {
-                                // Center double tap -> toggle play/pause
-                                if (isPlayPauseAllowed) {
-                                    val wasPlaying = isPlaying
-                                    viewModel.togglePlayPause()
-                                    onPlayPauseToggle(!wasPlaying)
-                                } else {
-                                    onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Play/Pause is disabled by Host"))
-                                }
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
+                            }
+                        } else if (offset.x > rightBound) {
+                            if (isSeekAllowed) {
+                                viewModel.seekForward()
+                                val newSeek = if (seekAccumulation < 0) 10 else seekAccumulation + 10
+                                onSeekAccumulationChange(newSeek)
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.SEEK, Icons.Default.FastForward, "+${newSeek}s"))
+                            } else {
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Seeking is disabled by Host"))
+                            }
+                        } else {
+                            // Center double tap -> toggle play/pause
+                            if (isPlayPauseAllowed) {
+                                val wasPlaying = isPlaying
+                                viewModel.togglePlayPause()
+                                onPlayPauseToggle(!wasPlaying)
+                            } else {
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Play/Pause is disabled by Host"))
                             }
                         }
                     },

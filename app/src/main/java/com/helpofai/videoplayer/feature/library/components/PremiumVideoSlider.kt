@@ -22,6 +22,7 @@ package com.helpofai.videoplayer.feature.library.components
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -35,6 +36,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -81,8 +83,10 @@ fun PremiumVideoSlider(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
+                .shadow(12.dp, RoundedCornerShape(20.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0x33FFFFFF))
+                .background(Color(0xFF111520))
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -128,44 +132,23 @@ fun PremiumVideoSlider(
                             )
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = video.title,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = video.formattedDuration,
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-
-                            // Minimal Glassmorphic Play button
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.2f))
-                                    .padding(4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = video.title,
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = video.formattedDuration,
+                                color = Color.White.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            AdvancedVideoTags(video = video)
                         }
                     }
                 }

@@ -133,22 +133,10 @@ class FileManagerViewModel @Inject constructor(
     
     private val trashFolder = File(context.filesDir, "trash_bin")
 
-    private val videoExtensions = setOf(
-        "mp4", "mkv", "avi", "mov", "flv", "wmv", "webm", "3gp", 
-        "mpeg", "mpg", "ts", "m2ts", "m4v", "ogv", "vob", "asf", "rmvb"
-    )
-    
-    private val audioExtensions = setOf(
-        "mp3", "aac", "flac", "wav", "ogg", "opus", "m4a", "ac3", "eac3", "dts"
-    )
-
-    private val subtitleExtensions = setOf(
-        "srt", "ass", "ssa", "vtt", "sub"
-    )
-
-    private val imageExtensions = setOf(
-        "jpg", "jpeg", "png", "webp", "gif", "bmp"
-    )
+    private val videoExtensions get() = com.helpofai.videoplayer.core.media.MediaConstants.VIDEO_EXTENSIONS
+    private val audioExtensions get() = com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS
+    private val subtitleExtensions get() = com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS
+    private val imageExtensions get() = com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS
 
     init {
         if (!trashFolder.exists()) trashFolder.mkdirs()
@@ -649,7 +637,7 @@ class FileManagerViewModel @Inject constructor(
                         isSrcDir = srcFile.isDirectory
                     }
 
-                    if (srcName.lowercase().let { it.endsWith(".mp4") || it.endsWith(".mkv") || it.endsWith(".avi") }) {
+                    if (videoExtensions.any { srcName.lowercase().endsWith(".$it") }) {
                         mediaRefresh = true
                     }
 

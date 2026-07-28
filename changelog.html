@@ -193,6 +193,9 @@
                 Improvements
             </div>
             <ul>
+                <li><strong>Premium Glassmorphism Aesthetics:</strong> Enhanced UI contrast with a 40% frosted glass background on the Top App Bar and Bottom Nav Bar. Standardized pure white icons for optimal visibility.</li>
+                <li><strong>Space-Efficient Bottom Nav:</strong> Automatically hides unselected labels to comfortably fit more navigation items without text overflow.</li>
+                <li><strong>Scroll Animations:</strong> Improved Top App Bar animation to fully sync the glass background while scrolling out of view.</li>
                 <li><strong>Conflict-Free Dynamic Ports:</strong> The system dynamically scans and registers the first free port (starting at 9990 for TCP tunnel, 9980 for HTTP streaming) to avoid port bind exceptions.</li>
                 <li><strong>NIO Zero-Copy Streaming:</strong> Upgraded video serving to use Java NIO <code>FileChannel.transferTo()</code>. Video data bypasses heap memory, routing directly from storage to sockets at maximum hardware Wi-Fi speeds with 0% CPU pressure.</li>
             </ul>
@@ -202,6 +205,8 @@
                 Bug Fixes
             </div>
             <ul>
+                <li><strong>Landscape Orientation Lock:</strong> Fixed a bug where returning from the player would occasionally lock the entire app in landscape mode.</li>
+                <li><strong>Bottom Nav Label Overflow:</strong> Resolved an issue where long labels like "Watch Party" would spill out of the navigation bar.</li>
                 <li><strong>UDP Handshake Alignment:</strong> Resolved discovery query and reply message mismatches between host and client devices.</li>
                 <li><strong>Lifecycle-Aware Resource Disposal:</strong> Embedded lifecycle event listeners in the mini player to destroy background ExoPlayer instances immediately when navigating to full screen, resolving network and CPU contention.</li>
             </ul>

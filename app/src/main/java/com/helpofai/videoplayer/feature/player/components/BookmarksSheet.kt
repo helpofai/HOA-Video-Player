@@ -58,7 +58,7 @@ fun BookmarksSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color(0x66000000), // Transparent dark
+        containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
         contentColor = Color.White
     ) {
         val view = LocalView.current

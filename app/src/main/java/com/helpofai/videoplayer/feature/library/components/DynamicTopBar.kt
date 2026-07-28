@@ -58,6 +58,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -92,6 +95,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.basicMarquee
+import com.helpofai.videoplayer.core.theme.frostedGlass
 
 /**
  * Dynamic context-aware TopAppBar for HOA Video Player.
@@ -138,7 +142,10 @@ fun DynamicTopBar(
     onHabitsClick:        () -> Unit,
     onSortFilterClick:    () -> Unit,
     onSearchClick:        () -> Unit,
-    onSettingsClick:      () -> Unit
+    onSettingsClick:      () -> Unit,
+    onBookmarksClick:     () -> Unit = {},
+    onTrashClick:         () -> Unit = {},
+    onCreateNewClick:     () -> Unit = {}
 ) {
     // ── Derive context ────────────────────────────────────────────────────────
     val isHome         = selectedTab == 0
@@ -148,9 +155,24 @@ fun DynamicTopBar(
     val isPlaylistDetail = selectedTab == 2 && selectedFolder != null
     val hasBackButton  = isFolderDetail || isPlaylistDetail
 
-    TopAppBar(
-        modifier = Modifier.fillMaxWidth(),
-        windowInsets = androidx.compose.foundation.layout.WindowInsets.statusBars,
+    Box(modifier = Modifier.fillMaxWidth()) {
+        val offset = scrollBehavior.state.heightOffset
+        Box(
+            modifier = Modifier
+                .graphicsLayer { translationY = offset }
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .height(56.dp)
+                .frostedGlass(cornerRadius = 32.dp, surfaceAlpha = 0.4f, surfaceColor = Color.Black)
+        )
+        TopAppBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .height(56.dp),
+            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         // ── Navigation icon (Back) ────────────────────────────────────────────
         navigationIcon = {
             AnimatedVisibility(
@@ -162,7 +184,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color.White
                     )
                 }
             }
@@ -197,7 +219,7 @@ fun DynamicTopBar(
                                 text = folder,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = Color.White,
                                 maxLines = 1,
                                 modifier = Modifier.basicMarquee(Int.MAX_VALUE)
                             )
@@ -219,7 +241,7 @@ fun DynamicTopBar(
                                 text = pTitle ?: folder,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = Color.White,
                                 maxLines = 1,
                                 modifier = Modifier.basicMarquee(Int.MAX_VALUE)
                             )
@@ -250,6 +272,35 @@ fun DynamicTopBar(
 
         // ── Actions (right side) ──────────────────────────────────────────────
         actions = {
+            val isExplorer = selectedTab == 5
+
+            DynamicActionIcon(visible = isExplorer) {
+                IconButton(onClick = onBookmarksClick) {
+                    Icon(
+                        Icons.Default.Bookmarks,
+                        contentDescription = "Bookmarks",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            DynamicActionIcon(visible = isExplorer) {
+                IconButton(onClick = onTrashClick) {
+                    Icon(
+                        Icons.Default.DeleteSweep,
+                        contentDescription = "Trash Bin",
+                        tint = Color.Red
+                    )
+                }
+            }
+            DynamicActionIcon(visible = isExplorer) {
+                IconButton(onClick = onCreateNewClick) {
+                    Icon(
+                        Icons.Default.CreateNewFolder,
+                        contentDescription = "Create folder",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
             // Sort & Filter — Home and Folder root
             DynamicActionIcon(visible = isHome || isFolderRoot) {
@@ -257,7 +308,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "Sort & Filter",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color.White
                     )
                 }
             }
@@ -268,7 +319,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.Insights,
                         contentDescription = "Watching Habits",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color.White
                     )
                 }
             }
@@ -279,7 +330,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color.White
                     )
                 }
             }
@@ -307,13 +358,14 @@ fun DynamicTopBar(
 
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor         = Color.Transparent, // Fully transparent
-            scrolledContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.95f), // Apply background on scroll
-            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-            titleContentColor      = MaterialTheme.colorScheme.onSurface,
-            actionIconContentColor = MaterialTheme.colorScheme.onSurface
+            scrolledContainerColor = Color.Transparent, // Let frostedGlass handle the background
+            navigationIconContentColor = Color.White,
+            titleContentColor      = Color.White,
+            actionIconContentColor = Color.White
         ),
         scrollBehavior = scrollBehavior
     )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -370,7 +422,7 @@ private fun TabTitleText(title: String) {
             text       = title,
             style      = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold,
-            color      = MaterialTheme.colorScheme.onSurface
+            color      = Color.White
         )
         Spacer(Modifier.height(2.dp))
         Box(

@@ -84,6 +84,7 @@ fun PlayerMorePopup(
     onBookmarksClick: () -> Unit,
     onQualityAnalyzerClick: () -> Unit,
     onDiagnosticsClick: () -> Unit,
+    onDisplaySettingsClick: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
     val context = LocalContext.current
@@ -135,7 +136,7 @@ fun PlayerMorePopup(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(360.dp)
-                    .background(Color(0xCC0C0E12)) // Transparent 80% dark background
+                    .background(Color.Black.copy(alpha = 0.45f)) // Frosted glass aesthetic
                     .clickable(enabled = false) {} // block clicks
             ) {
                 if (showQueue) {
@@ -465,8 +466,8 @@ fun PlayerMorePopup(
                             ToolItem(Icons.Default.QueueMusic, "Playing Queue") { showQueue = true },
                             ToolItem(Icons.Default.Group, "Watch Party") { showWatchPartyConfig = true },
                             ToolItem(Icons.Default.Info, "Diagnostics") { onDiagnosticsClick() },
-                            ToolItem(Icons.Default.AspectRatio, "Aspect Ratio") {},
-                            ToolItem(Icons.Default.DisplaySettings, "Display Settings") {},
+                            ToolItem(Icons.Default.AspectRatio, "Aspect Ratio") { onDisplaySettingsClick() },
+                            ToolItem(Icons.Default.DisplaySettings, "Display Settings") { onDisplaySettingsClick() },
                             ToolItem(Icons.Default.Bookmarks, "Bookmarks") { onBookmarksClick() },
                             ToolItem(Icons.Default.AutoAwesomeMotion, "Smart Scenes") { onBookmarksClick() },
                             ToolItem(Icons.Default.HighQuality, "Quality Analyzer") { onQualityAnalyzerClick() },

@@ -68,7 +68,8 @@ fun LibraryHeroCard(video: Video, onClick: () -> Unit = {}, onFavoriteClick: () 
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             val context = LocalContext.current

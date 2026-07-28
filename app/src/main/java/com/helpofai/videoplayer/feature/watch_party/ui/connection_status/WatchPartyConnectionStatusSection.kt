@@ -23,10 +23,10 @@ import androidx.compose.ui.unit.sp
 import com.helpofai.videoplayer.feature.watch_party.networking.WatchPartyConnectionPreferences
 import com.helpofai.videoplayer.feature.watch_party.networking.WatchPartyNetworkStateManager
 
-private val BgCard    = Color(0xFF111520)
-private val DivColor  = Color(0xFF1E2535)
-private val TextPri   = Color(0xFFECF0F1)
-private val TextSub   = Color(0xFF8E9CB0)
+private val BgCard: Color @Composable get() = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+private val DivColor: Color @Composable get() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+private val TextPri: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextSub: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 private val GreenOk   = Color(0xFF00B894)
 private val CyanAlt   = Color(0xFF00CEC9)
 private val PurpleAcc = Color(0xFF7C5CE7)
@@ -268,8 +268,8 @@ private fun NetworkStatusChip(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = if (active) activeColor.copy(alpha = 0.07f) else Color(0xFF0D1018),
-        border = BorderStroke(1.dp, if (active) activeColor.copy(alpha = 0.4f) else Color(0xFF1E2535))
+        color = if (active) activeColor.copy(alpha = 0.07f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, if (active) activeColor.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

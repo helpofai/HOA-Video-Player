@@ -22,8 +22,16 @@
 */
 package com.helpofai.videoplayer.feature.library.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material3.*
@@ -38,6 +46,7 @@ import com.helpofai.videoplayer.feature.library.LibraryState
 import com.helpofai.videoplayer.feature.library.ads.InlineItemAd
 import com.helpofai.videoplayer.feature.library.ads.InlineRowAd
 import com.helpofai.videoplayer.feature.filemanager.FileManagerScreen
+import com.helpofai.videoplayer.core.theme.frostedGlass
 
 @Composable
 fun LibraryFoldersTab(
@@ -50,7 +59,8 @@ fun LibraryFoldersTab(
     onFavoriteClick: (Video) -> Unit,
     onRenameClick: (Video) -> Unit,
     onDeleteClick: (Video) -> Unit,
-    onShareClick: (Video) -> Unit
+    onShareClick: (Video) -> Unit,
+    onNavigateToExplorer: () -> Unit = {}
 ) {
     val folders = state.videos.groupBy { java.io.File(it.path).parentFile?.name ?: "Internal Storage" }
     val folderViewMode = state.folderViewMode
@@ -66,12 +76,20 @@ fun LibraryFoldersTab(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "File Tree Explorer",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onNavigateToExplorer() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "File Tree Explorer",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 TextButton(
                     onClick = { isTreeViewActive = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
@@ -95,7 +113,9 @@ fun LibraryFoldersTab(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

@@ -176,7 +176,6 @@ fun PlayerScreen(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
     var showVideoEnhancer by remember { mutableStateOf(false) }
-    val enhancementConfig by viewModel.videoEnhancementManager.config.collectAsState()
     var rotationZ by remember { mutableFloatStateOf(0f) }
     var isBuffering by remember { mutableStateOf(false) }
     var processData by remember { mutableStateOf("") }
@@ -313,9 +312,7 @@ fun PlayerScreen(
         // Enter immersive mode
         val window = activity?.window
         window?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, false) }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            window?.attributes?.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-        }
+        window?.attributes?.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         
         val insetsController = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, it.decorView) }
         insetsController?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -334,11 +331,9 @@ fun PlayerScreen(
             // Exit immersive mode
             insetsController?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             window?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, true) }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                window?.attributes?.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
-            }
+            window?.attributes?.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
             // Restore orientation when leaving player
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
 
@@ -375,12 +370,12 @@ fun PlayerScreen(
                 val aspectRatio = effectiveWidth / effectiveHeight
 
                 val targetOrientation = when {
-                    aspectRatio > 1.08f -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    aspectRatio < 0.92f -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    aspectRatio > 1.08f -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    aspectRatio < 0.92f -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 }
 
-                isLandscape = targetOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                isLandscape = targetOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
 
                 activity?.let { act ->
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -561,10 +556,6 @@ fun PlayerScreen(
                 isVisible = isControllerVisible,
                 title = currentVideoTitle,
                 onBackClick = onNavigateBack,
-                onMinimizeClick = {
-                    viewModel.minimizePlayer()
-                    onNavigateBack()
-                },
                 onLockClick = { isControlsLocked = true },
                 onSpeedClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SPEED_DIAL },
                 onEqClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.EQUALIZER },
@@ -627,9 +618,9 @@ fun PlayerScreen(
                     isManualOrientationLocked = true
                     isLandscape = !isLandscape
                     activity?.requestedOrientation = if (isLandscape) {
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     } else {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
                 onVideoEnhancerClick = {
@@ -690,8 +681,9 @@ fun PlayerScreen(
                         .align(Alignment.TopEnd)
                         .padding(top = 100.dp, end = 16.dp)
                         .width(250.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(12.dp)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 ) {
                     com.helpofai.videoplayer.feature.watch_party.ui.host_dashboard.WatchPartyPlayerMonitoringView(
                         session = activeSession!!
@@ -733,6 +725,13 @@ fun PlayerScreen(
                         ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
+                onMinimizeClick = {
+                    val activity = context as? android.app.Activity
+                    val params = android.app.PictureInPictureParams.Builder()
+                        .setAspectRatio(android.util.Rational(16, 9))
+                        .build()
+                    activity?.enterPictureInPictureMode(params)
+                },
                 isSeekEnabled = isSeekAllowed,
                 abRepeatA = abRepeatA,
                 abRepeatB = abRepeatB,
@@ -761,8 +760,8 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Resume playing?", style = MaterialTheme.typography.labelSmall, color = Color.LightGray)
-                        Text(formattedResume, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Resume playing?", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formattedResume, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Button(
@@ -771,11 +770,11 @@ fun PlayerScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         modifier = Modifier.height(36.dp)
                     ) {
-                        Text("Continue", color = Color.White, style = MaterialTheme.typography.labelLarge)
+                        Text("Continue", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge)
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(onClick = { viewModel.onResumeDismissed() }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     }
                 }
             }

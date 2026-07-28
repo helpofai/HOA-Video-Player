@@ -44,17 +44,15 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun AnimatedSplashScreen(onSplashFinished: () -> Unit) {
-    var progress by remember { mutableStateOf(0f) }
+    val progressAnim = remember { Animatable(0f) }
+    val progress = progressAnim.value
     
-    // Simulate loading progress
+    // Simulate loading progress using idiomatic Compose animation
     LaunchedEffect(Unit) {
-        val totalTime = 800L // 0.8 seconds loading
-        val interval = 25L
-        val steps = totalTime / interval
-        for (i in 0..steps) {
-            progress = i.toFloat() / steps.toFloat()
-            delay(interval)
-        }
+        progressAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 800, easing = LinearEasing)
+        )
         delay(100) // Brief pause at 100%
         onSplashFinished()
     }
@@ -136,15 +134,15 @@ fun AnimatedSplashScreen(onSplashFinished: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.7f)
-                .height(14.dp)
-                .clip(RoundedCornerShape(7.dp))
+                .height(7.dp)
+                .clip(RoundedCornerShape(percent = 50))
                 .background(Color.White.copy(alpha = 0.1f))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(progress)
-                    .clip(RoundedCornerShape(7.dp))
+                    .clip(RoundedCornerShape(percent = 50))
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(

@@ -41,16 +41,20 @@ import com.helpofai.videoplayer.feature.watch_party.streaming.WatchPartyLocalStr
 import java.net.NetworkInterface
 import java.util.Collections
 import java.util.UUID
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 
 // Color palette
 private val BgDeep       = Color.Transparent
-private val BgCard       = Color(0xFF111520)
+private val BgCard: Color @Composable get() = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
 private val AccentPurple = Color(0xFF7C5CE7)
 private val AccentCyan   = Color(0xFF00CEC9)
 private val AccentGreen  = Color(0xFF00B894)
-private val TextPrimary  = Color(0xFFECF0F1)
-private val TextSub      = Color(0xFF8E9CB0)
-private val DivColor     = Color(0xFF1E2535)
+private val TextPrimary: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextSub: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val DivColor: Color @Composable get() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 private val WarnAmber    = Color(0xFFFDCB6E)
 
 /**
@@ -126,7 +130,7 @@ fun WatchPartyHostRoomSetupScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        Brush.verticalGradient(listOf(Color(0xFF0D1018), Color.Transparent))
+                        Brush.verticalGradient(listOf(MaterialTheme.colorScheme.background.copy(alpha = 0.8f), Color.Transparent))
                     )
                     .padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -149,19 +153,43 @@ fun WatchPartyHostRoomSetupScreen(
 
                 // Video Source Banner
                 if (isVideoReady) {
-                    SetupCard(borderColor = AccentGreen.copy(alpha = 0.4f), bgColor = Color(0xFF0D2218)) {
+                    SetupCard(borderColor = AccentGreen.copy(alpha = 0.4f), bgColor = AccentGreen.copy(alpha = 0.05f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .width(76.dp)
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(AccentGreen.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.PlayCircle, null, tint = AccentGreen, modifier = Modifier.size(26.dp))
+                                val thumbModel = remember(streamingVideo!!.id) {
+                                    val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${streamingVideo!!.id}.jpg")
+                                    if (cachedFile.exists()) cachedFile else streamingVideo!!.uri
+                                }
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(thumbModel)
+                                        .crossfade(true)
+                                        .size(320)
+                                        .memoryCachePolicy(CachePolicy.ENABLED)
+                                        .build(),
+                                    contentDescription = "Thumbnail",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.5f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                }
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Video Ready to Stream", color = AccentGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -179,7 +207,7 @@ fun WatchPartyHostRoomSetupScreen(
                         }
                     }
                 } else {
-                    SetupCard(borderColor = WarnAmber.copy(alpha = 0.4f), bgColor = Color(0xFF201A0A)) {
+                    SetupCard(borderColor = WarnAmber.copy(alpha = 0.4f), bgColor = WarnAmber.copy(alpha = 0.05f)) {
                         Row(
                             verticalAlignment = Alignment.Top,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -208,14 +236,12 @@ fun WatchPartyHostRoomSetupScreen(
                                     lineHeight = 15.sp
                                 )
                                 Spacer(Modifier.height(8.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
                                 ) {
                                     HowToStep(number = "1", text = "Open any video")
-                                    Icon(Icons.Default.ChevronRight, null, tint = TextSub, modifier = Modifier.size(14.dp))
                                     HowToStep(number = "2", text = "Tools \u2192 Watch Party \u2713")
-                                    Icon(Icons.Default.ChevronRight, null, tint = TextSub, modifier = Modifier.size(14.dp))
                                     HowToStep(number = "3", text = "Come back here")
                                 }
                             }
@@ -234,7 +260,7 @@ fun WatchPartyHostRoomSetupScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF0D1018))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -394,7 +420,7 @@ fun WatchPartyHostRoomSetupScreen(
                 }
 
                 // Network Info
-                SetupCard(bgColor = Color(0xFF0D1018)) {
+                SetupCard(bgColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.Default.Wifi, null, tint = AccentCyan, modifier = Modifier.size(18.dp))
                         Column {
@@ -556,18 +582,18 @@ private fun PermDivider() {
 private fun HowToStep(number: String, text: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(16.dp)
+                .size(20.dp)
                 .clip(CircleShape)
                 .background(AccentPurple.copy(alpha = 0.3f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(number, color = AccentPurple, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Text(number, color = AccentPurple, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
-        Text(text, color = TextSub, fontSize = 9.sp)
+        Text(text, color = TextSub, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
 

@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
@@ -52,11 +53,15 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.helpofai.videoplayer.core.model.Video
+import com.helpofai.videoplayer.core.theme.frostedGlass
 
 /**
  * Custom Folder Shape drawing a folder silhouette.
  */
-class FolderShape(private val tabHeightPx: Float = 35f) : Shape {
+class FolderShape(
+    private val tabHeightDp: Float = 22f,
+    private val cornerRadiusDp: Float = 20f
+) : Shape {
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
@@ -65,18 +70,19 @@ class FolderShape(private val tabHeightPx: Float = 35f) : Shape {
         val path = Path().apply {
             val width = size.width
             val height = size.height
-            val r = 24f
+            val r = cornerRadiusDp * density.density
+            val tabHeight = tabHeightDp * density.density
             val tabWidth = width * 0.45f
-            val slope = 15f
+            val slope = 10f * density.density
             
             reset()
-            moveTo(0f, tabHeightPx + r)
+            moveTo(0f, tabHeight + r)
             lineTo(0f, r)
             quadraticTo(0f, 0f, r, 0f)
             lineTo(tabWidth - slope, 0f)
-            lineTo(tabWidth, tabHeightPx)
-            lineTo(width - r, tabHeightPx)
-            quadraticTo(width, tabHeightPx, width, tabHeightPx + r)
+            lineTo(tabWidth, tabHeight)
+            lineTo(width - r, tabHeight)
+            quadraticTo(width, tabHeight, width, tabHeight + r)
             lineTo(width, height - r)
             quadraticTo(width, height, width - r, height)
             lineTo(r, height)
@@ -102,8 +108,9 @@ fun LibraryFolderCard(
         // 1. Back flap of the folder
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = FolderShape(35f),
+            shape = FolderShape(tabHeightDp = 22f, cornerRadiusDp = 20f),
             color = Color(0xFF1E2746),
+            shadowElevation = 8.dp,
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
         ) {}
 
@@ -227,8 +234,7 @@ fun LibraryFolderListItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFF111520).copy(alpha = 0.6f))
+            .frostedGlass(cornerRadius = 14.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
             .clickable(onClick = onClick)
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -242,7 +248,7 @@ fun LibraryFolderListItem(
             // Folder Back Flap
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                shape = FolderShape(15f),
+                shape = FolderShape(tabHeightDp = 10f, cornerRadiusDp = 8f),
                 color = Color(0xFF1E2746),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
             ) {}

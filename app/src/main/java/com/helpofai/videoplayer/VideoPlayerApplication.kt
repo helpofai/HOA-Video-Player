@@ -42,7 +42,7 @@ class VideoPlayerApplication : Application(), ImageLoaderFactory {
             val stackTrace = android.util.Log.getStackTraceString(exception)
             val pm = packageManager
             val pInfo = pm.getPackageInfo(packageName, 0)
-            val appVersion = "${pInfo.versionName} (${if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) pInfo.longVersionCode else pInfo.versionCode})"
+            val appVersion = "${pInfo.versionName} (${pInfo.longVersionCode})"
             val deviceInfo = """
                 Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}
                 Android Version: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})
