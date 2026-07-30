@@ -224,144 +224,144 @@ fun FileManagerScreen(
             }
         }
     } else {
-        Column(
-            modifier = modifier
-                .fillMaxSize()
+        Box(
+            modifier = modifier.fillMaxSize()
         ) {
-        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
-        // Explorer actions have been hoisted to the global DynamicTopBar.
-        // Removed Search & Filter Panel and Breadcrumb Path Navigation per user request
-
-        // ── Pinned Favorites horizontal bar ───────────────────────────────────
-        if (pinnedPaths.isNotEmpty() && searchQuery.isEmpty() && !isBrowsingSaf) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                Text(
-                    "Pinned Folders",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ExplorerAccentC,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding() + 80.dp
                 )
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(pinnedPaths.toList()) { path ->
-                        val folderFile = File(path)
+            ) {
+                // ── Pinned Favorites horizontal bar ───────────────────────────────────
+                if (pinnedPaths.isNotEmpty() && searchQuery.isEmpty() && !isBrowsingSaf) {
+                    item {
+                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            Text(
+                                "Pinned Folders",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ExplorerAccentC,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(pinnedPaths.toList()) { path ->
+                                    val folderFile = File(path)
+                                    Surface(
+                                        modifier = Modifier.clickable {
+                                            viewModel.loadRootDirectory(folderFile)
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = ExplorerBgCard,
+                                        border = BorderStroke(1.dp, ExplorerDivider)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(Icons.Default.Folder, null, tint = ExplorerAccentC, modifier = Modifier.size(16.dp))
+                                            Text(
+                                                folderFile.name.ifEmpty { "Root" },
+                                                fontSize = 11.sp,
+                                                color = ExplorerTextPri,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Sorting & Filtering Chips Row ─────────────────────────────────────
+                item {
+                    FileManagerControlsRow(
+                        sortOption = sortOption,
+                        filterOption = filterOption,
+                        onSortChange = { viewModel.updateSortOption(it) },
+                        onFilterChange = { viewModel.updateFilterOption(it) }
+                    )
+                }
+
+                // ── Multi-Select Actions ──────────────────────────────────────────────
+                item {
+                    AnimatedVisibility(
+                        visible = isMultiSelectMode,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
                         Surface(
-                            modifier = Modifier.clickable {
-                                viewModel.loadRootDirectory(folderFile)
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            color = ExplorerBgCard,
-                            border = BorderStroke(1.dp, ExplorerDivider)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = ExplorerAccentP.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, ExplorerAccentP.copy(alpha = 0.3f))
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Folder, null, tint = ExplorerAccentC, modifier = Modifier.size(16.dp))
                                 Text(
-                                    folderFile.name.ifEmpty { "Root" },
-                                    fontSize = 11.sp,
-                                    color = ExplorerTextPri,
-                                    fontWeight = FontWeight.Bold
+                                    "${selectedNodes.size} selected",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ExplorerTextPri
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (!isBrowsingSaf) {
+                                        IconButton(onClick = { viewModel.copySelectedNodes() }) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = ExplorerAccentC)
+                                        }
+                                        IconButton(onClick = { viewModel.cutSelectedNodes() }) {
+                                            Icon(Icons.Default.ContentCut, contentDescription = "Cut", tint = ExplorerAccentC)
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (selectedNodes.isNotEmpty()) {
+                                                viewModel.deleteSelectedNodes()
+                                                Toast.makeText(context, "Selected files deleted", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        enabled = selectedNodes.isNotEmpty()
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                    }
+                                    IconButton(onClick = { viewModel.toggleMultiSelectMode() }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = ExplorerTextPri)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── File Tree View ────────────────────────────────────────────────────
+                if (nodes.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.FolderOpen, null, tint = ExplorerTextSub, modifier = Modifier.size(44.dp))
+                                Text(
+                                    text = if (searchQuery.isNotEmpty()) "No results found" else "Empty Folder",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = ExplorerTextSub
                                 )
                             }
                         }
                     }
-                }
-            }
-        }
-
-        // ── Sorting & Filtering Chips Row ─────────────────────────────────────
-        FileManagerControlsRow(
-            sortOption = sortOption,
-            filterOption = filterOption,
-            onSortChange = { viewModel.updateSortOption(it) },
-            onFilterChange = { viewModel.updateFilterOption(it) }
-        )
-
-        // ── Multi-Select Actions ──────────────────────────────────────────────
-        AnimatedVisibility(
-            visible = isMultiSelectMode,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = ExplorerAccentP.copy(alpha = 0.08f),
-                border = BorderStroke(1.dp, ExplorerAccentP.copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "${selectedNodes.size} selected",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = ExplorerTextPri
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (!isBrowsingSaf) {
-                            IconButton(onClick = { viewModel.copySelectedNodes() }) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = ExplorerAccentC)
-                            }
-                            IconButton(onClick = { viewModel.cutSelectedNodes() }) {
-                                Icon(Icons.Default.ContentCut, contentDescription = "Cut", tint = ExplorerAccentC)
-                            }
-                        }
-                        IconButton(
-                            onClick = {
-                                if (selectedNodes.isNotEmpty()) {
-                                    viewModel.deleteSelectedNodes()
-                                    Toast.makeText(context, "Selected files deleted", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            enabled = selectedNodes.isNotEmpty()
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
-                        }
-                        IconButton(onClick = { viewModel.toggleMultiSelectMode() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Cancel", tint = ExplorerTextPri)
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── File Tree View ────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .weight(1f)
-        ) {
-            if (nodes.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.FolderOpen, null, tint = ExplorerTextSub, modifier = Modifier.size(44.dp))
-                        Text(
-                            text = if (searchQuery.isNotEmpty()) "No results found" else "Empty Folder",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = ExplorerTextSub
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        bottom = paddingValues.calculateBottomPadding() + 80.dp
-                    )
-                ) {
+                } else {
                     itemsIndexed(nodes, key = { _, node -> node.path }) { index, node ->
                         val isPinned = pinnedPaths.contains(node.path)
                         FileManagerNodeRow(
@@ -1245,7 +1245,6 @@ fun FileManagerScreen(
                 }
             }
         }
-    }
     }
 }
 

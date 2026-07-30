@@ -60,6 +60,7 @@ fun LibraryFoldersTab(
     onRenameClick: (Video) -> Unit,
     onDeleteClick: (Video) -> Unit,
     onShareClick: (Video) -> Unit,
+    onVaultClick: (Video) -> Unit,
     onNavigateToExplorer: () -> Unit = {}
 ) {
     val folders = state.videos.groupBy { java.io.File(it.path).parentFile?.name ?: "Internal Storage" }
@@ -236,7 +237,8 @@ fun LibraryFoldersTab(
                                 onFavoriteClick = { onFavoriteClick(video) },
                                 onRenameClick = { onRenameClick(video) },
                                 onDeleteClick = { onDeleteClick(video) },
-                                onShareClick = { onShareClick(video) }
+                                onShareClick = { onShareClick(video) },
+                                onVaultClick = { onVaultClick(video) }
                             )
                         }
                     }

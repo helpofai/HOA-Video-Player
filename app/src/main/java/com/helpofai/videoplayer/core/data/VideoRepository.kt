@@ -46,12 +46,50 @@ class VideoRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mediaScanner: MediaScanner,
     private val videoDao: VideoDao,
+    private val mediaStoreObserver: com.helpofai.videoplayer.core.media.MediaStoreObserver,
     private val performanceManager: dagger.Lazy<com.helpofai.videoplayer.core.playback.diagnostics.AdaptivePerformanceManager>
 ) {
     private val cacheFile = java.io.File(context.cacheDir, "videos_cache_v2.txt")
 
     // Advanced Local Cache System for MediaStore
     private val _localVideosCache = MutableStateFlow<List<Video>?>(null)
+
+    init {
+        // Auto-sync with MediaStore in the background using ContentObserver
+        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+            mediaStoreObserver.observeMediaChanges().collect {
+                syncWithMediaStore()
+            }
+        }
+    }
+
+    private suspend fun syncWithMediaStore() {
+        try {
+            val fresh = mutableListOf<Video>()
+            mediaScanner.getVideosFlow().collect { fresh.addAll(it) }
+            val currentCache = _localVideosCache.value
+            
+            // Differential Sync: only update if something actually changed
+            if (currentCache == null || hasMediaChanged(currentCache, fresh)) {
+                _localVideosCache.value = fresh
+                saveCachedVideos(fresh)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun hasMediaChanged(old: List<Video>, new: List<Video>): Boolean {
+        if (old.size != new.size) return true
+        val oldMap = old.associateBy { it.id }
+        for (video in new) {
+            val oldVideo = oldMap[video.id]
+            if (oldVideo == null || oldVideo.size != video.size || oldVideo.dateAdded != video.dateAdded) {
+                return true
+            }
+        }
+        return false
+    }
 
     private fun loadCachedVideos(): List<Video>? {
         if (!cacheFile.exists()) return null
@@ -114,30 +152,15 @@ class VideoRepository @Inject constructor(
             val cached = withContext(Dispatchers.IO) { loadCachedVideos() }
             if (cached != null && cached.isNotEmpty()) {
                 _localVideosCache.value = cached
-                // Scan in background asynchronously to refresh cache if needed
-                if (performanceManager.get().canRunBackgroundTasks.value) {
-                    kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-                        val fresh = mediaScanner.getVideos()
-                        if (fresh != cached) {
-                            _localVideosCache.value = fresh
-                            saveCachedVideos(fresh)
-                        }
-                    }
-                }
             } else {
-                // Cache is empty or missing (e.g. fresh install) — scan immediately to populate
-                val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
-                _localVideosCache.value = fresh
-                withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
+                syncWithMediaStore()
             }
         }
     }
     
     suspend fun refreshVideos() {
         if (performanceManager.get().canRunBackgroundTasks.value) {
-            val fresh = withContext(Dispatchers.IO) { mediaScanner.getVideos() }
-            _localVideosCache.value = fresh
-            withContext(Dispatchers.IO) { saveCachedVideos(fresh) }
+            syncWithMediaStore()
         }
     }
 

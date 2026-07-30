@@ -28,12 +28,17 @@ import com.helpofai.videoplayer.core.model.Video
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import javax.inject.Inject
 
 class MediaScanner @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
-    suspend fun getVideos(): List<Video> = withContext(Dispatchers.IO) {
+
+
+    fun getVideosFlow(): Flow<List<Video>> = flow {
         val videoList = mutableListOf<Video>()
         
         val projection = arrayOf(
@@ -65,6 +70,7 @@ class MediaScanner @Inject constructor(
             val widthColumn = cursor.getColumnIndex(MediaStore.Video.Media.WIDTH)
             val heightColumn = cursor.getColumnIndex(MediaStore.Video.Media.HEIGHT)
 
+            var count = 0
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
                 val name = cursor.getString(nameColumn) ?: "Unknown"
@@ -93,9 +99,16 @@ class MediaScanner @Inject constructor(
                         height = height
                     )
                 )
+                
+                count++
+                // Yield incrementally every 50 videos so UI renders instantly
+                if (count % 50 == 0) {
+                    emit(videoList.toList())
+                }
             }
         }
         
-        videoList
-    }
+        // Emit the final complete list
+        emit(videoList.toList())
+    }.flowOn(Dispatchers.IO)
 }

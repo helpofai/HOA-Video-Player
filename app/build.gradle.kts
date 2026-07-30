@@ -139,6 +139,10 @@ dependencies {
     implementation(libs.zxing.android)
     implementation(libs.zxing.core)
     
+    // Security & Biometrics
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.biometric)
+    
     // CameraX
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)

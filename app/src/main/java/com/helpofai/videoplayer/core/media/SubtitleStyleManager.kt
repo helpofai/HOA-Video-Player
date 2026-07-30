@@ -23,9 +23,7 @@
 package com.helpofai.videoplayer.core.media
 
 import android.graphics.Color
-import android.util.TypedValue
 import androidx.media3.common.Player
-import androidx.media3.common.text.Cue
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import com.helpofai.videoplayer.core.data.SettingsRepository
@@ -55,6 +53,7 @@ import javax.inject.Singleton
  * ```
  */
 @Singleton
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class SubtitleStyleManager @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) {
@@ -96,14 +95,6 @@ class SubtitleStyleManager @Inject constructor(
         else           -> CaptionStyleCompat.EDGE_TYPE_NONE
     }
 
-    fun captionStyleEdgeTypeToLabel(edgeType: Int): String = when (edgeType) {
-        CaptionStyleCompat.EDGE_TYPE_NONE         -> "none"
-        CaptionStyleCompat.EDGE_TYPE_OUTLINE      -> "outline"
-        CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW   -> "drop_shadow"
-        CaptionStyleCompat.EDGE_TYPE_RAISED        -> "raised"
-        CaptionStyleCompat.EDGE_TYPE_DEPRESSED     -> "depressed"
-        else                                      -> "none"
-    }
 
     /**
      * Immutable snapshot of the current subtitle style configuration.
@@ -205,34 +196,7 @@ class SubtitleStyleManager @Inject constructor(
         subtitleView.setApplyEmbeddedFontSizes(false)
     }
 
-    /**
-     * Apply subtitle delay offset to the ExoPlayer instance.
-     *
-     * Uses [Player.setPlaybackParameters] with a subtitle offset since
-     * Media3 ExoPlayer does not have a standalone subtitle delay API.
-     * A positive delay shifts subtitles later; negative shifts earlier.
-     *
-     * Note: This changes the playback parameters which may briefly reset.
-     * We preserve the current playback speed to avoid side effects.
-     */
-    fun applyDelayToPlayer(player: Player, delayMs: Int) {
-        try {
-            val currentSpeed = player.playbackParameters.speed
-            player.playbackParameters = androidx.media3.common.PlaybackParameters(
-                currentSpeed,
-                1f, // pitch unchanged
-            )
-            // Subtle: Media3 doesn't expose standalone subtitle offset.
-            // For delay, we'd need to manipulate Cue.time at render time
-            // or use a custom TextRenderer. For now, store the preference
-            // and document the limitation.
-            //
-            // Future enhancement: implement a CustomSubtitleDecoder that
-            // shifts cue start/end times before passing to SubtitleView.
-        } catch (_: Exception) {
-            // Player may not be ready; delay preference is still persisted
-        }
-    }
+
 
     /**
      * Fetch the current config synchronously for immediate application

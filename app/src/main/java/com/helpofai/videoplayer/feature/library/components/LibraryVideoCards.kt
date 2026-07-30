@@ -105,7 +105,8 @@ fun LibraryVideoInfoCard(
     onRenameClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onMergeClick: () -> Unit = {}
+    onMergeClick: () -> Unit = {},
+    onVaultClick: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     Column(modifier = Modifier.clickable(onClick = onClick)) {
@@ -145,6 +146,7 @@ fun LibraryVideoInfoCard(
                     onDismissRequest = { showMenu = false },
                     modifier = Modifier.background(Color(0xCC1E293B))
                 ) {
+                    DropdownMenuItem(text = { Text("Move to Vault") }, onClick = { showMenu = false; onVaultClick() })
                     DropdownMenuItem(text = { Text("Share") }, onClick = { showMenu = false; onShareClick() })
                     DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRenameClick() })
                     DropdownMenuItem(text = { Text("Merge with...") }, onClick = { showMenu = false; onMergeClick() })
@@ -252,7 +254,8 @@ fun LibraryCompactVideoListItem(
     onRenameClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onMergeClick: () -> Unit = {}
+    onMergeClick: () -> Unit = {},
+    onVaultClick: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     Row(
@@ -330,6 +333,7 @@ fun LibraryCompactVideoListItem(
                 onDismissRequest = { showMenu = false },
                 modifier = Modifier.background(Color(0xCC1E293B))
             ) {
+                DropdownMenuItem(text = { Text("Move to Vault") }, onClick = { showMenu = false; onVaultClick() })
                 DropdownMenuItem(text = { Text("Share") }, onClick = { showMenu = false; onShareClick() })
                 DropdownMenuItem(text = { Text("Rename") }, onClick = { showMenu = false; onRenameClick() })
                 DropdownMenuItem(text = { Text("Merge with...") }, onClick = { showMenu = false; onMergeClick() })

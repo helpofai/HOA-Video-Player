@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,7 +46,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,14 +60,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.helpofai.videoplayer.core.model.Video
+import com.helpofai.videoplayer.tools.vault.VaultViewModel
+import android.provider.MediaStore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import com.helpofai.videoplayer.feature.library.components.DynamicTopBar
 import com.helpofai.videoplayer.feature.library.components.LibrarySkeletonLoader
 import com.helpofai.videoplayer.feature.library.components.LibraryStorageDashboard
@@ -77,7 +87,8 @@ val APP_TABS = listOf(
     TabItem(0, "Home", Icons.Default.Home),
     TabItem(1, "Folders", Icons.Default.Folder),
     TabItem(5, "Files", Icons.Default.Description),
-    TabItem(4, "Watch Party", Icons.Default.Group)
+    TabItem(4, "Watch Party", Icons.Default.Group),
+    TabItem(6, "Tools", Icons.Default.Build)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,11 +96,22 @@ val APP_TABS = listOf(
 @Composable
 fun HomeScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
+    vaultViewModel: VaultViewModel = hiltViewModel(),
     onVideoClick: (Video) -> Unit = {},
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onVaultClick: () -> Unit = {},
+    onEditorClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
+    
+    val deleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            // Original is permanently deleted
+        }
+    }
     
     val onFavoriteClick: (Video) -> Unit = { video -> viewModel.toggleFavorite(video) }
     val onShareClick: (Video) -> Unit = { video ->
@@ -141,6 +163,7 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = Color.Transparent,
         topBar = {
             DynamicTopBar(
                 selectedTab       = selectedTab,
@@ -234,6 +257,27 @@ fun HomeScreen(
                     Spacer(Modifier.height(paddingValues.calculateTopPadding()))
                 }
                 
+                val onVaultMoveClick: (Video) -> Unit = { video ->
+                    vaultViewModel.encryptFileToVault(video.uri, deleteOriginal = false)
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        try {
+                            val intentSender = MediaStore.createDeleteRequest(
+                                context.contentResolver, 
+                                listOf(video.uri)
+                            ).intentSender
+                            deleteLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    } else {
+                        val originalFile = java.io.File(video.path)
+                        if (originalFile.exists()) {
+                            originalFile.delete()
+                        }
+                    }
+                }
+
                 when (selectedTab) {
                     0 -> com.helpofai.videoplayer.feature.library.components.LibraryHomeTab(
                         state = state,
@@ -242,7 +286,8 @@ fun HomeScreen(
                         onFavoriteClick = onFavoriteClick,
                         onRenameClick = { videoToRename = it },
                         onDeleteClick = { videoToDelete = it },
-                        onShareClick = onShareClick
+                        onShareClick = onShareClick,
+                        onVaultClick = onVaultMoveClick
                     )
                     1 -> com.helpofai.videoplayer.feature.library.components.LibraryFoldersTab(
                         state = state,
@@ -254,7 +299,8 @@ fun HomeScreen(
                         onFavoriteClick = onFavoriteClick,
                         onRenameClick = { videoToRename = it },
                         onDeleteClick = { videoToDelete = it },
-                        onShareClick = onShareClick
+                        onShareClick = onShareClick,
+                        onVaultClick = onVaultMoveClick
                     )
                     4 -> WatchPartyMainTab(
                         videos = state.videos,
@@ -271,6 +317,21 @@ fun HomeScreen(
                         onDismissBookmarks = { showBookmarksDialog = false },
                         onDismissTrash = { showTrashDialog = false },
                         onDismissCreate = { showCreateDialog = false }
+                    )
+                    6 -> com.helpofai.videoplayer.tools.ToolsScreen(
+                        paddingValues = paddingValues,
+                        onToolClick = { tool ->
+                            when (tool.title) {
+                                "Private Vault" -> onVaultClick()
+                                "Video to MP3" -> onEditorClick("Video to MP3")
+                                "Video Trimmer" -> onEditorClick("Video Trimmer")
+                                else -> {
+                                    if (tool.title == "Change Resolution" || tool.title == "Make GIF") {
+                                        onEditorClick(tool.title)
+                                    }
+                                }
+                            }
+                        }
                     )
                 }
                 

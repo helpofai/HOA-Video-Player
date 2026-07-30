@@ -44,7 +44,7 @@ object DatabaseModule {
             context,
             VideoDatabase::class.java,
             "vidplay_database"
-        ).fallbackToDestructiveMigration().build()
+        ).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 
     @Provides

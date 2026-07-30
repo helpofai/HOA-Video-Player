@@ -24,7 +24,7 @@ package com.helpofai.videoplayer
 
 import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -63,7 +63,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var privacyRepository: PrivacyRepository
@@ -186,7 +186,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 composable("home") {
-                                    HomeScreen(
+                                     HomeScreen(
                                         onVideoClick = { video ->
                                             val encodedUri  = Uri.encode(video.uri.toString())
                                             val encodedPath = Uri.encode(video.path)
@@ -194,12 +194,40 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onSettingsClick = {
                                             navController.navigate("settings")
+                                        },
+                                        onVaultClick = {
+                                            navController.navigate("vault")
+                                        },
+                                        onEditorClick = { mode ->
+                                            val encodedMode = Uri.encode(mode)
+                                            navController.navigate("video_editor/$encodedMode")
                                         }
                                     )
                                 }
                                 composable("settings") {
                                     SettingsScreen(
                                         onBackClick = { navController.popBackStack() }
+                                    )
+                                }
+                                composable("vault") {
+                                    com.helpofai.videoplayer.tools.vault.PrivateVaultScreen(
+                                        onNavigateUp = { navController.popBackStack() },
+                                        onPlayVideo = { tempFilePath ->
+                                            val encodedPath = Uri.encode(tempFilePath)
+                                            navController.navigate("vault_player/$encodedPath")
+                                        }
+                                    )
+                                }
+                                composable(
+                                    route = "vault_player/{filePath}",
+                                    arguments = listOf(
+                                        navArgument("filePath") { type = NavType.StringType }
+                                    )
+                                ) { backStackEntry ->
+                                    val filePath = backStackEntry.arguments?.getString("filePath") ?: ""
+                                    com.helpofai.videoplayer.tools.vault.VaultPlayerScreen(
+                                        tempFilePath = filePath,
+                                        onNavigateUp = { navController.popBackStack() }
                                     )
                                 }
                                 composable(
@@ -220,6 +248,18 @@ class MainActivity : ComponentActivity() {
                                                 navController.popBackStack()
                                             }
                                         }
+                                    )
+                                }
+                                composable(
+                                    route = "video_editor/{mode}",
+                                    arguments = listOf(
+                                        navArgument("mode") { type = NavType.StringType }
+                                    )
+                                ) { backStackEntry ->
+                                    val mode = backStackEntry.arguments?.getString("mode") ?: ""
+                                    com.helpofai.videoplayer.tools.editor.VideoEditorScreen(
+                                        mode = mode,
+                                        onNavigateBack = { navController.popBackStack() }
                                     )
                                 }
                             }

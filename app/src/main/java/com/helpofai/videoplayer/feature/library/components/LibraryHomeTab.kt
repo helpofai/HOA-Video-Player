@@ -60,7 +60,8 @@ fun LibraryHomeTab(
     onFavoriteClick: (Video) -> Unit,
     onRenameClick: (Video) -> Unit,
     onDeleteClick: (Video) -> Unit,
-    onShareClick: (Video) -> Unit
+    onShareClick: (Video) -> Unit,
+    onVaultClick: (Video) -> Unit
 ) {
 
     // 1. Premium Slider Section (Lightweight & High Performance)
@@ -378,7 +379,8 @@ fun LibraryHomeTab(
                                 onFavoriteClick = { onFavoriteClick(video) },
                                 onRenameClick = { onRenameClick(video) },
                                 onDeleteClick = { onDeleteClick(video) },
-                                onShareClick = { onShareClick(video) }
+                                onShareClick = { onShareClick(video) },
+                                onVaultClick = { onVaultClick(video) }
                             )
                         }
                     }
@@ -472,7 +474,8 @@ fun LibraryHomeTab(
                         onFavoriteClick = { onFavoriteClick(video) },
                         onRenameClick = { onRenameClick(video) },
                         onDeleteClick = { onDeleteClick(video) },
-                        onShareClick = { onShareClick(video) }
+                        onShareClick = { onShareClick(video) },
+                        onVaultClick = { onVaultClick(video) }
                     )
                 }
             }

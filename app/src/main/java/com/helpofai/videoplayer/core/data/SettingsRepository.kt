@@ -157,12 +157,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun setLongPressBoostSpeed(speed: Float) {
-        dataStore.edit { preferences ->
-            preferences[LONG_PRESS_BOOST_SPEED] = speed
-        }
-    }
-
     // Subtitle Style Setters
     suspend fun setSubtitleFontSize(size: String) {
         dataStore.edit { preferences ->
