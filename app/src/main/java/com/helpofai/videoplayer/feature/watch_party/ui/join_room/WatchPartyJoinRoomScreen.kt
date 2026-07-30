@@ -42,6 +42,7 @@ private val WarnAmber    = Color(0xFFFDCB6E)
 
 @Composable
 fun WatchPartyJoinRoomScreen(
+    paddingValues: PaddingValues,
     videos: List<com.helpofai.videoplayer.core.model.Video>,
     onBack: () -> Unit,
     onJoinSuccess: () -> Unit
@@ -149,9 +150,10 @@ fun WatchPartyJoinRoomScreen(
             .fillMaxSize()
             .background(BgDeep)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
         // Toolbar with Back Button & Dynamic Title
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -455,6 +457,7 @@ fun WatchPartyJoinRoomScreen(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
     }
 }
 

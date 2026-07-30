@@ -109,9 +109,9 @@ fun WatchPartyMainTab(
         }
     }
     
-    // If the host setup sub-page is active, render it full-screen and return
     if (showHostSetup) {
         WatchPartyHostRoomSetupScreen(
+            paddingValues = paddingValues,
             onBack = { showHostSetup = false },
             onRoomCreated = {
                 showHostSetup = false
@@ -123,6 +123,7 @@ fun WatchPartyMainTab(
 
     if (showJoinRoom) {
         WatchPartyJoinRoomScreen(
+            paddingValues = paddingValues,
             videos = videos,
             onBack = { showJoinRoom = false },
             onJoinSuccess = {

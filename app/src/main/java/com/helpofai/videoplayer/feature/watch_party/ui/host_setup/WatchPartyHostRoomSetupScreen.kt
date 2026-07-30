@@ -70,6 +70,7 @@ private val WarnAmber    = Color(0xFFFDCB6E)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun WatchPartyHostRoomSetupScreen(
+    paddingValues: PaddingValues,
     onBack: () -> Unit,
     onRoomCreated: () -> Unit
 ) {
@@ -125,6 +126,7 @@ fun WatchPartyHostRoomSetupScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
             // Top Bar
             Row(
                 modifier = Modifier
@@ -496,6 +498,7 @@ fun WatchPartyHostRoomSetupScreen(
 
                 Spacer(Modifier.height(32.dp))
             }
+            Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
         }
     }
 }
