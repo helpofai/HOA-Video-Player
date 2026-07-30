@@ -155,6 +155,12 @@ fun DynamicTopBar(
     val isPlaylistDetail = selectedTab == 2 && selectedFolder != null
     val hasBackButton  = isFolderDetail || isPlaylistDetail
 
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    LaunchedEffect(density) {
+        // Fix scroll limit manually without passing behavior to TopAppBar to prevent double translation
+        scrollBehavior.state.heightOffsetLimit = with(density) { -80.dp.toPx() }
+    }
+
     Box(modifier = Modifier.fillMaxWidth()) {
         val offset = scrollBehavior.state.heightOffset
         Box(
@@ -359,8 +365,8 @@ fun DynamicTopBar(
             navigationIconContentColor = Color.White,
             titleContentColor      = Color.White,
             actionIconContentColor = Color.White
-        ),
         )
+            )
         }
     }
 }
