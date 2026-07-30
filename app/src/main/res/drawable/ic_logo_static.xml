@@ -1,51 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="256dp"
     android:height="256dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
 
+
+
+    <!-- Outer Tech Data Ring (spin-reverse 25s) -->
     <group
-        android:name="slow_ring"
+        android:name="outer_tech_ring"
         android:pivotX="256"
         android:pivotY="256">
         <path
-            android:strokeColor="#f093fb"
-            android:strokeWidth="10"
-            android:pathData="M 256 116 A 140 140 0 1 1 255.9 116 Z" />
+            android:strokeColor="#14FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:pathData="M 256 71 A 185 185 0 1 1 255.9 71 Z" />
     </group>
 
+    <!-- Inner dashed ring (spin-slow 18s) -->
     <group
-        android:name="fast_ring"
+        android:name="inner_dashed_ring"
+        android:pivotX="256"
+        android:pivotY="256">
+        <!-- Approximating dashes with a solid thin line since Android vectors don't natively do stroke-dasharray easily without PathEffect -->
+        <path
+            android:strokeColor="#1EFFFFFF"
+            android:strokeWidth="1"
+            android:pathData="M 256 91 A 165 165 0 1 1 255.9 91 Z" />
+    </group>
+
+    <!-- Dynamic Audio / Energy Ring (spin-constant 8s) -->
+    <group
+        android:name="dynamic_audio_ring"
         android:pivotX="256"
         android:pivotY="256">
         <path
-            android:strokeColor="#00f2fe"
+            android:strokeWidth="10"
+            android:strokeLineCap="round"
+            android:pathData="M 256 116 A 140 140 0 1 1 255.9 116 Z">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:startY="512"
+                    android:startX="0"
+                    android:endY="0"
+                    android:endX="512"
+                    android:type="linear">
+                    <item android:offset="0" android:color="#00f2fe" />
+                    <item android:offset="0.5" android:color="#4facfe" />
+                    <item android:offset="1" android:color="#f093fb" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+
+    <!-- Inner fast ring (spin-fast 6s) -->
+    <group
+        android:name="inner_fast_ring"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:strokeColor="#E600f2fe"
             android:strokeWidth="4"
+            android:strokeLineCap="round"
             android:pathData="M 256 136 A 120 120 0 1 1 255.9 136 Z" />
     </group>
 
+    <!-- Orbit 1 (spin 7s) -->
+    <group
+        android:name="orbit_1"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:fillColor="#f093fb"
+            android:pathData="M 256 110 A 6 6 0 1 1 255.9 110 Z" />
+    </group>
+
+    <!-- Orbit 2 (spin reverse 11s) -->
+    <group
+        android:name="orbit_2"
+        android:pivotX="256"
+        android:pivotY="256">
+        <path
+            android:fillColor="#00f2fe"
+            android:pathData="M 256 413 A 8 8 0 1 1 255.9 413 Z" />
+    </group>
+
+    <!-- Futuristic Center Glass Hexagon (spin-slow 18s) -->
     <group
         android:name="hexagon"
         android:pivotX="256"
         android:pivotY="256">
         <path
             android:strokeColor="#4DFFFFFF"
-            android:strokeWidth="10"
+            android:strokeWidth="2"
             android:fillColor="#0AFFFFFF"
             android:pathData="M 256 156 L 342 206 L 342 306 L 256 356 L 169 306 L 169 206 Z" />
         <path
-            android:strokeColor="#2DFFFFFF"
-            android:strokeWidth="5"
+            android:strokeColor="#1AFFFFFF"
+            android:strokeWidth="1"
             android:pathData="M 256 166 L 334 211 L 334 301 L 256 346 L 178 301 L 178 211 Z" />
     </group>
 
+    <!-- 3D Beveled Play Button (pulse-soft 2.5s) -->
     <group
         android:name="play_button"
         android:pivotX="256"
         android:pivotY="256">
         <path
-            android:fillColor="#c084fc"
-            android:pathData="M 230 206 C 220 200 210 206 210 218 L 210 294 C 210 306 220 312 230 306 L 298 268 C 308 262 308 250 298 244 Z" />
+            android:pathData="M 230 206 C 220 200 210 206 210 218 L 210 294 C 210 306 220 312 230 306 L 298 268 C 308 262 308 250 298 244 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startY="0"
+                    android:startX="0"
+                    android:endY="512"
+                    android:endX="512"
+                    android:type="linear">
+                    <item android:offset="0" android:color="#ffffff" />
+                    <item android:offset="0.4" android:color="#f8fafc" />
+                    <item android:offset="0.7" android:color="#818cf8" />
+                    <item android:offset="1" android:color="#c084fc" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 </vector>

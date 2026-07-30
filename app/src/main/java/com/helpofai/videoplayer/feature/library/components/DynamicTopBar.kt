@@ -165,14 +165,11 @@ fun DynamicTopBar(
                 .padding(horizontal = 16.dp, vertical = 4.dp)
                 .height(56.dp)
                 .frostedGlass(cornerRadius = 32.dp, surfaceAlpha = 0.4f, surfaceColor = Color.Black)
-        )
-        TopAppBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-                .height(56.dp),
-            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                .clip(RoundedCornerShape(32.dp))
+        ) {
+            TopAppBar(
+                modifier = Modifier.fillMaxSize(),
+                windowInsets = WindowInsets(0, 0, 0, 0),
         // ── Navigation icon (Back) ────────────────────────────────────────────
         navigationIcon = {
             AnimatedVisibility(
@@ -363,8 +360,8 @@ fun DynamicTopBar(
             titleContentColor      = Color.White,
             actionIconContentColor = Color.White
         ),
-        scrollBehavior = scrollBehavior
-    )
+        )
+        }
     }
 }
 
