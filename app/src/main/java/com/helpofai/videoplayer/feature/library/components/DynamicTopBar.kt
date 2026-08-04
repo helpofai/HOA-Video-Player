@@ -58,6 +58,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -145,7 +146,8 @@ fun DynamicTopBar(
     onSettingsClick:      () -> Unit,
     onBookmarksClick:     () -> Unit = {},
     onTrashClick:         () -> Unit = {},
-    onCreateNewClick:     () -> Unit = {}
+    onCreateNewClick:     () -> Unit = {},
+    onRefreshClick:       () -> Unit = {}
 ) {
     // ── Derive context ────────────────────────────────────────────────────────
     val isHome         = selectedTab == 0
@@ -333,6 +335,17 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.Search,
                         contentDescription = "Search",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            // Refresh — media scan icon
+            DynamicActionIcon(visible = isHome || isFolderRoot) {
+                IconButton(onClick = onRefreshClick) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Scan Media",
                         tint = Color.White
                     )
                 }

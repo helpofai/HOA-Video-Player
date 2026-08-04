@@ -65,8 +65,8 @@ class VideoRepository @Inject constructor(
 
     private suspend fun syncWithMediaStore() {
         try {
-            val fresh = mutableListOf<Video>()
-            mediaScanner.getVideosFlow().collect { fresh.addAll(it) }
+            var fresh = emptyList<Video>()
+            mediaScanner.getVideosFlow().collect { fresh = it }
             val currentCache = _localVideosCache.value
             
             // Differential Sync: only update if something actually changed

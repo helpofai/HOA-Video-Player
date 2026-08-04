@@ -163,6 +163,13 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    fun refreshVideos() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            repository.refreshVideos()
+        }
+    }
+
     fun toggleFavorite(video: Video) {
         viewModelScope.launch {
             repository.toggleFavorite(video.path, !video.isFavorite)
