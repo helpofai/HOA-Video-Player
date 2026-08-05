@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.watch_party.ui.client_dashboard
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -48,7 +49,7 @@ fun WatchPartyClientDashboardView(
             }
             
             IconButton(onClick = onDisconnect) {
-                Icon(Icons.Default.ExitToApp, contentDescription = "Leave", tint = Color.Red)
+                Icon(Icons.Default.ExitToApp, contentDescription = "Leave", tint = ToolIconPalette.Speed)
             }
         }
         
@@ -68,7 +69,7 @@ fun WatchPartyClientDashboardView(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Sync, contentDescription = null, tint = Color.Green, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Sync, contentDescription = null, tint = ToolIconPalette.Refresh, modifier = Modifier.size(16.dp))
                     Text("Sync Position:", fontSize = 11.sp, color = Color.LightGray)
                 }
                 Text(syncStatus, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -91,7 +92,7 @@ fun WatchPartyClientDashboardView(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.VolumeUp, contentDescription = null, tint = ToolIconPalette.Audio, modifier = Modifier.size(16.dp))
                             Text("Local Volume", fontSize = 10.sp, color = Color.LightGray)
                         }
                         Text(String.format("%.0f%%", volume * 100), fontSize = 10.sp, color = Color.White)
@@ -106,7 +107,7 @@ fun WatchPartyClientDashboardView(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.BrightnessMedium, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.BrightnessMedium, contentDescription = null, tint = ToolIconPalette.Adjustments, modifier = Modifier.size(16.dp))
                             Text("Local Brightness", fontSize = 10.sp, color = Color.LightGray)
                         }
                         Text(String.format("%.0f%%", brightness * 100), fontSize = 10.sp, color = Color.White)

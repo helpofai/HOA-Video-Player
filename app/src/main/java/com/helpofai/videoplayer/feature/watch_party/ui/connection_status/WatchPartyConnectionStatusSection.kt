@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.watch_party.ui.connection_status
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -73,7 +74,7 @@ fun WatchPartyConnectionStatusSection(modifier: Modifier = Modifier) {
                     Text("Connection Status", color = TextPri, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 IconButton(onClick = { networkMgr.refreshState() }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Refresh, "Refresh", tint = TextSub, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Refresh, "Refresh", tint = ToolIconPalette.Refresh, modifier = Modifier.size(18.dp))
                 }
             }
 

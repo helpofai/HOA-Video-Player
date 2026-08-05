@@ -22,6 +22,7 @@
 */
 package com.helpofai.videoplayer.feature.library.components
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -176,7 +177,7 @@ fun LibraryFolderCard(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF00CEC9)),
+                                .background(ToolIconPalette.Folders),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -318,7 +319,7 @@ fun LibraryFolderListItem(
         Icon(
             imageVector = Icons.Default.Folder,
             contentDescription = null,
-            tint = Color(0xFF00CEC9).copy(alpha = 0.7f),
+            tint = ToolIconPalette.Folders.copy(alpha = 0.7f),
             modifier = Modifier.size(20.dp)
         )
     }

@@ -38,6 +38,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -71,6 +74,7 @@ class ExoPlayerImpl @Inject constructor(
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var progressJob: Job? = null
+    private var enhancementJob: Job? = null
 
     private fun initializePlayer(): ExoPlayer {
         val renderersFactory = com.helpofai.videoplayer.feature.player.decoder.SmartDecoderEngine.getOptimalRenderersFactory(context)
@@ -88,7 +92,13 @@ class ExoPlayerImpl @Inject constructor(
         val newPlayer = ExoPlayer.Builder(context, renderersFactory)
             .setLoadControl(loadControl)
             .build().apply {
-            setAudioAttributes(AudioAttributes.DEFAULT, true)
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                    .build(),
+                true
+            )
             val initialEffects = videoEnhancementManager.getMedia3Effects(videoEnhancementManager.config.value)
             if (initialEffects.isNotEmpty()) {
                 setVideoEffects(initialEffects)
@@ -187,7 +197,29 @@ class ExoPlayerImpl @Inject constructor(
         }
         _player = newPlayer
         isReleased = false
+        startLiveEnhancementUpdates()
         return newPlayer
+    }
+
+    /**
+     * LIVE ENHANCEMENT VIEW: watches the enhancement config and re-applies
+     * Media3 effects to the running player the moment any slider changes.
+     * collectLatest + trailing delay throttles rapid drag updates while
+     * guaranteeing the newest slider value always wins.
+     */
+    private fun startLiveEnhancementUpdates() {
+        enhancementJob?.cancel()
+        enhancementJob = scope.launch {
+            videoEnhancementManager.config
+                .drop(1) // initial effects already applied synchronously at creation
+                .distinctUntilChanged()
+                .collectLatest { config ->
+                    _player?.let { p ->
+                        p.setVideoEffects(videoEnhancementManager.getMedia3Effects(config))
+                    }
+                    delay(120) // throttle: a newer slider value cancels this and applies latest
+                }
+        }
     }
 
     private fun startProgressUpdate() {
@@ -199,7 +231,8 @@ class ExoPlayerImpl @Inject constructor(
                         it.copy(
                             currentPosition = p.currentPosition,
                             duration = p.duration.coerceAtLeast(0L),
-                            bufferedPosition = p.bufferedPosition
+                            bufferedPosition = p.bufferedPosition,
+                            playbackSpeed = p.playbackParameters.speed
                         )
                     }
                 }
@@ -262,6 +295,8 @@ class ExoPlayerImpl @Inject constructor(
 
     override fun release() {
         stopProgressUpdate()
+        enhancementJob?.cancel()
+        enhancementJob = null
         audioEffectManager.release()
         _player?.release()
         _player = null

@@ -289,6 +289,7 @@ fun TrackSelectorBottomSheet(
                                     onClick = {
                                         player.trackSelectionParameters = player.trackSelectionParameters
                                             .buildUpon()
+                                            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
                                             .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, trackIndex))
                                             .build()
                                         onDismissRequest()

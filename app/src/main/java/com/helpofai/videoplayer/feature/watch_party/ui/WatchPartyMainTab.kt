@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.watch_party.ui
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -215,14 +216,14 @@ fun WatchPartyMainTab(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CellTower, null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.CellTower, null, tint = ToolIconPalette.WatchParty)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text("Active Room: ${activeSession!!.name}", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
                                     Text("Tap to return to active dashboard", color = Color.LightGray, fontSize = 11.sp)
                                 }
                             }
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = ToolIconPalette.WatchParty)
                         }
                     }
                 }
@@ -245,7 +246,7 @@ fun WatchPartyMainTab(
                             modifier = Modifier.padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Group, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                            Icon(Icons.Default.Group, contentDescription = null, tint = ToolIconPalette.WatchParty, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Host Room", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
@@ -264,7 +265,7 @@ fun WatchPartyMainTab(
                             modifier = Modifier.padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.GroupAdd, contentDescription = null, tint = Color.Cyan, modifier = Modifier.size(36.dp))
+                            Icon(Icons.Default.GroupAdd, contentDescription = null, tint = ToolIconPalette.Network, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("Join Room", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }

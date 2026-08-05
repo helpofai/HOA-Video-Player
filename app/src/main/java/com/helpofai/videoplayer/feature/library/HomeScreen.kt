@@ -71,17 +71,24 @@ import com.helpofai.videoplayer.core.theme.frostedGlass
 import com.helpofai.videoplayer.feature.library.components.DynamicTopBar
 import com.helpofai.videoplayer.feature.library.components.LibrarySkeletonLoader
 import com.helpofai.videoplayer.feature.library.components.LibraryStorageDashboard
+import com.helpofai.videoplayer.feature.library.components.MediaScanProgressDialog
 import com.helpofai.videoplayer.feature.watch_party.ui.WatchPartyMainTab
 import com.helpofai.videoplayer.tools.vault.VaultViewModel
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
 // Safely maps integers required by DynamicTopBar to a type-safe structure
-data class TabItem(val index: Int, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+data class TabItem(
+    val index: Int,
+    val title: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val color: Color = Color.White
+)
 val APP_TABS = listOf(
-    TabItem(0, "Home", Icons.Default.Home),
-    TabItem(1, "Folders", Icons.Default.Folder),
-    TabItem(5, "Files", Icons.Default.Description),
-    TabItem(4, "Watch Party", Icons.Default.Group),
-    TabItem(6, "Tools", Icons.Default.Build)
+    TabItem(0, "Home", Icons.Default.Home, ToolIconPalette.Home),
+    TabItem(1, "Folders", Icons.Default.Folder, ToolIconPalette.Folders),
+    TabItem(5, "Files", Icons.Default.Description, ToolIconPalette.Files),
+    TabItem(4, "Watch Party", Icons.Default.Group, ToolIconPalette.WatchParty),
+    TabItem(6, "Tools", Icons.Default.Build, ToolIconPalette.Tools)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +104,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
+    val scanProgress by viewModel.scanProgress.collectAsState()
     
     val deleteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -130,6 +138,7 @@ fun HomeScreen(
     var showBookmarksDialog by rememberSaveable { mutableStateOf(false) }
     var showTrashDialog by rememberSaveable { mutableStateOf(false) }
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
+    var showScanProgress by rememberSaveable { mutableStateOf(false) }
     
     val activity = context as? android.app.Activity ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
     val isMiniPlayerActive by com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.collectAsState()
@@ -141,6 +150,13 @@ fun HomeScreen(
             selectedTab = 0
         } else {
             showExitPopup = true
+        }
+    }
+    
+    // Show scan dialog when scanning starts
+    LaunchedEffect(scanProgress.isScanning) {
+        if (scanProgress.isScanning) {
+            showScanProgress = true
         }
     }
     
@@ -162,7 +178,7 @@ fun HomeScreen(
                 selectedTab       = selectedTab,
                 selectedFolder    = selectedFolder,
                 playlistTitle     = null,
-                videoCount        = state.videos.size,
+                isRefreshing      = state.isLoading,
                 scrollBehavior    = scrollBehavior,
                 onBackClick       = { selectedFolder = null },
                 onHabitsClick     = { showHabitReport = true },
@@ -172,7 +188,7 @@ fun HomeScreen(
                 onBookmarksClick  = { showBookmarksDialog = true },
                 onTrashClick      = { showTrashDialog = true },
                 onCreateNewClick  = { showCreateDialog = true },
-                onRefreshClick    = { viewModel.refreshVideos() }
+                onRefreshClick    = { viewModel.refreshVideos(); showScanProgress = true }
             )
         },
         bottomBar = {
@@ -200,7 +216,23 @@ fun HomeScreen(
                                 if (selectedTab == tab.index && tab.index == 1) selectedFolder = null
                                 selectedTab = tab.index 
                             },
-                            icon = { Icon(tab.icon, contentDescription = tab.title, modifier = Modifier.size(24.dp)) },
+                            icon = {
+                                Box(contentAlignment = Alignment.Center) {
+                                    // Soft glow halo behind the selected tab icon
+                                    if (selectedTab == tab.index) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(
+                                                    androidx.compose.ui.graphics.Brush.radialGradient(
+                                                        colors = listOf(tab.color.copy(alpha = 0.30f), Color.Transparent)
+                                                    )
+                                                )
+                                        )
+                                    }
+                                    Icon(tab.icon, contentDescription = tab.title, modifier = Modifier.size(24.dp))
+                                }
+                            },
                             alwaysShowLabel = false,
                             label = { 
                                 Text(
@@ -211,8 +243,8 @@ fun HomeScreen(
                                 ) 
                             },
                             colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF00CEC9),
-                                selectedTextColor = Color(0xFF00CEC9),
+                                selectedIconColor = tab.color,
+                                selectedTextColor = tab.color,
                                 indicatorColor = Color.Transparent, // Transparent indicator so glass shows
                                 unselectedIconColor = Color.White,
                                 unselectedTextColor = Color.White
@@ -493,6 +525,16 @@ fun HomeScreen(
             onDeleteClick = { video ->
                 viewModel.deleteVideo(video)
                 viewModel.analyzeStorage()
+            }
+        )
+    }
+    
+    // Media Scan Progress Dialog
+    if (showScanProgress) {
+        MediaScanProgressDialog(
+            scanProgress = scanProgress,
+            onDismiss = { 
+                showScanProgress = false
             }
         )
     }

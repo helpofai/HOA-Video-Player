@@ -306,6 +306,22 @@ class VideoEnhancementManager @Inject constructor(
         )
     }
 
+    /**
+     * Builds the full Media3 effect pipeline from the enhancement config.
+     * Every manual slider maps to a real effect so the Enhancement Center
+     * updates the picture live as the user drags:
+     *
+     *  - Brightness           -> Brightness()
+     *  - Contrast             -> Contrast()
+     *  - Saturation/Vibrance  -> HslAdjustment()
+     *  - Gamma                -> per-channel RGB scale (linear approximation)
+     *  - Color Temperature    -> RgbAdjustment() red/blue balance
+     *  - Noise Reduction      -> GaussianBlur() (subtle denoise)
+     *  - Sharpness/Edge/Texture -> unsharp-mask SeparableConvolution()
+     *
+     * Order matters: color first, denoise second, sharpen LAST (denoise then
+     * sharpen is the standard "clean + crisp" pipeline).
+     */
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun getMedia3Effects(config: VideoEnhancementConfig): List<androidx.media3.common.Effect> {
         if (config.preset == "original" || (!config.autoEnhance && config.strength == 0f)) {
@@ -314,31 +330,87 @@ class VideoEnhancementManager @Inject constructor(
         val list = mutableListOf<androidx.media3.common.Effect>()
         val s = config.strength
 
-        if (config.contrast != 0f) {
-            list.add(androidx.media3.effect.Contrast(config.contrast * s))
+        // 1. Brightness (range -1..1)
+        if (config.brightness != 0f) {
+            list.add(androidx.media3.effect.Brightness((config.brightness * s).coerceIn(-1f, 1f)))
         }
 
+        // 2. Contrast (range -1..1)
+        if (config.contrast != 0f) {
+            list.add(androidx.media3.effect.Contrast((config.contrast * s).coerceIn(-1f, 1f)))
+        }
+
+        // 3. Saturation + Vibrance (vibrance feeds half its weight into saturation)
         val totalSat = (config.saturation + config.vibrance * 0.5f) * s
         if (totalSat != 0f) {
             list.add(
                 androidx.media3.effect.HslAdjustment.Builder()
-                    .adjustSaturation(totalSat * 100f)
+                    .adjustSaturation((totalSat * 100f).coerceIn(-100f, 100f))
                     .build()
             )
         }
 
+        // 4. Gamma (0.5..2.0) - Media3 has no true gamma curve; approximate with
+        //    a per-channel linear scale so the slider gives immediate feedback.
+        if (config.gamma != 1.0f) {
+            val g = config.gamma.coerceIn(0.5f, 2.0f)
+            val scale = (1f + (g - 1f) * 0.45f).coerceIn(0.6f, 1.5f)
+            list.add(
+                androidx.media3.effect.RgbAdjustment.Builder()
+                    .setRedScale(scale)
+                    .setGreenScale(scale)
+                    .setBlueScale(scale)
+                    .build()
+            )
+        }
+
+        // 5. Color Temperature (cool -> warm)
         if (config.colorTemperature != 0f) {
             val temp = config.colorTemperature * s
             val r = if (temp > 0f) 1f + temp * 0.2f else 1f + temp * 0.1f
             val b = if (temp < 0f) 1f - temp * 0.2f else 1f - temp * 0.1f
             list.add(
                 androidx.media3.effect.RgbAdjustment.Builder()
-                    .setRedScale(r)
-                    .setBlueScale(b)
+                    .setRedScale(r.coerceIn(0.5f, 1.5f))
+                    .setBlueScale(b.coerceIn(0.5f, 1.5f))
                     .build()
             )
         }
 
+        // 6. Noise Reduction - subtle Gaussian blur (denoise BEFORE sharpen)
+        if (config.noiseReduction > 0f) {
+            val radius = (0.4f + config.noiseReduction * s * 2.5f).coerceIn(0.2f, 2.0f)
+            list.add(androidx.media3.effect.GaussianBlur(radius))
+        }
+
+        // 7. Sharpness / Edge Enhancement / Texture Enhancement - one
+        //    unsharp-mask separable convolution with combined weight.
+        val detail = (config.sharpness + config.edgeEnhancement * 0.7f + config.textureEnhancement * 0.5f) * s
+        if (detail > 0f) {
+            list.add(UnsharpMaskConvolution(detail.coerceIn(0f, 0.9f)))
+        }
+
         return list
+    }
+
+    /**
+     * Unsharp-mask separable convolution kernel [-w, 1+2w, -w] applied in
+     * both X and Y directions. Drives the Sharpness / Edge / Texture sliders
+     * and gives the crisp "detail pop" of a true sharpen, live.
+     */
+    private class UnsharpMaskConvolution(private val amount: Float) :
+        androidx.media3.effect.SeparableConvolution() {
+
+        override fun getConvolution(presentationTimeUs: Long): androidx.media3.effect.ConvolutionFunction1D {
+            return object : androidx.media3.effect.ConvolutionFunction1D {
+                override fun domainStart(): Float = -1f
+                override fun domainEnd(): Float = 1f
+                override fun value(x: Float): Float = when (x) {
+                    -1f, 1f -> -amount
+                    0f -> 1f + 2f * amount
+                    else -> 0f
+                }
+            }
+        }
     }
 }

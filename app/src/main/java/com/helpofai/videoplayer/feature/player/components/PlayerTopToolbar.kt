@@ -24,16 +24,19 @@ package com.helpofai.videoplayer.feature.player.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -43,44 +46,81 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
+/* =====================================================================
+ *  PROFESSIONAL COLOR ICON SYSTEM
+ *  Each tool has its own signature color so the toolbar reads at a
+ *  glance. Inactive icons show their color at 75% alpha; ACTIVE icons
+ *  light up to full color, gain a soft glow halo, a bottom indicator
+ *  dot, and a subtle scale pop.
+ * ===================================================================== */
+
+/**
+ * AnimatedIconButton — the colorful, professional toolbar button.
+ *
+ * @param color    Signature color of the tool. Shown muted when inactive,
+ *                 full + glowing when active.
+ * @param isActive When true the icon lights up (color, glow halo,
+ *                 indicator dot, scale pop).
+ */
 @Composable
 fun AnimatedIconButton(
     onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    tint: Color = Color.White,
+    color: Color = Color.White,
     isActive: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.85f else if (isActive) 1.15f else 1f,
         animationSpec = tween(150),
         label = "iconScale"
     )
-    
-    val actualTint = if (isActive) MaterialTheme.colorScheme.primary else tint
 
-    IconButton(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        modifier = Modifier.scale(scale)
-    ) {
-        Icon(icon, contentDescription = contentDescription, tint = actualTint)
+    val actualTint = if (isActive) color else color.copy(alpha = 0.75f)
+
+    Box(contentAlignment = Alignment.Center) {
+        // Soft glow halo behind ACTIVE icons
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(color.copy(alpha = 0.30f), Color.Transparent)
+                        )
+                    )
+            )
+        }
+        IconButton(
+            onClick = onClick,
+            interactionSource = interactionSource,
+            modifier = Modifier.scale(scale)
+        ) {
+            Icon(icon, contentDescription = contentDescription, tint = actualTint)
+        }
+        // Small indicator dot under ACTIVE icons
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .size(5.dp)
+                    .background(color, CircleShape)
+            )
+        }
     }
 }
 
@@ -97,6 +137,9 @@ fun PlayerTopToolbar(
     onInfoClick: () -> Unit,
     onRotateClick: () -> Unit,
     onVideoEnhancerClick: () -> Unit,
+    onAutoAIEnhanceClick: () -> Unit,
+    isHQMode: Boolean = false,
+    onHQClick: () -> Unit = {},
     onVideoAdjustmentsClick: () -> Unit,
     abRepeatState: String,
     onABRepeatClick: () -> Unit,
@@ -109,6 +152,15 @@ fun PlayerTopToolbar(
     onEmptyClick: () -> Unit,
     isStreaming: Boolean = false,
     isHost: Boolean = false,
+    // ---- Live active states (light the icon up) ----
+    isLockActive: Boolean = false,
+    isSpeedActive: Boolean = false,
+    isEqActive: Boolean = false,
+    isLoopActive: Boolean = false,
+    isRotateActive: Boolean = false,
+    isEnhancerActive: Boolean = false,
+    isAutoAIActive: Boolean = false,
+    isAdjustmentsActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -123,7 +175,7 @@ fun PlayerTopToolbar(
         ) + fadeOut(animationSpec = tween(150)),
         modifier = modifier
     ) {
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -157,14 +209,14 @@ fun PlayerTopToolbar(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack, 
+                        Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = Color.White
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
-                
+
                 if (!isToolsExpanded) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -200,13 +252,49 @@ fun PlayerTopToolbar(
                             }
                         }
                     }
-                    
+
                     // Quick access most required icons when collapsed
-                    AnimatedIconButton(onClick = onAudioClick, icon = Icons.Default.Audiotrack, contentDescription = "Audio")
-                    AnimatedIconButton(onClick = onSubtitlesClick, icon = Icons.Default.Subtitles, contentDescription = "Subtitles")
-                    AnimatedIconButton(onClick = onVideoEnhancerClick, icon = Icons.Default.AutoFixHigh, contentDescription = "Video Enhancer")
-                    AnimatedIconButton(onClick = onVideoAdjustmentsClick, icon = Icons.Default.AspectRatio, contentDescription = "Adjustments")
-                    
+                    AnimatedIconButton(
+                        onClick = onAudioClick,
+                        icon = Icons.Default.Audiotrack,
+                        contentDescription = "Audio",
+                        color = ToolIconPalette.Audio
+                    )
+                    AnimatedIconButton(
+                        onClick = onSubtitlesClick,
+                        icon = Icons.Default.Subtitles,
+                        contentDescription = "Subtitles",
+                        color = ToolIconPalette.Subtitles
+                    )
+                    AnimatedIconButton(
+                        onClick = onVideoEnhancerClick,
+                        icon = Icons.Default.AutoFixHigh,
+                        contentDescription = "Video Enhancer",
+                        color = ToolIconPalette.VideoEnhancer,
+                        isActive = isEnhancerActive
+                    )
+                    AnimatedIconButton(
+                        onClick = onAutoAIEnhanceClick,
+                        icon = Icons.Default.AutoAwesome,
+                        contentDescription = "Auto AI Enhancement",
+                        color = ToolIconPalette.AutoAI,
+                        isActive = isAutoAIActive
+                    )
+                    AnimatedIconButton(
+                        onClick = onHQClick,
+                        icon = Icons.Default.HighQuality,
+                        contentDescription = "HQ Mode",
+                        color = ToolIconPalette.HQ,
+                        isActive = isHQMode
+                    )
+                    AnimatedIconButton(
+                        onClick = onVideoAdjustmentsClick,
+                        icon = Icons.Default.AspectRatio,
+                        contentDescription = "Adjustments",
+                        color = ToolIconPalette.Adjustments,
+                        isActive = isAdjustmentsActive
+                    )
+
                 } else {
                     Row(
                         modifier = Modifier
@@ -219,34 +307,106 @@ fun PlayerTopToolbar(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
-                        AnimatedIconButton(onClick = onLockClick, icon = Icons.Default.Lock, contentDescription = "Lock")
-                        AnimatedIconButton(onClick = onSpeedClick, icon = Icons.Default.Speed, contentDescription = "Speed")
-                        AnimatedIconButton(onClick = onEqClick, icon = Icons.Default.GraphicEq, contentDescription = "Equalizer")
-                        AnimatedIconButton(onClick = onLoopClick, icon = Icons.Default.Repeat, contentDescription = "Loop")
-                        AnimatedIconButton(onClick = onAudioClick, icon = Icons.Default.Audiotrack, contentDescription = "Audio")
-                        AnimatedIconButton(onClick = onSubtitlesClick, icon = Icons.Default.Subtitles, contentDescription = "Subtitles")
-                        AnimatedIconButton(onClick = onScreenshotClick, icon = Icons.Default.PhotoCamera, contentDescription = "Screenshot")
-                        
+                        AnimatedIconButton(
+                            onClick = onLockClick,
+                            icon = Icons.Default.Lock,
+                            contentDescription = "Lock",
+                            color = ToolIconPalette.Lock,
+                            isActive = isLockActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onSpeedClick,
+                            icon = Icons.Default.Speed,
+                            contentDescription = "Speed",
+                            color = ToolIconPalette.Speed,
+                            isActive = isSpeedActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onEqClick,
+                            icon = Icons.Default.GraphicEq,
+                            contentDescription = "Equalizer",
+                            color = ToolIconPalette.Equalizer,
+                            isActive = isEqActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onLoopClick,
+                            icon = Icons.Default.Repeat,
+                            contentDescription = "Loop",
+                            color = ToolIconPalette.Loop,
+                            isActive = isLoopActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onAudioClick,
+                            icon = Icons.Default.Audiotrack,
+                            contentDescription = "Audio",
+                            color = ToolIconPalette.Audio
+                        )
+                        AnimatedIconButton(
+                            onClick = onSubtitlesClick,
+                            icon = Icons.Default.Subtitles,
+                            contentDescription = "Subtitles",
+                            color = ToolIconPalette.Subtitles
+                        )
+                        AnimatedIconButton(
+                            onClick = onScreenshotClick,
+                            icon = Icons.Default.PhotoCamera,
+                            contentDescription = "Screenshot",
+                            color = ToolIconPalette.Screenshot
+                        )
+
                         Box(modifier = Modifier.clickable { onABRepeatClick() }.padding(8.dp), contentAlignment = Alignment.Center) {
                             AnimatedIconButton(
-                                onClick = onABRepeatClick, 
-                                icon = Icons.Default.SyncAlt, 
-                                contentDescription = "AB Repeat", 
+                                onClick = onABRepeatClick,
+                                icon = Icons.Default.SyncAlt,
+                                contentDescription = "AB Repeat",
+                                color = ToolIconPalette.ABRepeat,
                                 isActive = abRepeatState.isNotEmpty()
                             )
                             if (abRepeatState.isNotEmpty()) {
                                 Text(
                                     text = abRepeatState,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = ToolIconPalette.ABRepeat,
                                     style = MaterialTheme.typography.labelSmall,
                                     modifier = Modifier.align(Alignment.BottomEnd)
                                 )
                             }
                         }
-                        AnimatedIconButton(onClick = onRotateClick, icon = Icons.Default.ScreenRotation, contentDescription = "Rotate")
-                        AnimatedIconButton(onClick = onVideoEnhancerClick, icon = Icons.Default.AutoFixHigh, contentDescription = "Video Enhancer")
-                        AnimatedIconButton(onClick = onVideoAdjustmentsClick, icon = Icons.Default.AspectRatio, contentDescription = "Adjustments")
-                        
+                        AnimatedIconButton(
+                            onClick = onRotateClick,
+                            icon = Icons.Default.ScreenRotation,
+                            contentDescription = "Rotate",
+                            color = ToolIconPalette.Rotate,
+                            isActive = isRotateActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onVideoEnhancerClick,
+                            icon = Icons.Default.AutoFixHigh,
+                            contentDescription = "Video Enhancer",
+                            color = ToolIconPalette.VideoEnhancer,
+                            isActive = isEnhancerActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onAutoAIEnhanceClick,
+                            icon = Icons.Default.AutoAwesome,
+                            contentDescription = "Auto AI Enhancement",
+                            color = ToolIconPalette.AutoAI,
+                            isActive = isAutoAIActive
+                        )
+                        AnimatedIconButton(
+                            onClick = onHQClick,
+                            icon = Icons.Default.HighQuality,
+                            contentDescription = "HQ Mode",
+                            color = ToolIconPalette.HQ,
+                            isActive = isHQMode
+                        )
+                        AnimatedIconButton(
+                            onClick = onVideoAdjustmentsClick,
+                            icon = Icons.Default.AspectRatio,
+                            contentDescription = "Adjustments",
+                            color = ToolIconPalette.Adjustments,
+                            isActive = isAdjustmentsActive
+                        )
+
                         val context = androidx.compose.ui.platform.LocalContext.current
                         AnimatedIconButton(
                             onClick = {
@@ -257,9 +417,15 @@ fun PlayerTopToolbar(
                                 activity?.enterPictureInPictureMode(params)
                             },
                             icon = Icons.Default.PictureInPictureAlt,
-                            contentDescription = "Mini Player"
+                            contentDescription = "Mini Player",
+                            color = ToolIconPalette.PiP
                         )
-                        AnimatedIconButton(onClick = onInfoClick, icon = Icons.Default.Info, contentDescription = "Info")
+                        AnimatedIconButton(
+                            onClick = onInfoClick,
+                            icon = Icons.Default.Info,
+                            contentDescription = "Info",
+                            color = ToolIconPalette.Info
+                        )
                     }
                 }
 
@@ -267,7 +433,9 @@ fun PlayerTopToolbar(
                 AnimatedIconButton(
                     onClick = { onToolsExpandedChange(!isToolsExpanded) },
                     icon = if (isToolsExpanded) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = if (isToolsExpanded) "Collapse Tools" else "Expand Tools"
+                    contentDescription = if (isToolsExpanded) "Collapse Tools" else "Expand Tools",
+                    color = MaterialTheme.colorScheme.primary,
+                    isActive = isToolsExpanded
                 )
 
                 Box {

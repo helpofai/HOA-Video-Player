@@ -28,6 +28,7 @@ data class PlaybackState(
     val duration: Long = 0L,
     val bufferedPosition: Long = 0L,
     val playbackState: Int = 1, // Player.STATE_IDLE
+    val playbackSpeed: Float = 1f,
     val currentDecoderName: String = "Unknown",
     val isHardwareDecoder: Boolean = true,
     val videoCodec: String = "Unknown",

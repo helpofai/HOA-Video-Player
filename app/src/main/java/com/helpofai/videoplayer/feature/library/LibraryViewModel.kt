@@ -81,6 +81,11 @@ class LibraryViewModel @Inject constructor(
     
     private val _storageReport = MutableStateFlow<ScannerStorageAnalyzer.StorageReport?>(null)
     val storageReport = _storageReport.asStateFlow()
+    
+    private val _scanProgress = MutableStateFlow(MediaScanProgressState())
+    val scanProgress = _scanProgress.asStateFlow()
+    
+    private var scanStartTime: Long = 0L
 
     private var loadJob: Job? = null
     
@@ -164,9 +169,49 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun refreshVideos() {
+        scanStartTime = System.currentTimeMillis()
+        _scanProgress.value = MediaScanProgressState(
+            isScanning = true,
+            statusMessage = "Starting media scan..."
+        )
+        
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            repository.refreshVideos()
+            try {
+                repository.getVideosWithMetadata().collectLatest { videos ->
+                    val elapsedMs = System.currentTimeMillis() - scanStartTime
+                    val progress = if (videos.isNotEmpty()) {
+                        ((videos.size.toFloat() / (videos.size * 1.2f)) * 100f).coerceIn(0f, 100f)
+                    } else {
+                        0f
+                    }
+                    
+                    _scanProgress.value = _scanProgress.value.copy(
+                        isScanning = false,
+                        videosFound = videos.size,
+                        videosScanned = videos.size,
+                        progressPercentage = 100f,
+                        elapsedTimeMs = elapsedMs,
+                        statusMessage = "Scan complete! Found ${videos.size} videos",
+                        totalSizeBytes = videos.sumOf { it.size }
+                    )
+                    
+                    _state.update {
+                        it.copy(
+                            allVideos = videos,
+                            videos = applySortAndFilter(videos, it.sortOption, it.filterOption),
+                            isLoading = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Error refreshing videos", e)
+                _scanProgress.value = _scanProgress.value.copy(
+                    isScanning = false,
+                    errorMessage = e.message ?: "Unknown error occurred"
+                )
+                _state.update { it.copy(isLoading = false) }
+            }
         }
     }
 

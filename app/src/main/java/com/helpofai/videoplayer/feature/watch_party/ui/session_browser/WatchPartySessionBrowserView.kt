@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.watch_party.ui.session_browser
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -47,7 +48,7 @@ fun WatchPartySessionBrowserView(
         ) {
             Text("Discover Watch Parties", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
             IconButton(onClick = onRefreshDiscovery) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.LightGray)
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = ToolIconPalette.Refresh)
             }
         }
         
@@ -65,7 +66,7 @@ fun WatchPartySessionBrowserView(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = ToolIconPalette.Queue)
                 Spacer(modifier = Modifier.width(10.dp))
                 Text("Scan Watch Party Host QR Code", style = MaterialTheme.typography.bodyMedium, color = Color.White, fontWeight = FontWeight.Bold)
             }
@@ -97,7 +98,7 @@ fun WatchPartySessionBrowserView(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Icon(Icons.Default.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.Wifi, contentDescription = null, tint = ToolIconPalette.Network)
                                 Column {
                                     Text(host.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
                                     Text("IP Endpoint: ${host.ipAddress}:${host.port}", fontSize = 10.sp, color = Color.Gray)

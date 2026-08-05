@@ -22,6 +22,7 @@
 */
 package com.helpofai.videoplayer.feature.library.components
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -449,7 +450,7 @@ fun LibraryHomeTab(
                     androidx.compose.material3.Icon(
                         Icons.Default.Folder,
                         contentDescription = null,
-                        tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                        tint = ToolIconPalette.Folders,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))

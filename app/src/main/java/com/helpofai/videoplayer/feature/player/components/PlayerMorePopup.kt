@@ -26,6 +26,7 @@ import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -71,8 +72,10 @@ import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.ui.draw.scale
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
-data class ToolItem(val icon: ImageVector, val name: String, val onClick: () -> Unit)
+data class ToolItem(val icon: ImageVector, val name: String, val color: Color = Color.White, val onClick: () -> Unit)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -463,18 +466,18 @@ fun PlayerMorePopup(
                         )
 
                         val tools = listOf(
-                            ToolItem(Icons.Default.QueueMusic, "Playing Queue") { showQueue = true },
-                            ToolItem(Icons.Default.Group, "Watch Party") { showWatchPartyConfig = true },
-                            ToolItem(Icons.Default.Info, "Diagnostics") { onDiagnosticsClick() },
-                            ToolItem(Icons.Default.AspectRatio, "Aspect Ratio") { onDisplaySettingsClick() },
-                            ToolItem(Icons.Default.DisplaySettings, "Display Settings") { onDisplaySettingsClick() },
-                            ToolItem(Icons.Default.Bookmarks, "Bookmarks") { onBookmarksClick() },
-                            ToolItem(Icons.Default.AutoAwesomeMotion, "Smart Scenes") { onBookmarksClick() },
-                            ToolItem(Icons.Default.HighQuality, "Quality Analyzer") { onQualityAnalyzerClick() },
-                            ToolItem(Icons.Default.Favorite, "Favourite") {},
-                            ToolItem(Icons.Default.PlaylistAdd, "Add to Playlist") {},
-                            ToolItem(Icons.Default.Share, "Share") {},
-                            ToolItem(Icons.Default.Cast, "Network Stream") {}
+                            ToolItem(Icons.Default.QueueMusic, "Playing Queue", ToolIconPalette.Queue) { showQueue = true },
+                            ToolItem(Icons.Default.Group, "Watch Party", ToolIconPalette.WatchParty) { showWatchPartyConfig = true },
+                            ToolItem(Icons.Default.Info, "Diagnostics", ToolIconPalette.Info) { onDiagnosticsClick() },
+                            ToolItem(Icons.Default.AspectRatio, "Aspect Ratio", ToolIconPalette.Adjustments) { onDisplaySettingsClick() },
+                            ToolItem(Icons.Default.DisplaySettings, "Display Settings", ToolIconPalette.Display) { onDisplaySettingsClick() },
+                            ToolItem(Icons.Default.Bookmarks, "Bookmarks", ToolIconPalette.Bookmarks) { onBookmarksClick() },
+                            ToolItem(Icons.Default.AutoAwesomeMotion, "Smart Scenes", ToolIconPalette.AutoAI) { onBookmarksClick() },
+                            ToolItem(Icons.Default.HighQuality, "Quality Analyzer", ToolIconPalette.QualityAnalyzer) { onQualityAnalyzerClick() },
+                            ToolItem(Icons.Default.Favorite, "Favourite", ToolIconPalette.Favorite) {},
+                            ToolItem(Icons.Default.PlaylistAdd, "Add to Playlist", ToolIconPalette.PlaylistAdd) {},
+                            ToolItem(Icons.Default.Share, "Share", ToolIconPalette.Share) {},
+                            ToolItem(Icons.Default.Cast, "Network Stream", ToolIconPalette.Network) {}
                         )
 
                         // Tools Grid
@@ -488,7 +491,12 @@ fun PlayerMorePopup(
                                     modifier = Modifier
                                         .size(96.dp, 80.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.White.copy(alpha = 0.05f))
+                                        .background(tool.color.copy(alpha = 0.10f))
+                                        .border(
+                                            1.dp,
+                                            tool.color.copy(alpha = 0.25f),
+                                            RoundedCornerShape(12.dp)
+                                        )
                                         .clickable { tool.onClick() }
                                         .padding(8.dp),
                                     contentAlignment = Alignment.Center
@@ -497,7 +505,24 @@ fun PlayerMorePopup(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center
                                     ) {
-                                        Icon(tool.icon, contentDescription = tool.name, tint = Color.White, modifier = Modifier.size(32.dp))
+                                        Box(contentAlignment = Alignment.Center) {
+                                            // Soft glow halo behind every tool icon
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .background(
+                                                        androidx.compose.ui.graphics.Brush.radialGradient(
+                                                            colors = listOf(tool.color.copy(alpha = 0.25f), Color.Transparent)
+                                                        )
+                                                    )
+                                            )
+                                            Icon(
+                                                tool.icon,
+                                                contentDescription = tool.name,
+                                                tint = tool.color,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
                                             text = tool.name,
@@ -521,10 +546,10 @@ fun PlayerMorePopup(
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
-                        ShortcutToggle("Double tap to seek", isDoubleTapEnabled) { isDoubleTapEnabled = it }
-                        ShortcutToggle("Swipe for volume/brightness", isSwipeGesturesEnabled) { isSwipeGesturesEnabled = it }
-                        ShortcutToggle("Auto play next video", isAutoPlayNext) { isAutoPlayNext = it }
-                        ShortcutToggle("Background playback", isBackgroundPlay) { isBackgroundPlay = it }
+                        ShortcutToggle("Double tap to seek", isDoubleTapEnabled, ToolIconPalette.Speed) { isDoubleTapEnabled = it }
+                        ShortcutToggle("Swipe for volume/brightness", isSwipeGesturesEnabled, ToolIconPalette.Adjustments) { isSwipeGesturesEnabled = it }
+                        ShortcutToggle("Auto play next video", isAutoPlayNext, ToolIconPalette.Loop) { isAutoPlayNext = it }
+                        ShortcutToggle("Background playback", isBackgroundPlay, ToolIconPalette.Audio) { isBackgroundPlay = it }
                         
                         // Watch Party Tick — enables streaming of currently playing video
                         // When ticked ON: sets the current video as the streaming source (no picker dialog)
@@ -532,7 +557,7 @@ fun PlayerMorePopup(
                         val isClient = watchPartySessionManager.isClientMode
                         if (!isClient) {
                             val isSyncModeEnabled by watchPartySessionManager.isSyncModeEnabled.collectAsState()
-                            ShortcutToggle("Watch Party Synchronized Mode", isSyncModeEnabled) { isChecked ->
+                            ShortcutToggle("Watch Party Synchronized Mode", isSyncModeEnabled, ToolIconPalette.WatchParty) { isChecked ->
                                 watchPartySessionManager.setSyncMode(isChecked)
                                 if (isChecked) {
                                     val currentVideo = videos.firstOrNull { it.path == currentVideoPath } ?: run {
@@ -570,12 +595,19 @@ fun PlayerMorePopup(
 }
 
 @Composable
-fun ShortcutToggle(title: String, isChecked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun ShortcutToggle(
+    title: String,
+    isChecked: Boolean,
+    color: Color = MaterialTheme.colorScheme.primary,
+    onCheckedChange: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.08f))
+            .border(1.dp, color.copy(alpha = 0.20f), RoundedCornerShape(8.dp))
             .clickable { onCheckedChange(!isChecked) }
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -587,9 +619,9 @@ fun ShortcutToggle(title: String, isChecked: Boolean, onCheckedChange: (Boolean)
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = color,
                 uncheckedThumbColor = Color.Gray,
-                uncheckedTrackColor = Color.White.copy(alpha = 0.2f)
+                uncheckedTrackColor = color.copy(alpha = 0.25f)
             )
         )
     }

@@ -26,8 +26,10 @@ This application operates 100% entirely offline. No cloud APIs, no backend, no d
 
 ### 🧠 Advanced AI & Smart Features
 *   **Intelligent Thumbnail Engine:** Extracts multiple candidate frames across the video and uses luminance variance heuristics to automatically select the most visually engaging thumbnail.
+*   **Auto AI Enhancement Engine:** Tap "Auto AI" on any video and the player samples its actual frames (luminance, contrast, colorfulness) to build a tailored enhancement config — persisted per video.
 *   **Smart Folder Library:** Features a beautiful masonry 2x2 grid displaying dynamic folder previews.
 *   **Intelligent Storage Dashboard:** Real-time analysis of storage capacity, categorizing sizes natively.
+*   **Media Scan Progress Dialog:** Live progress feedback while refreshing your library, with pull-to-refresh on the Home page.
 
 ### 🎬 Core Playback Experience
 *   **Media3 ExoPlayer Integration:** High-performance, low-latency video playback for almost all major formats.
@@ -52,6 +54,7 @@ This application operates 100% entirely offline. No cloud APIs, no backend, no d
 
 ### 🎨 UI & Aesthetics
 *   **Compact Single-Row Controller:** `[Prev] [Play] [Next] [Time] [Slider] [Duration] [Fullscreen]` logic that saves massive amounts of screen real estate.
+*   **Signature Color Icon System:** Every tab and file type carries its own signature color (teal Home, amber Folders, indigo Files, orange Watch Party, purple Tools) with a soft glow halo on the selected tab.
 *   **Glassmorphism Effects:** Beautiful 80% transparent blur effects utilized throughout the UI (More Menus, Bottom Sheets, Settings, etc.).
 *   **Material 3 Dynamic Theming:** Adapts to modern Android design standards with premium animations.
 

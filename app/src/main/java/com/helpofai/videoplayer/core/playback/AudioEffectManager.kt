@@ -22,6 +22,9 @@
 */
 package com.helpofai.videoplayer.core.playback
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
@@ -36,21 +39,27 @@ class AudioEffectManager @Inject constructor() {
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
 
-    var isEqualizerEnabled: Boolean = false
+    private val _isEqualizerEnabled = mutableStateOf(false)
+    var isEqualizerEnabled: Boolean
+        get() = _isEqualizerEnabled.value
         set(value) {
-            field = value
+            _isEqualizerEnabled.value = value
             equalizer?.enabled = value
         }
 
-    var isBassBoostEnabled: Boolean = false
+    private val _isBassBoostEnabled = mutableStateOf(false)
+    var isBassBoostEnabled: Boolean
+        get() = _isBassBoostEnabled.value
         set(value) {
-            field = value
+            _isBassBoostEnabled.value = value
             bassBoost?.enabled = value
         }
 
-    var isVirtualizerEnabled: Boolean = false
+    private val _isVirtualizerEnabled = mutableStateOf(false)
+    var isVirtualizerEnabled: Boolean
+        get() = _isVirtualizerEnabled.value
         set(value) {
-            field = value
+            _isVirtualizerEnabled.value = value
             virtualizer?.enabled = value
         }
 

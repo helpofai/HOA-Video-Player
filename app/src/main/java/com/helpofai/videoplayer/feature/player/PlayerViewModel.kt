@@ -66,6 +66,7 @@ class PlayerViewModel @Inject constructor(
     private val audioQualityAnalyzer: com.helpofai.videoplayer.core.playback.diagnostics.AudioQualityAnalyzer,
     val subtitleStyleManager: com.helpofai.videoplayer.core.media.SubtitleStyleManager,
     val videoEnhancementManager: com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager,
+    val autoAIEnhancementEngine: com.helpofai.videoplayer.core.playback.diagnostics.AutoAIEnhancementEngine,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -591,6 +592,9 @@ class PlayerViewModel @Inject constructor(
             
             currentVideoPath = path
             _currentPathFlow.value = path
+            // HQ mode is per-video: reset when switching
+            resetHQMode()
+            videoEnhancementManager.applyPreset("original", null)
             val uri = Uri.fromFile(java.io.File(path))
             
             val meta = repository.getMetadata(path)
@@ -763,7 +767,108 @@ class PlayerViewModel @Inject constructor(
         }
     }
     
+    // -----------------------------------------------------------------
+    // HQ (High Quality) instant toggle
+    // -----------------------------------------------------------------
+
+    private val _isHQMode = MutableStateFlow(false)
+    val isHQMode = _isHQMode.asStateFlow()
+
+    /** Instant one-tap HQ enhancement for the current video. */
+    fun toggleHQMode() {
+        val path = currentVideoPath ?: return
+        val target = !_isHQMode.value
+        viewModelScope.launch {
+            if (target) {
+                // Strong HQ boost: crisp edges, rich color, deep contrast
+                val hqConfig = com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager.VideoEnhancementConfig(
+                    autoEnhance = false,
+                    preset = "hq",
+                    strength = 0.85f,
+                    brightness = 0.02f,
+                    contrast = 0.18f,
+                    saturation = 0.2f,
+                    vibrance = 0.22f,
+                    gamma = 1.0f,
+                    colorTemperature = 0.02f,
+                    sharpness = 0.6f,
+                    edgeEnhancement = 0.35f,
+                    noiseReduction = 0.15f,
+                    textureEnhancement = 0.45f,
+                    hdrProcessing = true,
+                    toneMapping = true,
+                    frameOptimization = true,
+                    colorCorrection = true
+                )
+                videoEnhancementManager.updateConfig(hqConfig)
+                _isHQMode.value = true
+                _autoAIState.value = AutoAIState()
+            } else {
+                videoEnhancementManager.applyPreset("original", null)
+                _isHQMode.value = false
+            }
+        }
+    }
+
+    /** Sync HQ state when a video changes (off by default for the next video). */
+    fun resetHQMode() {
+        _isHQMode.value = false
+    }
+
     fun clearQualityReport() {
         _qualityReport.value = null
+    }
+
+    // -----------------------------------------------------------------
+    // Auto AI Enhancement (per-video, on-demand)
+    // -----------------------------------------------------------------
+
+    data class AutoAIState(
+        val isAnalyzing: Boolean = false,
+        val result: com.helpofai.videoplayer.core.playback.diagnostics.AutoAIEnhancementEngine.AnalysisResult? = null,
+        val error: String? = null,
+        val cleared: Boolean = false
+    )
+
+    private val _autoAIState = MutableStateFlow(AutoAIState())
+    val autoAIState = _autoAIState.asStateFlow()
+
+    /** Runs AI analysis for the CURRENT video only, when user taps the button.
+     *  Toggle: if this video already has an AI enhancement, removes it instead. */
+    fun runAutoAIEnhancement() {
+        val path = currentVideoPath ?: run {
+            _autoAIState.value = AutoAIState(error = "No video loaded")
+            return
+        }
+        if (_autoAIState.value.isAnalyzing) return
+
+        // Toggle-off: AI already active for this video -> restore original
+        if (autoAIEnhancementEngine.hasSavedForVideo(path)) {
+            clearAutoAIEnhancement()
+            return
+        }
+
+        viewModelScope.launch {
+            _autoAIState.value = AutoAIState(isAnalyzing = true)
+            try {
+                val report = _mediaCompatibilityReport.value
+                val result = autoAIEnhancementEngine.analyzeVideo(path, report)
+                // Apply ONLY to the current video via the enhancement manager
+                videoEnhancementManager.updateConfig(result.config)
+                _autoAIState.value = AutoAIState(result = result)
+            } catch (e: Exception) {
+                _autoAIState.value = AutoAIState(error = e.message ?: "Analysis failed")
+            }
+        }
+    }
+
+    /** Removes the AI enhancement for the current video and restores original. */
+    fun clearAutoAIEnhancement() {
+        val path = currentVideoPath ?: return
+        viewModelScope.launch {
+            autoAIEnhancementEngine.clearForVideo(path)
+            videoEnhancementManager.applyPreset("original", null)
+            _autoAIState.value = AutoAIState(cleared = true)
+        }
     }
 }

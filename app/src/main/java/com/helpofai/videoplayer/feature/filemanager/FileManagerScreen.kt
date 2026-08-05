@@ -50,6 +50,7 @@ import android.provider.Settings
 import androidx.documentfile.provider.DocumentFile
 import com.helpofai.videoplayer.core.model.Video
 import com.helpofai.videoplayer.core.theme.frostedGlass
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import kotlinx.coroutines.delay
 import java.io.File
 import java.text.SimpleDateFormat
@@ -1456,42 +1457,42 @@ private fun TreeConnectorLines(
 
 private fun resolveFileIconAndColor(node: FileManagerNode): Pair<ImageVector, Color> {
     if (node.isDirectory) {
-        return Pair(Icons.Default.Folder, Color(0xFF00CEC9)) // ExplorerAccentC
+        return Pair(Icons.Default.Folder, ToolIconPalette.Folders)
     }
     val ext = node.extension.lowercase()
     return when {
         node.isVideo || ext in com.helpofai.videoplayer.core.media.MediaConstants.VIDEO_EXTENSIONS -> {
-            Pair(Icons.Default.PlayCircle, Color(0xFF2ECC71)) // Emerald Green
+            Pair(Icons.Default.PlayCircle, ToolIconPalette.PiP)
         }
         node.isAudio || ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS -> {
-            Pair(Icons.Default.MusicNote, Color(0xFF9B59B6)) // Amethyst Purple
+            Pair(Icons.Default.MusicNote, ToolIconPalette.Audio)
         }
         node.isSubtitle || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS -> {
-            Pair(Icons.Default.Subtitles, Color(0xFFF1C40F)) // Yellow
+            Pair(Icons.Default.Subtitles, ToolIconPalette.Subtitles)
         }
         ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS + "svg" -> {
-            Pair(Icons.Default.Image, Color(0xFF1ABC9C)) // Turquoise
+            Pair(Icons.Default.Image, ToolIconPalette.Screenshot)
         }
         ext in setOf("zip", "rar", "7z", "tar", "gz", "bz2", "xz") -> {
-            Pair(Icons.Default.Archive, Color(0xFFE67E22)) // Orange
+            Pair(Icons.Default.Archive, ToolIconPalette.ABRepeat)
         }
         ext in setOf("kt", "java", "py", "js", "ts", "cpp", "c", "h", "cs", "go", "sh", "bat", "html", "css", "xml", "json") -> {
-            Pair(Icons.Default.Code, Color(0xFF3498DB)) // Blue
+            Pair(Icons.Default.Code, ToolIconPalette.Search)
         }
         ext in setOf("apk", "aab") -> {
-            Pair(Icons.Default.Android, Color(0xFF3DDC84)) // Android Green
+            Pair(Icons.Default.Android, ToolIconPalette.Refresh)
         }
         ext == "pdf" -> {
-            Pair(Icons.Default.PictureInPicture, Color(0xFFE74C3C)) // Red
+            Pair(Icons.Default.PictureInPicture, ToolIconPalette.Speed)
         }
         ext in setOf("doc", "docx", "rtf", "odt", "txt") -> {
-            Pair(Icons.AutoMirrored.Filled.Article, Color(0xFF2980B9)) // Word Blue
+            Pair(Icons.AutoMirrored.Filled.Article, ToolIconPalette.Files)
         }
         ext in setOf("xls", "xlsx", "csv", "ods") -> {
-            Pair(Icons.AutoMirrored.Filled.List, Color(0xFF27AE60)) // Excel Green
+            Pair(Icons.AutoMirrored.Filled.List, ToolIconPalette.Share)
         }
         else -> {
-            Pair(Icons.Default.Description, Color(0xFF8E9CB0)) // ExplorerTextSub
+            Pair(Icons.Default.Description, ToolIconPalette.Files)
         }
     }
 }

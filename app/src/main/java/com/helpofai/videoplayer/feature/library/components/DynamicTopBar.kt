@@ -24,10 +24,11 @@ package com.helpofai.videoplayer.feature.library.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,7 +40,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,7 +51,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,23 +62,18 @@ import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,9 +88,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.basicMarquee
 import com.helpofai.videoplayer.core.theme.frostedGlass
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
 /**
  * Dynamic context-aware TopAppBar for HOA Video Player.
@@ -137,7 +131,7 @@ fun DynamicTopBar(
     selectedTab:          Int,
     selectedFolder:       String?,
     playlistTitle:        String?,
-    videoCount:           Int      = 0,
+    isRefreshing:         Boolean = false,
     scrollBehavior:       TopAppBarScrollBehavior,
     onBackClick:          () -> Unit,
     onHabitsClick:        () -> Unit,
@@ -216,7 +210,7 @@ fun DynamicTopBar(
                             Icon(
                                 Icons.Default.Folder,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = ToolIconPalette.Folders,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -238,7 +232,7 @@ fun DynamicTopBar(
                             Icon(
                                 Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = ToolIconPalette.Queue,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -284,7 +278,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.Bookmarks,
                         contentDescription = "Bookmarks",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = ToolIconPalette.Bookmarks
                     )
                 }
             }
@@ -293,7 +287,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.DeleteSweep,
                         contentDescription = "Trash Bin",
-                        tint = Color.Red
+                        tint = ToolIconPalette.Trash
                     )
                 }
             }
@@ -302,7 +296,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.CreateNewFolder,
                         contentDescription = "Create folder",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = ToolIconPalette.Folders
                     )
                 }
             }
@@ -313,7 +307,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "Sort & Filter",
-                        tint = Color.White
+                        tint = ToolIconPalette.More
                     )
                 }
             }
@@ -324,7 +318,7 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.Insights,
                         contentDescription = "Watching Habits",
-                        tint = Color.White
+                        tint = ToolIconPalette.Insights
                     )
                 }
             }
@@ -335,19 +329,57 @@ fun DynamicTopBar(
                     Icon(
                         Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = Color.White
+                        tint = ToolIconPalette.Search
                     )
                 }
             }
 
             // Refresh — media scan icon
             DynamicActionIcon(visible = isHome || isFolderRoot) {
-                IconButton(onClick = onRefreshClick) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Scan Media",
-                        tint = Color.White
-                    )
+                IconButton(
+                    onClick = { if (!isRefreshing) onRefreshClick() },
+                    enabled = !isRefreshing
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isRefreshing) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                } else {
+                                    Color.Transparent
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isRefreshing) {
+                            // Animated spinning refresh icon while scanning
+                            val infiniteTransition = rememberInfiniteTransition(label = "RefreshSpin")
+                            val rotation by infiniteTransition.animateFloat(
+                                initialValue = 0f,
+                                targetValue = 360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1000, delayMillis = 0, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                ),
+                                label = "RefreshRotation"
+                            )
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Scanning Media...",
+                                tint = ToolIconPalette.Refresh,
+                                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = rotation }
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Scan Media",
+                                tint = ToolIconPalette.Refresh,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -364,7 +396,7 @@ fun DynamicTopBar(
                         Icon(
                             Icons.Default.Settings,
                             contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = ToolIconPalette.Settings,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -454,26 +486,6 @@ private fun TabTitleText(title: String) {
                         )
                     )
                 )
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: video count badge next to logo on home
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun VideoBadge(count: Int) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-            .padding(horizontal = 7.dp, vertical = 3.dp)
-    ) {
-        Text(
-            text      = "$count",
-            fontSize  = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color     = MaterialTheme.colorScheme.primary
         )
     }
 }

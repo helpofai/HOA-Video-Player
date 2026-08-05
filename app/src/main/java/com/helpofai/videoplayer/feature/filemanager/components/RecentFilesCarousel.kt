@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.filemanager.components
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -125,10 +126,10 @@ fun RecentFilesCarousel(
 private fun getRecentFileIconMeta(node: FileManagerNode): Pair<ImageVector, Color> {
     val ext = node.file?.extension?.lowercase() ?: ""
     return when {
-        node.isAudio || ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS -> Pair(Icons.Default.MusicNote, Color(0xFF00CEC9))
-        ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS -> Pair(Icons.Default.Image, Color(0xFF00B894))
-        node.isSubtitle || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS -> Pair(Icons.Default.Subtitles, Color(0xFFFFD200))
-        ext in setOf("zip", "rar", "7z", "tar") -> Pair(Icons.Default.Folder, Color(0xFF7C5CE7))
-        else -> Pair(Icons.Default.Description, Color(0xFF8E9CB0))
+        node.isAudio || ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS -> Pair(Icons.Default.MusicNote, ToolIconPalette.Audio)
+        ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS -> Pair(Icons.Default.Image, ToolIconPalette.Screenshot)
+        node.isSubtitle || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS -> Pair(Icons.Default.Subtitles, ToolIconPalette.Subtitles)
+        ext in setOf("zip", "rar", "7z", "tar") -> Pair(Icons.Default.Folder, ToolIconPalette.PlaylistAdd)
+        else -> Pair(Icons.Default.Description, ToolIconPalette.Files)
     }
 }

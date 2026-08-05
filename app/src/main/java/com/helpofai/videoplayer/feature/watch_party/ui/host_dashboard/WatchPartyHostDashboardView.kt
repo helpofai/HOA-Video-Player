@@ -1,5 +1,6 @@
 package com.helpofai.videoplayer.feature.watch_party.ui.host_dashboard
 
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -108,7 +109,7 @@ fun WatchPartyHostDashboardView(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f), contentColor = Color.White),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.FastForward, contentDescription = null)
+                        Icon(Icons.Default.FastForward, contentDescription = null, tint = ToolIconPalette.Speed)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Skip 30s", fontSize = 11.sp)
                     }
@@ -129,7 +130,7 @@ fun WatchPartyHostDashboardView(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.Security, contentDescription = null, tint = ToolIconPalette.Lock, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Perms", fontSize = 9.sp)
             }
@@ -142,7 +143,7 @@ fun WatchPartyHostDashboardView(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.HighQuality, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.HighQuality, contentDescription = null, tint = ToolIconPalette.HQ, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Quality", fontSize = 9.sp)
             }
@@ -155,7 +156,7 @@ fun WatchPartyHostDashboardView(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.BarChart, contentDescription = null, tint = ToolIconPalette.Insights, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Stats", fontSize = 9.sp)
             }
@@ -168,7 +169,7 @@ fun WatchPartyHostDashboardView(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.QrCode, contentDescription = null, tint = ToolIconPalette.Queue, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("QR", fontSize = 9.sp)
             }
@@ -181,7 +182,7 @@ fun WatchPartyHostDashboardView(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(14.dp))
+                Icon(Icons.Default.Settings, contentDescription = null, tint = ToolIconPalette.Settings, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Setup", fontSize = 9.sp)
             }

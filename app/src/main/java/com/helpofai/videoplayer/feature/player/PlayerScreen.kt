@@ -44,7 +44,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
@@ -196,6 +199,62 @@ fun PlayerScreen(
         watchPartyVideoTitle?.let { currentVideoTitle = it }
     }
 
+    // Auto AI Enhancement state
+    val autoAIState by viewModel.autoAIState.collectAsState()
+    val isHQMode by viewModel.isHQMode.collectAsState()
+    // Live enhancement config (lights the Enhancer icon when active)
+    val enhancementConfig by viewModel.videoEnhancementManager.config.collectAsState()
+    val isEqualizerOn = viewModel.audioEffectManager.isEqualizerEnabled
+    // Live playback state (speed changes light the Speed icon)
+    val livePlaybackState by viewModel.videoPlayer.playbackState.collectAsState()
+    LaunchedEffect(isHQMode) {
+        feedbackEvent = FeedbackEvent(
+            type = FeedbackType.INFO,
+            icon = Icons.Default.HighQuality,
+            text = if (isHQMode) "HQ Mode ON" else "HQ Mode OFF"
+        )
+    }
+    var aiRevealContentType by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(autoAIState.result) {
+        autoAIState.result?.let { result ->
+            aiRevealContentType = result.contentType
+        }
+    }
+    LaunchedEffect(aiRevealContentType) {
+        if (aiRevealContentType != null) {
+            kotlinx.coroutines.delay(3200)
+            aiRevealContentType = null
+        }
+    }
+    // Auto AI Enhancement feedback
+    LaunchedEffect(autoAIState.result) {
+        autoAIState.result?.let { result ->
+            feedbackEvent = FeedbackEvent(
+                type = FeedbackType.INFO,
+                icon = Icons.Default.AutoAwesome,
+                text = "AI Enhanced: ${result.contentType.replace('_', ' ')} detected"
+            )
+        }
+    }
+    LaunchedEffect(autoAIState.error) {
+        autoAIState.error?.let { err ->
+            feedbackEvent = FeedbackEvent(
+                type = FeedbackType.INFO,
+                icon = Icons.Default.Error,
+                text = "AI Enhancement failed: $err"
+            )
+        }
+    }
+    LaunchedEffect(autoAIState.cleared) {
+        if (autoAIState.cleared) {
+            feedbackEvent = FeedbackEvent(
+                type = FeedbackType.INFO,
+                icon = Icons.Default.AutoAwesome,
+                text = "AI Enhancement removed for this video"
+            )
+        }
+    }
+
     val playlist by viewModel.playlist.collectAsState()
     val isPlayPauseAllowed by viewModel.isPlayPauseAllowed.collectAsState()
     val isSeekAllowed by viewModel.isSeekAllowed.collectAsState()
@@ -203,6 +262,7 @@ fun PlayerScreen(
     val isAudioTrackAllowed by viewModel.isAudioTrackAllowed.collectAsState()
     val isSubtitleToggleAllowed by viewModel.isSubtitleToggleAllowed.collectAsState()
     val isGesturesAllowed by viewModel.isGesturesAllowed.collectAsState()
+
 
     // AB Repeat State
     var abRepeatA by remember { mutableStateOf<Long?>(null) }
@@ -623,9 +683,32 @@ fun PlayerScreen(
                         ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                     }
                 },
+                isLockActive = isControlsLocked,
+                isLoopActive = isLooping,
+                isRotateActive = isLandscape,
+                isSpeedActive = livePlaybackState.playbackSpeed != 1f,
+                isEqActive = isEqualizerOn,
+                isEnhancerActive = enhancementConfig.preset != "original",
+                isAutoAIActive = autoAIState.result != null,
+                isAdjustmentsActive = scale != 1f,
                 onVideoEnhancerClick = {
                     if (isGesturesAllowed) {
                         showVideoEnhancer = true
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled video enhancements", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onAutoAIEnhanceClick = {
+                    if (isGesturesAllowed) {
+                        viewModel.runAutoAIEnhancement()
+                    } else {
+                        android.widget.Toast.makeText(context, "Host has disabled video enhancements", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+                isHQMode = isHQMode,
+                onHQClick = {
+                    if (isGesturesAllowed) {
+                        viewModel.toggleHQMode()
                     } else {
                         android.widget.Toast.makeText(context, "Host has disabled video enhancements", android.widget.Toast.LENGTH_SHORT).show()
                     }
@@ -918,7 +1001,43 @@ fun PlayerScreen(
                 }
             }
         }
-        
+
+        if (autoAIState.isAnalyzing) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color(0xCC000000), androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "AI ENHANCING THIS VIDEO",
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Analyzing frames - brightness, contrast, color...",
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        // Cinematic center-split reveal when Auto AI Enhancement activates
+        aiRevealContentType?.let { contentType ->
+            com.helpofai.videoplayer.feature.player.components.AutoAIRevealOverlay(
+                contentType = contentType,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
         } // End of !isInPipMode wrapper
 
         // Professional OSD Feedback Layer
