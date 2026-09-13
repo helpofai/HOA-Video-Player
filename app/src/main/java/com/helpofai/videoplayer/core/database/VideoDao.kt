@@ -69,4 +69,7 @@ interface VideoDao {
 
     @androidx.room.Delete
     suspend fun deleteBookmark(bookmark: com.helpofai.videoplayer.core.database.entities.BookmarkEntity)
+
+    @Query("DELETE FROM bookmarks WHERE videoPath = :videoPath AND label LIKE 'Scene %'")
+    suspend fun clearScenesForVideo(videoPath: String)
 }

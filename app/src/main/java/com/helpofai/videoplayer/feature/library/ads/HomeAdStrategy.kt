@@ -110,13 +110,8 @@ private fun AnimatedAdSlot(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 2 }
-    ) {
-        Box(modifier = modifier) { content() }
+    Box(modifier = modifier) {
+        content()
     }
 }
 

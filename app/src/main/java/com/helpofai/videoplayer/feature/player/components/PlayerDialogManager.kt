@@ -64,6 +64,7 @@ enum class PlayerDialogType {
     MORE_POPUP,
     AD_POPUP,
     BOOKMARKS_SHEET,
+    SMART_SCENES,
     DIAGNOSTICS,
     SUBTITLE_STYLE
 }
@@ -73,6 +74,7 @@ fun PlayerDialogManager(
     activeDialog: PlayerDialogType?,
     onDismissRequest: () -> Unit,
     viewModel: PlayerViewModel,
+    currentPosition: Long = 0L,
     // Decoder
     decoderMode: String,
     onDecoderModeSelect: (String) -> Unit,
@@ -112,18 +114,32 @@ fun PlayerDialogManager(
 
     when (activeDialog) {
         PlayerDialogType.TRACK_SELECTOR_AUDIO -> {
+            val audioReport by viewModel.audioQualityReport.collectAsState()
             TrackSelectorBottomSheet(
                 player = viewModel.videoPlayer.player,
                 initialTab = 0,
+                audioEffectManager = viewModel.audioEffectManager,
+                audioQualityReport = audioReport,
+                onOpenEqualizer = {
+                    onDismissRequest()
+                    onShowDialog(PlayerDialogType.EQUALIZER)
+                },
                 onDismissRequest = onDismissRequest,
                 onLoadExternalSubtitle = onLoadExternalSubtitle,
                 onOpenSubtitleStyle = onOpenSubtitleStyle
             )
         }
         PlayerDialogType.TRACK_SELECTOR_SUBTITLE -> {
+            val audioReport by viewModel.audioQualityReport.collectAsState()
             TrackSelectorBottomSheet(
                 player = viewModel.videoPlayer.player,
                 initialTab = 1,
+                audioEffectManager = viewModel.audioEffectManager,
+                audioQualityReport = audioReport,
+                onOpenEqualizer = {
+                    onDismissRequest()
+                    onShowDialog(PlayerDialogType.EQUALIZER)
+                },
                 onDismissRequest = onDismissRequest,
                 onLoadExternalSubtitle = onLoadExternalSubtitle,
                 onOpenSubtitleStyle = onOpenSubtitleStyle
@@ -195,6 +211,7 @@ fun PlayerDialogManager(
                 onVideoSelect = onVideoSelect,
                 onReorderPlaylist = onReorderPlaylist,
                 onBookmarksClick = { onShowDialog(PlayerDialogType.BOOKMARKS_SHEET) },
+                onSmartScenesClick = { onShowDialog(PlayerDialogType.SMART_SCENES) },
                 onQualityAnalyzerClick = {
                     onShowDialog(PlayerDialogType.QUALITY_SHEET)
                     viewModel.analyzeVideoQuality()
@@ -229,10 +246,12 @@ fun PlayerDialogManager(
                 }
         }
         PlayerDialogType.BOOKMARKS_SHEET -> {
-            com.helpofai.videoplayer.feature.scenedetection.components.SceneSelectionSheet(
-                videoPath = currentVideoPath,
+            BookmarksSheet(
                 bookmarks = bookmarks,
+                currentPosition = currentPosition,
                 onSeekTo = onSeekTo,
+                onAddBookmark = { pos -> viewModel.addBookmark(pos, "Bookmark") },
+                onDeleteBookmark = { bookmark -> viewModel.deleteBookmark(bookmark) },
                 onGenerateAutoChapters = {
                     onGenerateAutoChapters(
                         { /* onStart */ },
@@ -245,6 +264,30 @@ fun PlayerDialogManager(
                         }
                     )
                 },
+                isGeneratingChapters = isGeneratingChapters,
+                onDismissRequest = onDismissRequest
+            )
+        }
+        PlayerDialogType.SMART_SCENES -> {
+            com.helpofai.videoplayer.feature.scenedetection.components.SceneSelectionSheet(
+                videoPath = currentVideoPath,
+                bookmarks = bookmarks,
+                currentPosition = currentPosition,
+                videoDuration = try { viewModel.videoPlayer.player.duration.coerceAtLeast(0L) } catch (_: Exception) { 0L },
+                onGenerateAutoChapters = {
+                    onGenerateAutoChapters(
+                        { /* onStart */ },
+                        { success ->
+                            if (success) {
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "Scenes Detected"))
+                            } else {
+                                onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.AutoAwesome, "No Scenes Found"))
+                            }
+                        }
+                    )
+                },
+                onClearScenes = { viewModel.clearAutoScenes() },
+                onSeekTo = onSeekTo,
                 isGeneratingChapters = isGeneratingChapters,
                 onDismissRequest = onDismissRequest
             )

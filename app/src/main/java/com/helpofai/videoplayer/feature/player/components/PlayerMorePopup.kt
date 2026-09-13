@@ -85,6 +85,7 @@ fun PlayerMorePopup(
     onVideoSelect: (String) -> Unit,
     onReorderPlaylist: (Int, Int) -> Unit,
     onBookmarksClick: () -> Unit,
+    onSmartScenesClick: () -> Unit = onBookmarksClick,
     onQualityAnalyzerClick: () -> Unit,
     onDiagnosticsClick: () -> Unit,
     onDisplaySettingsClick: () -> Unit,
@@ -143,20 +144,34 @@ fun PlayerMorePopup(
                     .clickable(enabled = false) {} // block clicks
             ) {
                 if (showQueue) {
-                    // Playing Queue View
+                    // Playing Queue View — styled with the Queue signature color (cyan),
+                    // same glow-halo + alpha language as the Tools tiles
+                    val accent = ToolIconPalette.Queue
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { showQueue = false }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        // Glow halo behind the back icon, echoing the tool tile halos
+                        Box(contentAlignment = Alignment.Center) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.radialGradient(
+                                            colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                                        )
+                                    )
+                            )
+                            IconButton(onClick = { showQueue = false }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = accent)
+                            }
                         }
                         Text(
                             text = "Playing Queue",
                             style = MaterialTheme.typography.titleLarge,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier.padding(start = 4.dp)
                         )
                     }
                     
@@ -167,18 +182,18 @@ fun PlayerMorePopup(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         placeholder = { Text("Filter videos...", color = Color.Gray) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = accent) },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.Gray)
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = accent)
                                 }
                             }
                         },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedBorderColor = accent,
+                            unfocusedBorderColor = accent.copy(alpha = 0.30f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White
                         ),
@@ -203,9 +218,14 @@ fun PlayerMorePopup(
                                         .padding(horizontal = 16.dp, vertical = 6.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
-                                            if (isDragging) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                            else if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) 
+                                            if (isDragging) accent.copy(alpha = 0.5f)
+                                            else if (isCurrent) accent.copy(alpha = 0.16f)
                                             else Color.White.copy(alpha = 0.05f)
+                                        )
+                                        .border(
+                                            1.dp,
+                                            accent.copy(alpha = if (isCurrent) 0.40f else 0f),
+                                            RoundedCornerShape(12.dp)
                                         )
                                         .clickable { onVideoSelect(video.path) }
                                         .padding(12.dp),
@@ -240,7 +260,19 @@ fun PlayerMorePopup(
                                                     .background(Color.Black.copy(alpha = 0.5f)),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = "Playing", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                                                // Glow halo behind the play glyph — same as tool tiles
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(48.dp)
+                                                            .background(
+                                                                androidx.compose.ui.graphics.Brush.radialGradient(
+                                                                    colors = listOf(accent.copy(alpha = 0.40f), Color.Transparent)
+                                                                )
+                                                            )
+                                                    )
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = "Playing", tint = accent, modifier = Modifier.size(32.dp))
+                                                }
                                             }
                                         }
                                     }
@@ -250,7 +282,7 @@ fun PlayerMorePopup(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = video.title,
-                                            color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White,
+                                            color = if (isCurrent) accent else Color.White,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 1,
@@ -278,20 +310,33 @@ fun PlayerMorePopup(
                         }
                     }
                 } else if (showWatchPartyConfig) {
-                    // Watch Party Config Sub-Page
+                    // Watch Party Config Sub-Page — WatchParty signature color, same halo language
+                    val accent = ToolIconPalette.WatchParty
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { showWatchPartyConfig = false }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        // Glow halo behind the back icon, echoing the tool tile halos
+                        Box(contentAlignment = Alignment.Center) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.radialGradient(
+                                            colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                                        )
+                                    )
+                            )
+                            IconButton(onClick = { showWatchPartyConfig = false }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = accent)
+                            }
                         }
                         Text(
                             text = "Watch Party",
                             style = MaterialTheme.typography.titleLarge,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier.padding(start = 4.dp)
                         )
                     }
                     
@@ -304,7 +349,7 @@ fun PlayerMorePopup(
                     ) {
                         if (activeSession != null) {
                             val session = activeSession!!
-                            Text("Room Status: Active", color = Color.Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Room Status: Active", color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             Text("Host Device IP: ${session.hostIp}", color = Color.White, fontSize = 11.sp)
                             Text("Video: ${session.video?.title ?: "Local Stream Source"}", color = Color.LightGray, fontSize = 11.sp)
                             
@@ -317,8 +362,9 @@ fun PlayerMorePopup(
                             } else {
                                 guests.forEach { guest ->
                                     Surface(
-                                        color = Color.White.copy(alpha = 0.05f),
+                                        color = accent.copy(alpha = 0.08f),
                                         shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, accent.copy(alpha = 0.20f)),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -344,7 +390,7 @@ fun PlayerMorePopup(
                                     Surface(
                                         shape = RoundedCornerShape(16.dp),
                                         color = Color(0xFF111520),
-                                        border = BorderStroke(1.dp, Color(0xFF1E2535)),
+                                        border = BorderStroke(1.dp, accent.copy(alpha = 0.35f)),
                                         modifier = Modifier.fillMaxWidth().padding(16.dp)
                                     ) {
                                         Column(
@@ -352,7 +398,7 @@ fun PlayerMorePopup(
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
-                                            Text("Scan to Join Room", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
+                                            Text("Scan to Join Room", fontWeight = FontWeight.Bold, color = accent, fontSize = 16.sp)
                                             if (qrBitmap != null) {
                                                 Image(
                                                     bitmap = qrBitmap.asImageBitmap(),
@@ -367,7 +413,7 @@ fun PlayerMorePopup(
                                             Text("Room ID: ${session.id}", color = Color.LightGray, fontSize = 12.sp)
                                             Button(
                                                 onClick = { showQrDialog = false },
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C5CE7))
+                                                colors = ButtonDefaults.buttonColors(containerColor = accent)
                                             ) {
                                                 Text("Close", fontWeight = FontWeight.Bold)
                                             }
@@ -380,7 +426,7 @@ fun PlayerMorePopup(
                             
                             Button(
                                 onClick = { showQrDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C5CE7)),
+                                colors = ButtonDefaults.buttonColors(containerColor = accent),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Show Room QR Code", fontWeight = FontWeight.Bold)
@@ -423,9 +469,9 @@ fun PlayerMorePopup(
                             val streamingVideo by watchPartySessionManager.currentStreamingVideo.collectAsState()
                             if (streamingVideo != null) {
                                 Surface(
-                                    color = Color(0xFF0D2218),
+                                    color = accent.copy(alpha = 0.08f),
                                     shape = RoundedCornerShape(8.dp),
-                                    border = BorderStroke(1.dp, Color(0xFF00B894).copy(alpha = 0.3f)),
+                                    border = BorderStroke(1.dp, accent.copy(alpha = 0.35f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -433,7 +479,7 @@ fun PlayerMorePopup(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Default.PlayCircle, null, tint = Color(0xFF00B894), modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.PlayCircle, null, tint = accent, modifier = Modifier.size(18.dp))
                                         Column {
                                             Text("Streaming video set:", color = Color.Gray, fontSize = 9.sp)
                                             Text(streamingVideo!!.title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -443,7 +489,7 @@ fun PlayerMorePopup(
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     "\u2705 Watch Party tick is ON. Go to Watch Party tab \u2192 Host Room to create the room.",
-                                    color = Color(0xFF00B894),
+                                    color = accent,
                                     fontSize = 10.sp
                                 )
                             }
@@ -472,7 +518,7 @@ fun PlayerMorePopup(
                             ToolItem(Icons.Default.AspectRatio, "Aspect Ratio", ToolIconPalette.Adjustments) { onDisplaySettingsClick() },
                             ToolItem(Icons.Default.DisplaySettings, "Display Settings", ToolIconPalette.Display) { onDisplaySettingsClick() },
                             ToolItem(Icons.Default.Bookmarks, "Bookmarks", ToolIconPalette.Bookmarks) { onBookmarksClick() },
-                            ToolItem(Icons.Default.AutoAwesomeMotion, "Smart Scenes", ToolIconPalette.AutoAI) { onBookmarksClick() },
+                            ToolItem(Icons.Default.AutoAwesomeMotion, "Smart Scenes", ToolIconPalette.AutoAI) { onSmartScenesClick() },
                             ToolItem(Icons.Default.HighQuality, "Quality Analyzer", ToolIconPalette.QualityAnalyzer) { onQualityAnalyzerClick() },
                             ToolItem(Icons.Default.Favorite, "Favourite", ToolIconPalette.Favorite) {},
                             ToolItem(Icons.Default.PlaylistAdd, "Add to Playlist", ToolIconPalette.PlaylistAdd) {},

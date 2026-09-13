@@ -54,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import com.helpofai.videoplayer.core.model.Video
+import com.helpofai.videoplayer.core.theme.Primary
+import com.helpofai.videoplayer.core.theme.Secondary
 import kotlin.math.roundToInt
 
 @Composable
@@ -67,7 +69,9 @@ fun GlobalMiniPlayer(
     val video by manager.activeVideo.collectAsState()
     val isInPipMode by manager.isInPipMode.collectAsState()
 
-    if (!isActive || video == null) return
+    if (!isActive) return
+    // Snapshot the active video once the guard passed — safe to use in callbacks.
+    val currentVideo = video ?: return
 
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -112,16 +116,13 @@ fun GlobalMiniPlayer(
     val currentPosition = if (!videoPlayer.isReleased) playbackState.currentPosition else 0L
     val duration = if (!videoPlayer.isReleased) playbackState.duration else 0L
 
-    var isMuted by remember { 
-        mutableStateOf(if (!videoPlayer.isReleased) videoPlayer.player.volume == 0f else false) 
+    // Mute state, keyed to the active video so switching videos re-syncs it.
+    var isMuted by remember(currentVideo.id, videoPlayer.isReleased) {
+        mutableStateOf(!videoPlayer.isReleased && videoPlayer.player.volume == 0f)
     }
-
-    // Keep mute state synced in case player is re-initialized
-    LaunchedEffect(videoPlayer.isReleased) {
-        if (!videoPlayer.isReleased) {
-            isMuted = videoPlayer.player.volume == 0f
-        }
-    }
+    // Remembered pre-mute volume so unmute restores the exact level instead
+    // of jumping straight back to full volume.
+    var lastNonMutedVolume by remember(currentVideo.id) { mutableStateOf(1f) }
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -140,6 +141,9 @@ fun GlobalMiniPlayer(
                                 resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                             }
                         },
+                        update = { view ->
+                            if (!videoPlayer.isReleased) view.player = videoPlayer.player
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -156,7 +160,7 @@ fun GlobalMiniPlayer(
                             offsetY = (offsetY + dragAmount.y).coerceIn(0f, screenHeightPx - cardHeightPx)
                         }
                     }
-                    .clickable { onRestore(video!!) },
+                    .clickable { onRestore(currentVideo) },
                 shape = RoundedCornerShape(16.dp),
                 color = Color(0xEC0D0F17), // Glassmorphic dark blue-gray
                 border = BorderStroke(1.dp, SolidColor(Color.White.copy(alpha = 0.08f))),
@@ -172,6 +176,9 @@ fun GlobalMiniPlayer(
                                 player = videoPlayer.player
                                 resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                             }
+                        },
+                        update = { view ->
+                            if (!videoPlayer.isReleased) view.player = videoPlayer.player
                         },
                         modifier = Modifier
                             .fillMaxSize()
@@ -226,9 +233,12 @@ fun GlobalMiniPlayer(
                             onClick = {
                                 if (!videoPlayer.isReleased) {
                                     if (isMuted) {
-                                        videoPlayer.player.volume = 1f
+                                        videoPlayer.player.volume = lastNonMutedVolume
                                         isMuted = false
                                     } else {
+                                        if (videoPlayer.player.volume > 0f) {
+                                            lastNonMutedVolume = videoPlayer.player.volume
+                                        }
                                         videoPlayer.player.volume = 0f
                                         isMuted = true
                                     }
@@ -248,7 +258,7 @@ fun GlobalMiniPlayer(
 
                         // Restore/Fullscreen Button
                         IconButton(
-                            onClick = { onRestore(video!!) },
+                            onClick = { onRestore(currentVideo) },
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
@@ -264,7 +274,9 @@ fun GlobalMiniPlayer(
                         // Close/Dismiss Button
                         IconButton(
                             onClick = {
-                                videoPlayer.release()
+                                // Pause instead of releasing: the player is a shared
+                                // singleton used by the full player & watch party too.
+                                videoPlayer.pause()
                                 manager.dismissMiniPlayer()
                             },
                             modifier = Modifier.size(24.dp)
@@ -380,8 +392,8 @@ fun GlobalMiniPlayer(
                     drawRect(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
-                                Color(0xFF6C5CE7), // Elegant Purple
-                                Color(0xFF00CEC9)  // Modern Teal
+                                Primary,   // Brand purple
+                                Secondary // Brand teal
                             )
                         ),
                         size = androidx.compose.ui.geometry.Size(width * progress, height)

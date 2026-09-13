@@ -22,9 +22,12 @@
 */
 package com.helpofai.videoplayer.feature.library.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -97,10 +100,14 @@ fun LibraryCollectionChip(
  * Portrait-style card used in horizontal carousels (Recently Added, Large Files, etc.).
  * Shows thumbnail, title, size, favorite button, and a "more" context menu.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LibraryVideoInfoCard(
     video: Video,
     onClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
     onFavoriteClick: () -> Unit = {},
     onRenameClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
@@ -109,8 +116,31 @@ fun LibraryVideoInfoCard(
     onVaultClick: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.clickable(onClick = onClick)) {
-        VideoThumbnailCard(video = video)
+    Column(
+        modifier = Modifier
+            .then(
+                if (isSelected) Modifier.border(2.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
+                else Modifier
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+    ) {
+        Box {
+            VideoThumbnailCard(video = video)
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = Color(0xFF38BDF8),
+                        uncheckedColor = Color.White.copy(alpha = 0.7f)
+                    ),
+                    modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(6.dp))
         Row(
             modifier = Modifier.width(180.dp),
@@ -121,7 +151,7 @@ fun LibraryVideoInfoCard(
                     text = video.title,
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
-                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = video.formattedSize,
@@ -138,7 +168,7 @@ fun LibraryVideoInfoCard(
                 )
             }
             Box {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = { if (onLongClick != null) onLongClick() else showMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "More")
                 }
                 DropdownMenu(
@@ -163,27 +193,41 @@ fun LibraryVideoInfoCard(
  * Small square card used in the Favorites and Short Clips horizontal carousels.
  * Fixed 90×90dp thumbnail with title and favorite button below.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LibraryFavoriteVideoCard(
     video: Video,
     onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
     onFavoriteClick: () -> Unit = {}
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
         Box(
             modifier = Modifier.size(90.dp)
                 .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
+                val context = LocalContext.current
+                val thumbModel = remember(video.id) {
+                    com.helpofai.videoplayer.core.scanner.ThumbnailCacheRegistry.getThumbnailModel(context, video)
+                }
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .crossfade(true)
-                        .size(512)
+                    model = ImageRequest.Builder(context)
+                        .data(thumbModel)
+                        .crossfade(false)
+                        .size(180, 180)
                         .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .build(),
                     contentDescription = "Video Thumbnail",
                     modifier = Modifier.fillMaxSize(),
@@ -211,6 +255,18 @@ fun LibraryFavoriteVideoCard(
                 ) {
                     Text(text = video.formattedDuration, style = MaterialTheme.typography.labelSmall, color = Color.White)
                 }
+
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onClick() },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF38BDF8),
+                            uncheckedColor = Color.White.copy(alpha = 0.7f)
+                        ),
+                        modifier = Modifier.align(Alignment.TopEnd).padding(2.dp)
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(6.dp))
@@ -224,7 +280,7 @@ fun LibraryFavoriteVideoCard(
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).basicMarquee(iterations = Int.MAX_VALUE),
+                modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center
             )
             IconButton(onClick = onFavoriteClick, modifier = Modifier.size(24.dp)) {
@@ -246,10 +302,14 @@ fun LibraryFavoriteVideoCard(
  * Horizontal list row with 80dp thumbnail on the left and metadata + actions on the right.
  * Used in the Folders tab, Resume Playback section, and playlist detail views.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LibraryCompactVideoListItem(
     video: Video,
     onClick: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
     onFavoriteClick: () -> Unit = {},
     onRenameClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
@@ -262,23 +322,46 @@ fun LibraryCompactVideoListItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
-            .clickable(onClick = onClick)
+            .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = if (isSelected) 0.45f else 0.2f, surfaceColor = if (isSelected) Color(0xFF0C2A4A) else Color.Black)
+            .then(
+                if (isSelected) Modifier.border(1.5.dp, Color(0xFF38BDF8), RoundedCornerShape(12.dp))
+                else Modifier
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (isSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = Color(0xFF38BDF8),
+                    uncheckedColor = Color.White.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        }
         Card(
             modifier = Modifier.width(80.dp).fillMaxHeight(),
             shape = RoundedCornerShape(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
+                val context = LocalContext.current
+                val thumbModel = remember(video.id) {
+                    com.helpofai.videoplayer.core.scanner.ThumbnailCacheRegistry.getThumbnailModel(context, video)
+                }
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .crossfade(true)
-                        .size(256)
+                    model = ImageRequest.Builder(context)
+                        .data(thumbModel)
+                        .crossfade(false)
+                        .size(240, 135)
                         .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .build(),
                     contentDescription = "Video Thumbnail",
                     modifier = Modifier.fillMaxSize(),
@@ -306,8 +389,12 @@ fun LibraryCompactVideoListItem(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                modifier = Modifier.basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                    initialDelayMillis = 1200,
+                    repeatDelayMillis = 1200,
+                    velocity = 35.dp
+                )
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -325,7 +412,7 @@ fun LibraryCompactVideoListItem(
             )
         }
         Box {
-            IconButton(onClick = { showMenu = true }) {
+            IconButton(onClick = { if (onLongClick != null) onLongClick() else showMenu = true }) {
                 Icon(Icons.Default.MoreVert, contentDescription = "More")
             }
             DropdownMenu(

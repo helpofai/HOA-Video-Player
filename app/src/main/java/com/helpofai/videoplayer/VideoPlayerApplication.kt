@@ -29,13 +29,20 @@ import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class VideoPlayerApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         
-        com.helpofai.videoplayer.core.ads.AdManager.init(this)
+        // Initialize in-memory thumbnail registry instantly
+        com.helpofai.videoplayer.core.scanner.ThumbnailCacheRegistry.init(this)
+
+        // Offload AdMob & background initialization to IO dispatcher for instant cold launch
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            com.helpofai.videoplayer.core.ads.AdManager.init(this@VideoPlayerApplication)
+        }
         com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().init(this)
         
         Thread.setDefaultUncaughtExceptionHandler { _, exception ->
@@ -80,10 +87,11 @@ class VideoPlayerApplication : Application(), ImageLoaderFactory {
                     .build()
             }
             .components {
+                add(com.helpofai.videoplayer.core.media.MediaStoreVideoThumbnailFetcher.Factory(this@VideoPlayerApplication))
                 add(VideoFrameDecoder.Factory())
             }
-            .dispatcher(kotlinx.coroutines.Dispatchers.IO.limitedParallelism(2))
-            .crossfade(true)
+            .dispatcher(kotlinx.coroutines.Dispatchers.IO.limitedParallelism(8))
+            .crossfade(false)
             .build()
     }
 }

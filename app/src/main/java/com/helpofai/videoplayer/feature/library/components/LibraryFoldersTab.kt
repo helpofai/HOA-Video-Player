@@ -48,11 +48,16 @@ import com.helpofai.videoplayer.feature.library.ads.InlineRowAd
 import com.helpofai.videoplayer.feature.filemanager.FileManagerScreen
 import com.helpofai.videoplayer.core.theme.frostedGlass
 
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+
 @Composable
 fun LibraryFoldersTab(
     state: LibraryState,
     selectedFolder: String?,
     isTablet: Boolean,
+    modifier: Modifier = Modifier,
+    paddingValues: PaddingValues = PaddingValues(0.dp),
     onFolderClick: (String) -> Unit,
     onViewModeChange: (String) -> Unit,
     onVideoClick: (Video) -> Unit,
@@ -61,15 +66,18 @@ fun LibraryFoldersTab(
     onDeleteClick: (Video) -> Unit,
     onShareClick: (Video) -> Unit,
     onVaultClick: (Video) -> Unit,
-    onNavigateToExplorer: () -> Unit = {}
+    onNavigateToExplorer: () -> Unit = {},
+    selectionState: com.helpofai.videoplayer.core.ui.MediaSelectionState? = null,
+    onFolderLongClick: ((String, List<Video>) -> Unit)? = null,
+    onVideoLongClick: ((Video) -> Unit)? = null
 ) {
-    val folders = state.videos.groupBy { java.io.File(it.path).parentFile?.name ?: "Internal Storage" }
+    val folders = remember(state.videos) { state.videos.groupBy { it.resolvedFolderName } }
     val folderViewMode = state.folderViewMode
 
     var isTreeViewActive by remember { mutableStateOf(false) }
 
     if (isTreeViewActive) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize().padding(paddingValues)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -107,99 +115,133 @@ fun LibraryFoldersTab(
     }
 
     if (selectedFolder == null) {
-        Spacer(modifier = Modifier.height(16.dp))
-        val folderList = folders.toList()
+        val folderList = remember(folders) { folders.toList() }
 
-        // ── View Mode Toggle & Tree Explorer Button ───────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding() + 8.dp,
+                bottom = paddingValues.calculateBottomPadding() + 80.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            TextButton(
-                onClick = { isTreeViewActive = true },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccountTree,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Advanced Tree Explorer", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+            item(key = "folders_header") {
+                // ── View Mode Toggle & Tree Explorer Button ───────────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .frostedGlass(cornerRadius = 12.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { isTreeViewActive = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountTree,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Advanced Tree Explorer", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "List",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (folderViewMode == "list") FontWeight.Bold else FontWeight.Normal,
+                            color = if (folderViewMode == "list") MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .clickable { onViewModeChange("list") }
+                                .padding(horizontal = 8.dp)
+                        )
+                        Text(
+                            " | ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            "Grid",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (folderViewMode == "grid") FontWeight.Bold else FontWeight.Normal,
+                            color = if (folderViewMode == "grid") MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .clickable { onViewModeChange("grid") }
+                                .padding(horizontal = 8.dp)
+                        )
+                    }
+                }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "List",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (folderViewMode == "list") FontWeight.Bold else FontWeight.Normal,
-                    color = if (folderViewMode == "list") MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .clickable { onViewModeChange("list") }
-                        .padding(horizontal = 8.dp)
-                )
-                Text(
-                    " | ",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                )
-                Text(
-                    "Grid",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (folderViewMode == "grid") FontWeight.Bold else FontWeight.Normal,
-                    color = if (folderViewMode == "grid") MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .clickable { onViewModeChange("grid") }
-                        .padding(horizontal = 8.dp)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
+            if (folderViewMode == "list") {
+                itemsIndexed(folderList, key = { _, pair -> "folder_${pair.first}" }) { index, (folderName, videosInFolder) ->
+                    val isFolderSelected = selectionState?.isFolderSelected(folderName) ?: false
+                    val isSelectionMode = selectionState?.isSelectionMode ?: false
 
-        if (folderViewMode == "list") {
-            // ── List Mode: vertical stack, ad every 3 items ────
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                folderList.forEachIndexed { index, (folderName, videosInFolder) ->
                     LibraryFolderListItem(
                         folderName = folderName,
                         videos = videosInFolder,
-                        onClick = { onFolderClick(folderName) }
+                        onClick = {
+                            if (selectionState != null && selectionState.isSelectionMode) {
+                                selectionState.toggleFolder(folderName, videosInFolder)
+                            } else {
+                                onFolderClick(folderName)
+                            }
+                        },
+                        onLongClick = {
+                            if (selectionState != null && selectionState.isSelectionMode) {
+                                selectionState.toggleFolder(folderName, videosInFolder)
+                            } else {
+                                onFolderLongClick?.invoke(folderName, videosInFolder)
+                            }
+                        },
+                        isSelected = isFolderSelected,
+                        isSelectionMode = isSelectionMode
                     )
                     // Ad after every 3 items
                     InlineItemAd(itemIndex = index, adInterval = 3, nativeEvery = 2, bannerEvery = 2)
                 }
-            }
-        } else {
-            // ── Grid Mode: 2×2 mosaic, ad every 3rd row (= 6 items) ────
-            val folderCols = if (isTablet) 4 else 2
-            val chunkedFolders = folderList.chunked(folderCols)
-
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                chunkedFolders.forEachIndexed { index, rowFolders ->
+            } else {
+                val folderCols = if (isTablet) 4 else 2
+                val chunkedFolders = folderList.chunked(folderCols)
+                itemsIndexed(chunkedFolders, key = { index, _ -> "folder_row_$index" }) { index, rowFolders ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         rowFolders.forEach { (folderName, videosInFolder) ->
+                            val isFolderSelected = selectionState?.isFolderSelected(folderName) ?: false
+                            val isSelectionMode = selectionState?.isSelectionMode ?: false
+
                             Box(modifier = Modifier.weight(1f)) {
                                 LibraryFolderCard(
                                     folderName = folderName,
                                     videos = videosInFolder,
-                                    onClick = { onFolderClick(folderName) }
+                                    onClick = {
+                                        if (selectionState != null && selectionState.isSelectionMode) {
+                                            selectionState.toggleFolder(folderName, videosInFolder)
+                                        } else {
+                                            onFolderClick(folderName)
+                                        }
+                                    },
+                                    onLongClick = {
+                                        if (selectionState != null && selectionState.isSelectionMode) {
+                                            selectionState.toggleFolder(folderName, videosInFolder)
+                                        } else {
+                                            onFolderLongClick?.invoke(folderName, videosInFolder)
+                                        }
+                                    },
+                                    isSelected = isFolderSelected,
+                                    isSelectionMode = isSelectionMode
                                 )
                             }
                         }
@@ -208,32 +250,53 @@ fun LibraryFoldersTab(
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
-                    // Ad every 3rd row (= every 6 items in 2-col)
                     InlineRowAd(rowIndex = index, nativeEvery = 0, bannerEvery = 3, nativeOffset = 0)
                 }
             }
         }
-        Spacer(modifier = Modifier.height(32.dp))
     } else {
-        val videosInFolder = folders[selectedFolder] ?: emptyList()
-        Spacer(modifier = Modifier.height(16.dp))
+        val videosInFolder = remember(folders, selectedFolder) { folders[selectedFolder] ?: emptyList() }
         val listCols = if (isTablet) 2 else 1
-        val chunkedVideos = videosInFolder.chunked(listCols)
+        val chunkedVideos = remember(videosInFolder, listCols) { videosInFolder.chunked(listCols) }
 
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding() + 8.dp,
+                bottom = paddingValues.calculateBottomPadding() + 80.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            chunkedVideos.forEachIndexed { index, rowVideos ->
+            itemsIndexed(chunkedVideos, key = { index, _ -> "folder_vid_row_$index" }) { index, rowVideos ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     rowVideos.forEach { video ->
+                        val isVidSelected = selectionState?.isVideoSelected(video) ?: false
+                        val isSelectionMode = selectionState?.isSelectionMode ?: false
+
                         Box(modifier = Modifier.weight(1f)) {
                             LibraryCompactVideoListItem(
                                 video = video,
-                                onClick = { onVideoClick(video) },
+                                onClick = {
+                                    if (selectionState != null && selectionState.isSelectionMode) {
+                                        selectionState.toggleVideo(video)
+                                    } else {
+                                        onVideoClick(video)
+                                    }
+                                },
+                                onLongClick = {
+                                    if (selectionState != null && selectionState.isSelectionMode) {
+                                        selectionState.toggleVideo(video)
+                                    } else {
+                                        onVideoLongClick?.invoke(video)
+                                    }
+                                },
+                                isSelected = isVidSelected,
+                                isSelectionMode = isSelectionMode,
                                 onFavoriteClick = { onFavoriteClick(video) },
                                 onRenameClick = { onRenameClick(video) },
                                 onDeleteClick = { onDeleteClick(video) },
@@ -251,6 +314,5 @@ fun LibraryFoldersTab(
                 InlineRowAd(rowIndex = index, nativeEvery = 5, bannerEvery = 10, nativeOffset = 4)
             }
         }
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }

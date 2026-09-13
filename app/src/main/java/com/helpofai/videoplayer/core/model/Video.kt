@@ -42,8 +42,20 @@ data class Video(
     val subtitleTrackLanguage: String? = null,
     val audioTrackLanguage: String? = null,
     val width: Int = 0,
-    val height: Int = 0
+    val height: Int = 0,
+    val folderName: String = ""
 ) {
+    val resolvedFolderName: String
+        get() = if (folderName.isNotBlank()) folderName else {
+            val p = path.trimEnd('/', '\\')
+            val lastSlash = maxOf(p.lastIndexOf('/'), p.lastIndexOf('\\'))
+            if (lastSlash > 0) {
+                val parentPath = p.substring(0, lastSlash)
+                val parentSlash = maxOf(parentPath.lastIndexOf('/'), parentPath.lastIndexOf('\\'))
+                if (parentSlash >= 0) parentPath.substring(parentSlash + 1) else parentPath
+            } else "Internal Storage"
+        }
+
     val formattedDuration: String
         get() {
             val totalSeconds = duration / 1000

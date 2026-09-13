@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,9 +55,20 @@ class VideoRepository @Inject constructor(
     // Advanced Local Cache System for MediaStore
     private val _localVideosCache = MutableStateFlow<List<Video>?>(null)
 
+    private val repositoryScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
     init {
-        // Auto-sync with MediaStore in the background using ContentObserver
-        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+        // Pre-warm video cache immediately on IO thread so data is available instantly on launch
+        repositoryScope.launch {
+            if (_localVideosCache.value == null) {
+                val cached = loadCachedVideos()
+                if (!cached.isNullOrEmpty()) {
+                    _localVideosCache.value = cached
+                }
+            }
+            syncWithMediaStore()
+
+            // Auto-sync with MediaStore in the background using ContentObserver
             mediaStoreObserver.observeMediaChanges().collect {
                 syncWithMediaStore()
             }
@@ -66,7 +78,13 @@ class VideoRepository @Inject constructor(
     private suspend fun syncWithMediaStore() {
         try {
             var fresh = emptyList<Video>()
-            mediaScanner.getVideosFlow().collect { fresh = it }
+            mediaScanner.getVideosFlow().collect { chunk ->
+                fresh = chunk
+                // If initial cache was empty, emit incrementally so UI renders first items immediately
+                if (_localVideosCache.value == null && chunk.isNotEmpty()) {
+                    _localVideosCache.value = chunk
+                }
+            }
             val currentCache = _localVideosCache.value
             
             // Differential Sync: only update if something actually changed
@@ -96,7 +114,7 @@ class VideoRepository @Inject constructor(
         return try {
             cacheFile.useLines { lines ->
                 lines.mapNotNull { line ->
-                    val parts = line.split("||", limit = 9)
+                    val parts = line.split("||", limit = 10)
                     if (parts.size >= 9) {
                         Video(
                             id = parts[0].toLong(),
@@ -107,7 +125,8 @@ class VideoRepository @Inject constructor(
                             dateAdded = parts[5].toLong(),
                             path = parts[6],
                             width = parts[7].toInt(),
-                            height = parts[8].toInt()
+                            height = parts[8].toInt(),
+                            folderName = if (parts.size >= 10) parts[9] else ""
                         )
                     } else null
                 }.toList()
@@ -121,7 +140,7 @@ class VideoRepository @Inject constructor(
         try {
             cacheFile.bufferedWriter().use { writer ->
                 videos.forEach { video ->
-                    writer.write("${video.id}||${video.uri}||${video.title}||${video.duration}||${video.size}||${video.dateAdded}||${video.path}||${video.width}||${video.height}\n")
+                    writer.write("${video.id}||${video.uri}||${video.title}||${video.duration}||${video.size}||${video.dateAdded}||${video.path}||${video.width}||${video.height}||${video.folderName}\n")
                 }
             }
         } catch (e: Exception) {
@@ -147,7 +166,8 @@ class VideoRepository @Inject constructor(
                 audioTrackLanguage = meta?.audioTrackLanguage
             )
         }.sortedByDescending { it.dateAdded }
-    }.onStart {
+    }.flowOn(Dispatchers.Default)
+    .onStart {
         if (_localVideosCache.value == null) {
             val cached = withContext(Dispatchers.IO) { loadCachedVideos() }
             if (cached != null && cached.isNotEmpty()) {
@@ -271,6 +291,10 @@ class VideoRepository @Inject constructor(
 
     suspend fun deleteBookmark(bookmark: com.helpofai.videoplayer.core.database.entities.BookmarkEntity) {
         videoDao.deleteBookmark(bookmark)
+    }
+
+    suspend fun clearScenesForVideo(videoPath: String) {
+        videoDao.clearScenesForVideo(videoPath)
     }
 
     suspend fun clearAllWatchHistory() {

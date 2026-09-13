@@ -29,7 +29,8 @@ val admobNativeId    = localProperties.getProperty("ADMOB_NATIVE_ID")    ?: "ca-
 
 android {
     namespace = "com.helpofai.videoplayer"
-    compileSdk = 36
+    compileSdk = 37
+
 
     defaultConfig {
         applicationId = "com.helpofai.videoplayer"

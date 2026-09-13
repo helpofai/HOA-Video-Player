@@ -24,17 +24,23 @@ package com.helpofai.videoplayer.feature.library.components
 
 import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -94,18 +100,42 @@ class FolderShape(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LibraryFolderCard(
     folderName: String,
     videos: List<Video>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(140.dp)
-            .clickable(onClick = onClick)
+            .then(
+                if (isSelected) Modifier.border(2.dp, Color(0xFF38BDF8), FolderShape(tabHeightDp = 22f, cornerRadiusDp = 20f))
+                else Modifier
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
     ) {
+        // Selection Checkbox Badge
+        if (isSelectionMode) {
+            Box(modifier = Modifier.align(Alignment.TopStart).padding(4.dp).zIndex(10f)) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = Color(0xFF38BDF8),
+                        uncheckedColor = Color.White.copy(alpha = 0.7f)
+                    )
+                )
+            }
+        }
         // 1. Back flap of the folder
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -193,8 +223,14 @@ fun LibraryFolderCard(
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
                             color = Color.White,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    initialDelayMillis = 1200,
+                                    repeatDelayMillis = 1200,
+                                    velocity = 35.dp
+                                )
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
@@ -225,21 +261,43 @@ fun LibraryFolderThumbnail(video: Video, modifier: Modifier = Modifier) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LibraryFolderListItem(
     folderName: String,
     videos: List<Video>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .frostedGlass(cornerRadius = 14.dp, surfaceAlpha = 0.2f, surfaceColor = Color.Black)
-            .clickable(onClick = onClick)
+            .frostedGlass(cornerRadius = 14.dp, surfaceAlpha = if (isSelected) 0.45f else 0.2f, surfaceColor = if (isSelected) Color(0xFF0C2A4A) else Color.Black)
+            .then(
+                if (isSelected) Modifier.border(1.5.dp, Color(0xFF38BDF8), RoundedCornerShape(14.dp))
+                else Modifier
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (isSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = Color(0xFF38BDF8),
+                    uncheckedColor = Color.White.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        }
         // Left: Mini 3D Folder Icon with thumbnails peaking out!
         Box(
             modifier = Modifier
@@ -298,7 +356,12 @@ fun LibraryFolderListItem(
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = Color.White,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                modifier = Modifier.basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                    initialDelayMillis = 1200,
+                    repeatDelayMillis = 1200,
+                    velocity = 35.dp
+                )
             )
             Text(
                 text = "${videos.size} video" + if (videos.size > 1) "s" else "",

@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.helpofai.videoplayer.feature.qualityanalyzer.QualityReport
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,8 +47,13 @@ fun QualityReportSheet(
     isAnalyzing: Boolean,
     onDismissRequest: () -> Unit
 ) {
+    // QualityAnalyzer signature color — page carries one per-tool identity
+    val accent = ToolIconPalette.QualityAnalyzer
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color(0xFF001F3F).copy(alpha = 0.95f), // Professional transparent blue
         contentColor = Color.White
     ) {
@@ -60,7 +66,18 @@ fun QualityReportSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 24.dp)
             ) {
-                Icon(Icons.Default.HighQuality, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.radialGradient(
+                                    colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                                )
+                            )
+                    )
+                    Icon(Icons.Default.HighQuality, contentDescription = null, tint = accent, modifier = Modifier.size(28.dp))
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Video Quality Analyzer",
@@ -73,7 +90,7 @@ fun QualityReportSheet(
             if (isAnalyzing) {
                 Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        CircularProgressIndicator(color = accent)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("Analyzing FFprobe metadata...", color = Color.White.copy(alpha = 0.7f))
                     }
@@ -104,7 +121,7 @@ fun QualityReportSheet(
                         CircularProgressIndicator(
                             progress = { report.score / 100f },
                             modifier = Modifier.size(72.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = accent,
                             trackColor = Color.White.copy(alpha = 0.1f),
                             strokeWidth = 6.dp
                         )
@@ -147,7 +164,7 @@ fun QualityReportSheet(
                         Icon(
                             imageVector = if (rec.contains("highly optimized")) Icons.Default.Info else Icons.Default.Warning,
                             contentDescription = null,
-                            tint = if (rec.contains("highly optimized")) MaterialTheme.colorScheme.primary else Color(0xFFFFC107),
+                            tint = if (rec.contains("highly optimized")) accent else Color(0xFFFFC107),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))

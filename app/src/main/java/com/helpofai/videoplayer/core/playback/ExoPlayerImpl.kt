@@ -60,13 +60,11 @@ class ExoPlayerImpl @Inject constructor(
 
     override val player: Player
         get() {
-            if (isReleased) {
-                // During navigation transitions, Compose may recompose after release.
-                // Return a no-op stub instead of crashing.
-                isReleased = false
-                _player = null
+            val existing = _player
+            if (existing != null && !isReleased) {
+                return existing
             }
-            return _player ?: initializePlayer()
+            return initializePlayer()
         }
 
     private val _playbackState = MutableStateFlow(PlaybackState())
@@ -83,8 +81,8 @@ class ExoPlayerImpl @Inject constructor(
             .setBufferDurationsMs(
                 15_000,     // minBufferMs (15 seconds)
                 50_000,     // maxBufferMs (50 seconds)
-                1_500,      // bufferForPlaybackMs (1.5 seconds instant start)
-                3_000       // bufferForPlaybackAfterRebufferMs (3 seconds)
+                300,        // bufferForPlaybackMs (instant 300ms start)
+                1_000       // bufferForPlaybackAfterRebufferMs (1 second)
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()

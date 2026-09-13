@@ -38,9 +38,11 @@ fun PlaybackSpeedSheet(
     onDismissRequest: () -> Unit
 ) {
     var speed by remember { mutableFloatStateOf(currentSpeed) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(

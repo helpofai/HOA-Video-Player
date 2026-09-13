@@ -26,6 +26,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import com.helpofai.videoplayer.core.ui.MediaActionBottomSheet
+import com.helpofai.videoplayer.core.ui.MediaActionTarget
+import com.helpofai.videoplayer.core.ui.MediaSelectionState
+import com.helpofai.videoplayer.core.ui.MultiSelectTopBar
+import com.helpofai.videoplayer.core.ui.rememberMediaSelectionState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -59,11 +65,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.helpofai.videoplayer.core.model.Video
@@ -114,18 +128,60 @@ fun HomeScreen(
         }
     }
     
+    val selectionState = rememberMediaSelectionState()
+    var activeActionTarget by remember { mutableStateOf<MediaActionTarget?>(null) }
+    
     val onFavoriteClick: (Video) -> Unit = { video -> viewModel.toggleFavorite(video) }
-    val onShareClick: (Video) -> Unit = { video ->
-        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-            type = "video/*"
-            putExtra(android.content.Intent.EXTRA_STREAM, video.uri)
+    
+    val onBatchShare: (List<Video>) -> Unit = { videos ->
+        if (videos.size == 1) {
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "video/*"
+                putExtra(android.content.Intent.EXTRA_STREAM, videos.first().uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(android.content.Intent.createChooser(intent, "Share Video"))
+        } else if (videos.isNotEmpty()) {
+            val uris = java.util.ArrayList(videos.map { it.uri })
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "video/*"
+                putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, uris)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(android.content.Intent.createChooser(intent, "Share Videos"))
         }
-        context.startActivity(android.content.Intent.createChooser(intent, "Share Video"))
     }
+    val onShareClick: (Video) -> Unit = { video -> onBatchShare(listOf(video)) }
+    
+    val onBatchVaultMove: (List<Video>) -> Unit = { videos ->
+        videos.forEach { video ->
+            vaultViewModel.encryptFileToVault(video.uri, deleteOriginal = false)
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                val intentSender = MediaStore.createDeleteRequest(
+                    context.contentResolver, 
+                    videos.map { it.uri }
+                ).intentSender
+                deleteLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else {
+            videos.forEach { video ->
+                val originalFile = java.io.File(video.path)
+                if (originalFile.exists()) {
+                    originalFile.delete()
+                }
+            }
+        }
+        selectionState.clear()
+    }
+    val onVaultMoveClick: (Video) -> Unit = { video -> onBatchVaultMove(listOf(video)) }
     
     // UI State - Dialogs (Video objects can't be reliably Parcelized by rememberSaveable)
     var videoToRename by remember { mutableStateOf<Video?>(null) }
-    var videoToDelete by remember { mutableStateOf<Video?>(null) }
+    var videosToDelete by remember { mutableStateOf<List<Video>?>(null) }
     var videoToMerge by remember { mutableStateOf<Video?>(null) }
     
     // Robust State Survival for primitive UI flags
@@ -144,7 +200,9 @@ fun HomeScreen(
     val isMiniPlayerActive by com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.collectAsState()
 
     androidx.activity.compose.BackHandler(enabled = true) {
-        if (selectedFolder != null) {
+        if (selectionState.isSelectionMode) {
+            selectionState.clear()
+        } else if (selectedFolder != null) {
             selectedFolder = null
         } else if (selectedTab != 0) {
             selectedTab = 0
@@ -166,38 +224,88 @@ fun HomeScreen(
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isTablet = configuration.screenWidthDp > 600
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
+    var areBarsVisible by rememberSaveable { mutableStateOf(true) }
+
+    val barScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // User scrolls down (content moves up, available.y < 0) -> hide bars
+                // User scrolls up (content moves down, available.y > 0) -> show bars
+                if (available.y < -12f && areBarsVisible) {
+                    areBarsVisible = false
+                } else if (available.y > 12f && !areBarsVisible) {
+                    areBarsVisible = true
+                }
+                // Return Offset.Zero so LazyColumn and PullToRefresh maintain 100% smooth native physics
+                return Offset.Zero
+            }
+        }
+    }
+
+    // Reset bars visibility on tab change, folder change, or refresh
+    LaunchedEffect(selectedTab, selectedFolder, state.isLoading) {
+        areBarsVisible = true
+    }
+
+    val density = LocalDensity.current
+    val topBarTranslationY by animateFloatAsState(
+        targetValue = if (areBarsVisible || selectionState.isSelectionMode) 0f else with(density) { -120.dp.toPx() },
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "topBarTranslationY"
+    )
+
+    val bottomBarTranslationY by animateFloatAsState(
+        targetValue = if (areBarsVisible && !selectionState.isSelectionMode) 0f else with(density) { 140.dp.toPx() },
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "bottomBarTranslationY"
+    )
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .nestedScroll(barScrollConnection),
         containerColor = Color.Transparent,
         topBar = {
-            DynamicTopBar(
-                selectedTab       = selectedTab,
-                selectedFolder    = selectedFolder,
-                playlistTitle     = null,
-                isRefreshing      = state.isLoading,
-                scrollBehavior    = scrollBehavior,
-                onBackClick       = { selectedFolder = null },
-                onHabitsClick     = { showHabitReport = true },
-                onSortFilterClick = { showSortFilter = true },
-                onSearchClick     = { /* TODO: open search */ },
-                onSettingsClick   = onSettingsClick,
-                onBookmarksClick  = { showBookmarksDialog = true },
-                onTrashClick      = { showTrashDialog = true },
-                onCreateNewClick  = { showCreateDialog = true },
-                onRefreshClick    = { viewModel.refreshVideos(); showScanProgress = true }
-            )
-        },
-        bottomBar = {
-            val collapsedFraction = scrollBehavior.state.collapsedFraction
-            val bottomNavOffset = 130.dp * collapsedFraction
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(y = bottomNavOffset)
+                    .graphicsLayer { translationY = topBarTranslationY }
+            ) {
+                if (selectionState.isSelectionMode) {
+                    MultiSelectTopBar(
+                        selectionState = selectionState,
+                        allVideos = state.videos,
+                        modifier = Modifier.statusBarsPadding(),
+                        onShareSelected = { onBatchShare(it) },
+                        onVaultSelected = { onBatchVaultMove(it) },
+                        onDeleteSelected = { videosToDelete = it }
+                    )
+                } else {
+                    DynamicTopBar(
+                        selectedTab       = selectedTab,
+                        selectedFolder    = selectedFolder,
+                        playlistTitle     = null,
+                        isRefreshing      = state.isLoading,
+                        scrollBehavior    = null,
+                        onBackClick       = { selectedFolder = null },
+                        onHabitsClick     = { showHabitReport = true },
+                        onSortFilterClick = { showSortFilter = true },
+                        onSearchClick     = { /* TODO: open search */ },
+                        onSettingsClick   = onSettingsClick,
+                        onBookmarksClick  = { showBookmarksDialog = true },
+                        onTrashClick      = { showTrashDialog = true },
+                        onCreateNewClick  = { showCreateDialog = true },
+                        onRefreshClick    = { viewModel.refreshVideos(); showScanProgress = true }
+                    )
+                }
+            }
+        },
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { translationY = bottomBarTranslationY }
                     .navigationBarsPadding()
                     .padding(horizontal = 24.dp, vertical = 6.dp)
                     .frostedGlass(cornerRadius = 32.dp, surfaceAlpha = 0.4f, surfaceColor = Color.Black)
@@ -272,66 +380,49 @@ fun HomeScreen(
                 )
             }
         } else {
-            val isScrollableTab = selectedTab == 0 || selectedTab == 1
-            
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (isScrollableTab) Modifier.verticalScroll(rememberScrollState())
-                        else Modifier
-                    )
-            ) {
-                if (isScrollableTab) {
-                    // This Spacer must be INSIDE the scrollable Column so content starts below the app bar
-                    // but can scroll up behind it seamlessly.
-                    Spacer(Modifier.height(paddingValues.calculateTopPadding()))
-                }
-                
-                val onVaultMoveClick: (Video) -> Unit = { video ->
-                    vaultViewModel.encryptFileToVault(video.uri, deleteOriginal = false)
-                    
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                        try {
-                            val intentSender = MediaStore.createDeleteRequest(
-                                context.contentResolver, 
-                                listOf(video.uri)
-                            ).intentSender
-                            deleteLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    } else {
-                        val originalFile = java.io.File(video.path)
-                        if (originalFile.exists()) {
-                            originalFile.delete()
-                        }
-                    }
-                }
-
+            Box(modifier = Modifier.fillMaxSize()) {
                 when (selectedTab) {
                     0 -> com.helpofai.videoplayer.feature.library.components.LibraryHomeTab(
                         state = state,
                         isTablet = isTablet,
+                        paddingValues = paddingValues,
                         onVideoClick = onVideoClick,
                         onFavoriteClick = onFavoriteClick,
-                        onRenameClick = { videoToRename = it },
-                        onDeleteClick = { videoToDelete = it },
+                        onRenameClick = { 
+                            videoToRename = it
+                            newVideoName = it.title
+                        },
+                        onDeleteClick = { videosToDelete = listOf(it) },
                         onShareClick = onShareClick,
-                        onVaultClick = onVaultMoveClick
+                        onVaultClick = onVaultMoveClick,
+                        selectionState = selectionState,
+                        onVideoLongClick = { video ->
+                            activeActionTarget = MediaActionTarget.SingleVideo(video)
+                        }
                     )
                     1 -> com.helpofai.videoplayer.feature.library.components.LibraryFoldersTab(
                         state = state,
                         selectedFolder = selectedFolder,
                         isTablet = isTablet,
+                        paddingValues = paddingValues,
                         onFolderClick = { selectedFolder = it },
                         onViewModeChange = { viewModel.updateFolderViewMode(it) },
                         onVideoClick = onVideoClick,
                         onFavoriteClick = onFavoriteClick,
-                        onRenameClick = { videoToRename = it },
-                        onDeleteClick = { videoToDelete = it },
+                        onRenameClick = { 
+                            videoToRename = it
+                            newVideoName = it.title
+                        },
+                        onDeleteClick = { videosToDelete = listOf(it) },
                         onShareClick = onShareClick,
-                        onVaultClick = onVaultMoveClick
+                        onVaultClick = onVaultMoveClick,
+                        selectionState = selectionState,
+                        onFolderLongClick = { folderName, folderVideos ->
+                            activeActionTarget = MediaActionTarget.SingleFolder(folderName, folderVideos)
+                        },
+                        onVideoLongClick = { video ->
+                            activeActionTarget = MediaActionTarget.SingleVideo(video)
+                        }
                     )
                     4 -> WatchPartyMainTab(
                         videos = state.videos,
@@ -364,11 +455,6 @@ fun HomeScreen(
                             }
                         }
                     )
-                }
-                
-                if (isScrollableTab) {
-                    // Spacer at the bottom so the last item can scroll fully into view above the floating bottom nav
-                    Spacer(Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
                 }
             }
         }
@@ -451,26 +537,81 @@ fun HomeScreen(
         )
     }
 
-    // Delete Dialog
-    videoToDelete?.let { video ->
+    // Delete Dialog (supports single & batch deletion)
+    videosToDelete?.let { targets ->
+        val titleText = if (targets.size == 1) "Delete Video" else "Delete Videos"
+        val messageText = if (targets.size == 1) {
+            "Are you sure you want to delete '${targets.first().title}'? This cannot be undone."
+        } else {
+            "Are you sure you want to delete ${targets.size} videos? This cannot be undone."
+        }
+
         AlertDialog(
-            onDismissRequest = { videoToDelete = null },
-            title = { Text("Delete Video") },
-            text = { Text("Are you sure you want to delete '${video.title}'? This cannot be undone.") },
+            onDismissRequest = { videosToDelete = null },
+            title = { Text(titleText) },
+            text = { Text(messageText) },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteVideo(video)
-                        videoToDelete = null
+                        val items = targets
+                        videosToDelete = null
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            try {
+                                val intentSender = MediaStore.createDeleteRequest(
+                                    context.contentResolver, 
+                                    items.map { it.uri }
+                                ).intentSender
+                                deleteLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+                            } catch (e: Exception) {
+                                items.forEach { viewModel.deleteVideo(it) }
+                            }
+                        } else {
+                            items.forEach { viewModel.deleteVideo(it) }
+                        }
+                        selectionState.clear()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Delete") }
             },
             dismissButton = {
-                TextButton(onClick = { videoToDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { videosToDelete = null }) { Text("Cancel") }
             }
         )
     }
+
+    // Universal Long-Press & Context Menu Popup Bottom Sheet
+    MediaActionBottomSheet(
+        target = activeActionTarget,
+        onDismiss = { activeActionTarget = null },
+        onPlay = { video -> onVideoClick(video) },
+        onPlayMiniPlayer = { video ->
+            com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(video)
+        },
+        onPlayFolderAll = { folderVideos ->
+            if (folderVideos.isNotEmpty()) {
+                onVideoClick(folderVideos.first())
+            }
+        },
+        onFavoriteToggle = { video -> viewModel.toggleFavorite(video) },
+        onMoveToVault = { videos -> onBatchVaultMove(videos) },
+        onShare = { videos -> onBatchShare(videos) },
+        onRename = { video ->
+            videoToRename = video
+            newVideoName = video.title
+        },
+        onDelete = { videos -> videosToDelete = videos },
+        onEnterSelectionMode = {
+            when (val target = activeActionTarget) {
+                is MediaActionTarget.SingleVideo -> selectionState.toggleVideo(target.video)
+                is MediaActionTarget.SingleFolder -> selectionState.toggleFolder(target.folderName, target.videos)
+                is MediaActionTarget.MultipleVideos -> selectionState.selectAll(target.videos)
+                null -> Unit
+            }
+        },
+        onOpenEditor = { mode, _ ->
+            onEditorClick(mode)
+        }
+    )
 
     // Merge Dialog
     videoToMerge?.let { video1 ->

@@ -669,6 +669,13 @@ class PlayerViewModel @Inject constructor(
 
     private var isMinimizing = false
 
+    /** True when a video is loaded on a live player — i.e. the full player can
+     *  hand off to the global mini player instead of being torn down. */
+    fun canMinimizeToMiniPlayer(): Boolean =
+        !currentVideoPath.isNullOrBlank() && 
+        !videoPlayer.isReleased && 
+        videoPlayer.player.playbackState != androidx.media3.common.Player.STATE_ENDED
+
     fun minimizePlayer() {
         isMinimizing = true
         
@@ -676,7 +683,8 @@ class PlayerViewModel @Inject constructor(
         val videoUriString = savedStateHandle.get<String>("videoUri")
         val videoUri = if (videoUriString != null) android.net.Uri.parse(android.net.Uri.decode(videoUriString)) else android.net.Uri.EMPTY
         val videoPath = savedStateHandle.get<String>("path")?.let { android.net.Uri.decode(it) } ?: videoUri.path ?: ""
-        val videoTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
+        val rawTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
+        val videoTitle = if (rawTitle.isNotBlank()) rawTitle else "Video"
         
         val currentVideo = com.helpofai.videoplayer.core.model.Video(
             id = videoPath.hashCode().toLong(),
@@ -697,9 +705,14 @@ class PlayerViewModel @Inject constructor(
         super.onCleared()
         com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().setFullPlayerActive(false)
         val path = currentVideoPath
-        if (path != null) {
-            viewModelScope.launch(kotlinx.coroutines.NonCancellable) {
-                playbackManager.recordPlaybackState(path, lastZoomLevel)
+        if (path != null && !videoPlayer.isReleased) {
+            val position = videoPlayer.player.currentPosition
+            val speed = videoPlayer.player.playbackParameters.speed
+            val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
+            val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
+            val zoom = lastZoomLevel
+            viewModelScope.launch(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+                repository.recordPlayback(path, position, speed, audioLang, subLang, zoom)
             }
         }
         
@@ -745,6 +758,13 @@ class PlayerViewModel @Inject constructor(
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onStart() }
             val success = sceneDetectionEngine.generateScenes(path)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onComplete(success) }
+        }
+    }
+
+    fun clearAutoScenes() {
+        val path = currentVideoPath ?: return
+        viewModelScope.launch {
+            sceneDetectionEngine.clearScenes(path)
         }
     }
 

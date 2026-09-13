@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.0"
+agp = "9.2.1"
 documentfile = "1.1.0"
 junrar = "7.5.5"
 kotlin = "2.4.0"

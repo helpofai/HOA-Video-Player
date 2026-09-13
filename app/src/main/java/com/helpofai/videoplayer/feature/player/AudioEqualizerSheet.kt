@@ -42,8 +42,11 @@ fun AudioEqualizerSheet(
     audioEffectManager: AudioEffectManager,
     onDismissRequest: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         // We use derivedStateOf or just simple remember updated states.

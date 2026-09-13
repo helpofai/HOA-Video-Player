@@ -119,6 +119,25 @@ class VideoEnhancementManager @Inject constructor(
                 brightness = 0.25f, contrast = 0.1f, gamma = 0.8f,
                 noiseReduction = 0.35f
             )
+            "hq", "hd" -> VideoEnhancementConfig(
+                autoEnhance = false,
+                preset = "hq",
+                strength = 0.85f,
+                brightness = 0.02f,
+                contrast = 0.18f,
+                saturation = 0.2f,
+                vibrance = 0.22f,
+                gamma = 1.0f,
+                colorTemperature = 0.02f,
+                sharpness = 0.6f,
+                edgeEnhancement = 0.35f,
+                noiseReduction = 0.15f,
+                textureEnhancement = 0.45f,
+                hdrProcessing = true,
+                toneMapping = true,
+                frameOptimization = true,
+                colorCorrection = true
+            )
             "custom" -> loadCustomPreset()
             else -> {
                 // "auto" preset: dynamically compute base config

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.helpofai.videoplayer.core.playback.PlaybackState
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,8 +47,13 @@ fun VideoDiagnosticsSheet(
     state: PlaybackState,
     onDismissRequest: () -> Unit
 ) {
+    // Info signature color — page carries one per-tool identity
+    val accent = ToolIconPalette.Info
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color.Black.copy(alpha = 0.45f) // Frosted glass aesthetic
     ) {
         Column(
@@ -58,12 +64,27 @@ fun VideoDiagnosticsSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Stream Diagnostics",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.radialGradient(
+                                    colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                                )
+                            )
+                    )
+                    Icon(Icons.Default.Info, contentDescription = null, tint = accent, modifier = Modifier.size(26.dp))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Stream Diagnostics",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = accent
+                )
+            }
 
             // Diagnostic stats grid
             Column(
@@ -96,13 +117,13 @@ fun VideoDiagnosticsSheet(
                     text = "Fallback Events",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = accent
                 )
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0x1F2196F3),
+                            color = accent.copy(alpha = 0.10f),
                             shape = RoundedCornerShape(12.dp)
                         )
                         .padding(16.dp),
@@ -113,7 +134,7 @@ fun VideoDiagnosticsSheet(
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
-                                tint = Color(0xFF2196F3),
+                                tint = accent,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(8.dp))

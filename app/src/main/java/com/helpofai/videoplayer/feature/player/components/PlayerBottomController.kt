@@ -25,6 +25,7 @@ package com.helpofai.videoplayer.feature.player.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,11 +52,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import kotlinx.coroutines.delay
 
 @Composable
-private fun getAnimatedRainbowColor(): Color {
+private fun rememberAnimatedRainbowColor(): State<Color> {
     val transition = rememberInfiniteTransition(label = "rainbow")
-    val hue by transition.animateFloat(
+    val hue = transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
@@ -62,7 +65,9 @@ private fun getAnimatedRainbowColor(): Color {
         ),
         label = "hue"
     )
-    return Color.hsv(hue = hue, saturation = 0.8f, value = 1f)
+    return remember {
+        derivedStateOf { Color.hsv(hue = hue.value, saturation = 0.8f, value = 1f) }
+    }
 }
 
 @Composable
@@ -75,12 +80,37 @@ fun ThinRainbowSeekBar(
     modifier: Modifier = Modifier,
     isSeekEnabled: Boolean = true,
     abRepeatA: Long? = null,
-    abRepeatB: Long? = null
+    abRepeatB: Long? = null,
+    onScrub: ((Float?) -> Unit)? = null
 ) {
-    val rainbowColor = getAnimatedRainbowColor()
-    var dragPosition by remember { mutableStateOf<Float?>(null) }
-    
-    val currentProgress = if (max > 0f) (dragPosition ?: value) / max else 0f
+    val rainbowColorState = rememberAnimatedRainbowColor()
+    var isDragging by remember { mutableStateOf(false) }
+    var dragPosition by remember { mutableFloatStateOf(0f) }
+    var pendingSeekTarget by remember { mutableStateOf<Float?>(null) }
+
+    // Clear pendingSeekTarget once value catches up (within 1.5 seconds)
+    LaunchedEffect(value) {
+        pendingSeekTarget?.let { target ->
+            if (kotlin.math.abs(value - target) < 1500f) {
+                pendingSeekTarget = null
+            }
+        }
+    }
+
+    // Auto timeout for pendingSeekTarget in case seek doesn't produce an immediate update
+    LaunchedEffect(pendingSeekTarget) {
+        if (pendingSeekTarget != null) {
+            delay(700)
+            pendingSeekTarget = null
+        }
+    }
+
+    val activePos = when {
+        isDragging -> dragPosition
+        pendingSeekTarget != null -> pendingSeekTarget!!
+        else -> value
+    }
+    val currentProgress = if (max > 0f) (activePos / max).coerceIn(0f, 1f) else 0f
     
     Canvas(
         modifier = modifier
@@ -92,32 +122,43 @@ fun ThinRainbowSeekBar(
                         .pointerInput(max) {
                             detectTapGestures { offset ->
                                 val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                                onSeek(fraction * max)
+                                val target = fraction * max
+                                pendingSeekTarget = target
+                                onSeek(target)
                             }
                         }
                         .pointerInput(max) {
                             detectDragGestures(
                                 onDragStart = { offset ->
+                                    isDragging = true
                                     val fraction = (offset.x / size.width).coerceIn(0f, 1f)
                                     dragPosition = fraction * max
+                                    onScrub?.invoke(dragPosition)
                                 },
                                 onDrag = { change, _ ->
                                     change.consume()
                                     val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
                                     dragPosition = fraction * max
+                                    onScrub?.invoke(dragPosition)
                                 },
                                 onDragEnd = {
-                                    dragPosition?.let { onSeek(it) }
-                                    dragPosition = null
+                                    val target = dragPosition
+                                    isDragging = false
+                                    pendingSeekTarget = target
+                                    onScrub?.invoke(null)
+                                    onSeek(target)
                                 },
                                 onDragCancel = {
-                                    dragPosition = null
+                                    isDragging = false
+                                    pendingSeekTarget = null
+                                    onScrub?.invoke(null)
                                 }
                             )
                         }
                 } else Modifier
             )
     ) {
+        val rainbowColor = rainbowColorState.value
         val trackHeight = 2.dp.toPx()
         val thumbRadius = 4.dp.toPx()
         val centerY = size.height / 2f
@@ -260,23 +301,25 @@ fun PlayerBottomController(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    var scrubbingPosition by remember { mutableStateOf<Float?>(null) }
+                    val displayPosition = scrubbingPosition?.toLong() ?: currentPosition
+
                     Text(
-                        text = formatTime(currentPosition),
+                        text = formatTime(displayPosition),
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium
                     )
-                    
-                    var sliderValue by remember(currentPosition, duration) { 
-                        mutableFloatStateOf(currentPosition.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat())) 
-                    }
-                    
+
                     ThinRainbowSeekBar(
-                        value = sliderValue,
+                        value = currentPosition.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat()),
                         max = duration.coerceAtLeast(1).toFloat(),
                         bookmarks = bookmarks,
                         lastPlayedPosition = lastPlayedPosition,
+                        onScrub = { scrubPos ->
+                            scrubbingPosition = scrubPos
+                        },
                         onSeek = { 
-                            sliderValue = it
+                            scrubbingPosition = null
                             onSeek(it.toLong())
                         },
                         isSeekEnabled = isSeekEnabled,
@@ -294,7 +337,7 @@ fun PlayerBottomController(
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 
                 // Playback controls below the seekbar
                 Box(
@@ -323,13 +366,13 @@ fun PlayerBottomController(
                             iconSize = 28.dp
                         )
                         
-                        AnimatedIconButton(
-                            icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        // Hero Dynamic Play/Pause Button in controls row
+                        DynamicPlayPauseButton(
+                            isPlaying = isPlaying,
                             onClick = onPlayPauseClick,
-                            size = 52.dp,
-                            iconSize = 32.dp,
-                            tint = Color.Black,
-                            backgroundColor = MaterialTheme.colorScheme.primary
+                            size = 56.dp,
+                            iconSize = 34.dp,
+                            isCompact = false
                         )
                         
                         AnimatedIconButton(
@@ -352,6 +395,100 @@ fun PlayerBottomController(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Dynamic, fluidly animated Play/Pause button with seamless icon morphing,
+ * spring press-feedback, and dynamic gradient glow styling.
+ */
+@Composable
+fun DynamicPlayPauseButton(
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 52.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 30.dp,
+    isCompact: Boolean = false
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.86f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "dynamic_button_scale"
+    )
+
+    // Smooth gradient styling: vibrant violet-cyan/primary when playing, energetic accent when paused
+    val bgBrush = if (isCompact) {
+        Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.90f),
+                Color(0xFF7C4DFF).copy(alpha = 0.90f)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primary,
+                Color(0xFF8B5CF6),
+                Color(0xFF00CEC9)
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .scale(scale)
+            .shadow(
+                elevation = if (isCompact) 4.dp else 12.dp,
+                shape = CircleShape,
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            )
+            .clip(CircleShape)
+            .background(bgBrush)
+            .border(
+                width = if (isCompact) 1.dp else 1.5.dp,
+                brush = Brush.linearGradient(
+                    listOf(Color.White.copy(alpha = 0.65f), Color.White.copy(alpha = 0.15f))
+                ),
+                shape = CircleShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = false, color = Color.White),
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedContent(
+            targetState = isPlaying,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(180)) + scaleIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    initialScale = 0.6f
+                )) togetherWith (fadeOut(animationSpec = tween(140)) + scaleOut(
+                    animationSpec = tween(140),
+                    targetScale = 0.6f
+                ))
+            },
+            label = "dynamic_play_pause_icon"
+        ) { playing ->
+            Icon(
+                imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (playing) "Pause" else "Play",
+                tint = if (isCompact) Color.White else Color.Black,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }

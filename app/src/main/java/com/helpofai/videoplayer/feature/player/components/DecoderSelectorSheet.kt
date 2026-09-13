@@ -66,8 +66,11 @@ fun DecoderSelectorSheet(
     onDecoderSelect: (String) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
         contentColor = Color.White
     ) {

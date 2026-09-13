@@ -40,6 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -145,6 +148,7 @@ class MainActivity : FragmentActivity() {
 
                         val miniPlayerManager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
                         val isInPipMode by miniPlayerManager.isInPipMode.collectAsState()
+                        val isPlayerActive by isPlayerActiveState.collectAsState()
                         val navController = rememberNavController()
 
                         if (!isInPipMode || isPlayerActive) {
@@ -243,9 +247,18 @@ class MainActivity : FragmentActivity() {
                                     PlayerScreen(
                                         onNavigateBack = {
                                             // Disable PiP before showing ad because launching the Ad Activity triggers onUserLeaveHint
-                                            isPlayerActive = false
+                                            MainActivity.isPlayerActive = false
+                                            val isMiniPlayerActive = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.value
+                                            if (isMiniPlayerActive) {
+                                                // Pause playback while the full-screen ad is showing
+                                                videoPlayer.pause()
+                                            }
                                             AdManager.showInterstitialAd(this@MainActivity) {
                                                 navController.popBackStack()
+                                                if (isMiniPlayerActive || com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.value) {
+                                                    // Smoothly resume playback in the floating mini player once the ad is dismissed
+                                                    videoPlayer.play()
+                                                }
                                             }
                                         }
                                     )
@@ -298,6 +311,7 @@ class MainActivity : FragmentActivity() {
                         class HostStreamingState {
                             var lastVideoPath: String? = null
                             var lastIsPlaying: Boolean = false
+                            var lastVolume: Float = 1f
                         }
                         val hostState = androidx.compose.runtime.remember { HostStreamingState() }
 
@@ -327,9 +341,15 @@ class MainActivity : FragmentActivity() {
                                                 path = "http_stream"
                                             )
                                             
-                                            // Prepare and play the stream silently
-                                            videoPlayer.player.volume = 0f
+                                            // Remember the user's volume so the silent preview can
+                                            // restore it exactly when the session ends.
+                                            if (!videoPlayer.isReleased && videoPlayer.player.volume > 0f) {
+                                                hostState.lastVolume = videoPlayer.player.volume
+                                            }
+                                            // prepare() is the sole player recovery point, so prepare
+                                            // FIRST, then mute for the silent preview.
                                             videoPlayer.prepare(androidx.media3.common.MediaItem.fromUri(streamUri))
+                                            videoPlayer.player.volume = 0f
                                             videoPlayer.play()
                                             
                                             miniPlayerManager.showMiniPlayer(clientVideo)
@@ -340,6 +360,10 @@ class MainActivity : FragmentActivity() {
                                     if (miniPlayerManager.isMiniPlayerActive.value && !isFullPlayerActive) {
                                         miniPlayerManager.dismissMiniPlayer()
                                         videoPlayer.pause()
+                                        // Undo the silent-preview mute so the user's volume survives.
+                                        if (!videoPlayer.isReleased) {
+                                            videoPlayer.player.volume = hostState.lastVolume
+                                        }
                                     }
                                 }
                             } else {
@@ -373,8 +397,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        val isMiniPlayerActive = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().isMiniPlayerActive.value
-        if (isMiniPlayerActive) {
+        // Never request PiP twice or race an in-flight PiP transition.
+        if (isInPictureInPictureMode) return
+        val manager = com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
+        // Only fold into PiP when the mini player is actually on screen AND the
+        // shared player is alive — avoids PiP for ad/browser leaves or after the
+        // mini player was dismissed.
+        if (manager.isMiniPlayerActive.value && !videoPlayer.isReleased) {
             val params = android.app.PictureInPictureParams.Builder()
                 .setAspectRatio(android.util.Rational(16, 9))
                 .build()
@@ -392,6 +421,14 @@ class MainActivity : FragmentActivity() {
     }
     
     companion object {
-        var isPlayerActive = false
+        private val _isPlayerActive = MutableStateFlow(false)
+
+        /** Observable "full player is on screen" flag — Compose-safe (fixes the
+         *  stale non-state var that never triggered recomposition). */
+        val isPlayerActiveState: StateFlow<Boolean> = _isPlayerActive.asStateFlow()
+
+        var isPlayerActive: Boolean
+            get() = _isPlayerActive.value
+            set(value) { _isPlayerActive.value = value }
     }
 }

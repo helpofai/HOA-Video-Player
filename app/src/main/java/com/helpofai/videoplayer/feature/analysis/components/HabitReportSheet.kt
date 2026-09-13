@@ -46,8 +46,11 @@ fun HabitReportSheet(
     report: HabitReport,
     onDismissRequest: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color.Transparent
     ) {
         Box(

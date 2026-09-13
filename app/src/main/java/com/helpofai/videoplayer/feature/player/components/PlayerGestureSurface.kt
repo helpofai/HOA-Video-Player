@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.FastForward
@@ -192,7 +193,9 @@ fun PlayerGestureSurface(
 
                                     if (totalDistanceX > touchSlop || totalDistanceY > touchSlop) {
                                         startPosition = viewModel.videoPlayer.player.currentPosition
-                                        initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
+                                        val currentStreamVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVol
+                                        val currentBoostFactor = viewModel.audioEffectManager.volumeBoostPercent.toFloat() / 100f
+                                        initialVolume = currentStreamVol + currentBoostFactor
                                         activity?.window?.let { window ->
                                             var currentBrightness = window.attributes.screenBrightness
                                             if (currentBrightness < 0) currentBrightness = 0.5f
@@ -248,11 +251,43 @@ fun PlayerGestureSurface(
                                         }
                                     } else {
                                         if (isVolumeAllowed) {
-                                            val newVolFloat = initialVolume + delta
-                                            val newVol = (newVolFloat * maxVol).toInt().coerceIn(0, maxVol)
-                                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                            lastVolume = newVolFloat.coerceIn(0f, 1f)
-                                            onFeedbackEvent(FeedbackEvent(FeedbackType.VOLUME, Icons.AutoMirrored.Filled.VolumeUp, "${(newVol.toFloat() / maxVol * 100).toInt()}%", value = newVolFloat.coerceIn(0f, 1f), color = Color(0xFF2196F3)))
+                                            val newTotalVol = (initialVolume + delta).coerceIn(0f, 2.0f)
+                                            if (newTotalVol <= 1.0f) {
+                                                // Standard Volume Range (0% - 100%)
+                                                if (viewModel.audioEffectManager.volumeBoostPercent > 0) {
+                                                    viewModel.audioEffectManager.volumeBoostPercent = 0
+                                                }
+                                                val newVol = kotlin.math.round(newTotalVol * maxVol).toInt().coerceIn(0, maxVol)
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                                lastVolume = newTotalVol
+                                                val displayPercent = kotlin.math.round(newTotalVol * 100).toInt()
+                                                onFeedbackEvent(
+                                                    FeedbackEvent(
+                                                        type = FeedbackType.VOLUME,
+                                                        icon = if (newVol == 0) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                                        text = "$displayPercent%",
+                                                        value = newTotalVol,
+                                                        color = Color(0xFF00E5FF)
+                                                    )
+                                                )
+                                            } else {
+                                                // Forced past 100% -> Hardware Audio Boost (101% - 200%)
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVol, 0)
+                                                lastVolume = 1.0f
+                                                val boostPercent = kotlin.math.round((newTotalVol - 1.0f) * 100f).toInt().coerceIn(0, 100)
+                                                viewModel.audioEffectManager.volumeBoostPercent = boostPercent
+                                                val totalPercent = 100 + boostPercent
+                                                val boostColor = if (totalPercent > 150) Color(0xFFFF3D00) else Color(0xFFFF9800)
+                                                onFeedbackEvent(
+                                                    FeedbackEvent(
+                                                        type = FeedbackType.VOLUME,
+                                                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                                                        text = "$totalPercent% Boost",
+                                                        value = boostPercent / 100f,
+                                                        color = boostColor
+                                                    )
+                                                )
+                                            }
                                         } else {
                                             onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Volume gesture is disabled by Host"))
                                         }

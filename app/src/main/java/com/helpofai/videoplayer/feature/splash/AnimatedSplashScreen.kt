@@ -26,6 +26,7 @@ import android.webkit.WebView
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -47,19 +48,20 @@ fun AnimatedSplashScreen(onSplashFinished: () -> Unit) {
     val progressAnim = remember { Animatable(0f) }
     val progress = progressAnim.value
     
-    // Simulate loading progress using idiomatic Compose animation
+    // Snappy loading transition with instant skip support
     LaunchedEffect(Unit) {
         progressAnim.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 800, easing = LinearEasing)
+            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing)
         )
-        delay(100) // Brief pause at 100%
+        delay(50)
         onSplashFinished()
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .clickable(onClick = onSplashFinished)
             .background(Color(0xFF020617)), // Matches the deep obsidian edge of the SVG
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

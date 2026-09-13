@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -119,7 +120,20 @@ fun PlayerScreen(
         }
     }
 
-    androidx.activity.compose.BackHandler(onBack = onNavigateBack)
+    val handleBackPress: () -> Unit = {
+        // Leaving the full player with a live video hands off to the global
+        // mini player (background playback continues) instead of tearing the
+        // shared player down. While in PiP the system owns the surface, so
+        // keep the plain exit path there.
+        val activity = context as? android.app.Activity
+        val inPip = activity?.isInPictureInPictureMode == true
+        if (viewModel.canMinimizeToMiniPlayer() && !inPip) {
+            viewModel.minimizePlayer()
+        }
+        onNavigateBack()
+    }
+
+    androidx.activity.compose.BackHandler(onBack = handleBackPress)
     
     var isLongPressing by remember { mutableStateOf(false) }
     
@@ -141,10 +155,12 @@ fun PlayerScreen(
     // Rotation State
     var isLandscape by remember { mutableStateOf(false) }
     var isManualOrientationLocked by remember { mutableStateOf(false) }
+    var hasRenderedFirstFrame by remember { mutableStateOf(false) }
 
     val currentVideoPath by viewModel.currentPathFlow.collectAsState()
     LaunchedEffect(currentVideoPath) {
         isManualOrientationLocked = false
+        hasRenderedFirstFrame = false
     }
     
     // Dialog State
@@ -181,7 +197,6 @@ fun PlayerScreen(
     var showVideoEnhancer by remember { mutableStateOf(false) }
     var rotationZ by remember { mutableFloatStateOf(0f) }
     var isBuffering by remember { mutableStateOf(false) }
-    var processData by remember { mutableStateOf("") }
     
     var isMirrored by remember { mutableStateOf(false) }
     var isFlipped by remember { mutableStateOf(false) }
@@ -199,19 +214,33 @@ fun PlayerScreen(
         watchPartyVideoTitle?.let { currentVideoTitle = it }
     }
 
-    // Auto AI Enhancement state
+    // Auto AI Enhancement & Diagnostics state
     val autoAIState by viewModel.autoAIState.collectAsState()
     val isHQMode by viewModel.isHQMode.collectAsState()
+    val mediaReport by viewModel.mediaCompatibilityReport.collectAsState()
     // Live enhancement config (lights the Enhancer icon when active)
     val enhancementConfig by viewModel.videoEnhancementManager.config.collectAsState()
     val isEqualizerOn = viewModel.audioEffectManager.isEqualizerEnabled
     // Live playback state (speed changes light the Speed icon)
     val livePlaybackState by viewModel.videoPlayer.playbackState.collectAsState()
+    val mediaSpecs = remember(livePlaybackState, mediaReport, decoderMode) {
+        com.helpofai.videoplayer.feature.player.components.buildMediaStreamSpecs(
+            playbackState = livePlaybackState,
+            report = mediaReport,
+            decoderMode = decoderMode
+        )
+    }
+    var isInitialHQCheck by remember { mutableStateOf(true) }
     LaunchedEffect(isHQMode) {
+        if (isInitialHQCheck) {
+            isInitialHQCheck = false
+            return@LaunchedEffect
+        }
         feedbackEvent = FeedbackEvent(
             type = FeedbackType.INFO,
             icon = Icons.Default.HighQuality,
-            text = if (isHQMode) "HQ Mode ON" else "HQ Mode OFF"
+            text = if (isHQMode) "HD Mode ON" else "HD Mode OFF",
+            color = ToolIconPalette.HQ
         )
     }
     var aiRevealContentType by remember { mutableStateOf<String?>(null) }
@@ -378,16 +407,8 @@ fun PlayerScreen(
         insetsController?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         insetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         
-        val decorView = window?.decorView
-        val insetsListener = android.view.View.OnApplyWindowInsetsListener { view, insets ->
-            insetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            view.onApplyWindowInsets(insets)
-        }
-        decorView?.setOnApplyWindowInsetsListener(insetsListener)
-        
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            decorView?.setOnApplyWindowInsetsListener(null)
             // Exit immersive mode
             insetsController?.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             window?.let { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it, true) }
@@ -397,8 +418,8 @@ fun PlayerScreen(
         }
     }
 
-    // Continuously enforce immersive mode to prevent Android 15 / rotation from breaking it
-    SideEffect {
+    // Re-hide system bars cleanly on orientation change without continuous insets recalculation loop
+    LaunchedEffect(isLandscape) {
         val window = activity?.window
         val insetsController = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, it.decorView) }
         insetsController?.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -455,6 +476,7 @@ fun PlayerScreen(
 
             override fun onRenderedFirstFrame() {
                 applyAutoRotation(player.videoSize)
+                hasRenderedFirstFrame = true
             }
 
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -471,45 +493,15 @@ fun PlayerScreen(
             
             override fun onIsPlayingChanged(isPlayingChange: Boolean) {
                 isPlaying = isPlayingChange
-                feedbackEvent = FeedbackEvent(
-                    type = FeedbackType.PLAY_PAUSE,
-                    icon = if (isPlayingChange) Icons.Default.PlayArrow else Icons.Default.Pause,
-                    text = if (isPlayingChange) "Play" else "Pause"
-                )
+                // Center-screen play/pause icon removed per user preference
             }
             
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == androidx.media3.common.Player.STATE_READY) {
                     applyAutoRotation(player.videoSize)
+                    hasRenderedFirstFrame = true
                 }
                 isBuffering = playbackState == androidx.media3.common.Player.STATE_BUFFERING
-                if (isBuffering) {
-                    val tracks = viewModel.videoPlayer.player.currentTracks
-                    val sb = StringBuilder()
-                    tracks.groups.forEach { group ->
-                        if (group.isSelected) {
-                            for (i in 0 until group.length) {
-                                if (group.isTrackSelected(i)) {
-                                    val format = group.getTrackFormat(i)
-                                    val mime = format.sampleMimeType ?: "Unknown Codec"
-                                    val type = if (mime.startsWith("video/")) "VIDEO" else if (mime.startsWith("audio/")) "AUDIO" else "DATA"
-                                    sb.append("[$type] ${mime.substringAfter("/").uppercase()}\n")
-                                    if (format.width > 0 && format.height > 0) {
-                                        sb.append("  Resolution: ${format.width}x${format.height}")
-                                        if (format.frameRate > 0) sb.append(" @ ${format.frameRate}fps")
-                                        sb.append("\n")
-                                    }
-                                    if (format.bitrate > 0) sb.append("  Bitrate: ${format.bitrate / 1000} kbps\n")
-                                }
-                            }
-                        }
-                    }
-                    if (sb.isEmpty()) {
-                        processData = "Parsing Media Streams...\nDecoding High Quality Source"
-                    } else {
-                        processData = "DECODING PIPELINE:\n" + sb.toString().trim()
-                    }
-                }
             }
         }
         viewModel.videoPlayer.player.addListener(listener)
@@ -615,7 +607,7 @@ fun PlayerScreen(
             PlayerTopToolbar(
                 isVisible = isControllerVisible,
                 title = currentVideoTitle,
-                onBackClick = onNavigateBack,
+                onBackClick = handleBackPress,
                 onLockClick = { isControlsLocked = true },
                 onSpeedClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SPEED_DIAL },
                 onEqClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.EQUALIZER },
@@ -907,6 +899,7 @@ fun PlayerScreen(
             activeDialog = activeDialog,
             onDismissRequest = { activeDialog = null },
             viewModel = viewModel,
+            currentPosition = currentPosition,
             decoderMode = decoderMode,
             onDecoderModeSelect = {
                 decoderMode = it
@@ -964,71 +957,32 @@ fun PlayerScreen(
             onOpenSubtitleStyle = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SUBTITLE_STYLE },
             onFeedbackEvent = { feedbackEvent = it }
         )
-        val mediaReport by viewModel.mediaCompatibilityReport.collectAsState()
         if (showVideoEnhancer) {
             com.helpofai.videoplayer.feature.player.components.VideoEnhancerSheet(
                 enhancementManager = viewModel.videoEnhancementManager,
                 report = mediaReport,
+                autoAIState = autoAIState,
+                onTriggerAutoAIScan = {
+                    showVideoEnhancer = false
+                    viewModel.runAutoAIEnhancement()
+                },
                 onDismissRequest = { showVideoEnhancer = false }
             )
         }
 
-        if (isBuffering) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .background(Color(0x99000000), androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "PROCESSING MEDIA",
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = processData,
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-            }
-        }
+        // Modern Cinematic Buffering & Stream Pipeline Processing Overlay
+        com.helpofai.videoplayer.feature.player.components.MediaBufferingOverlay(
+            isBuffering = isBuffering,
+            isInitialLoad = !hasRenderedFirstFrame,
+            specs = mediaSpecs,
+            modifier = Modifier.align(Alignment.Center)
+        )
 
-        if (autoAIState.isAnalyzing) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .background(Color(0xCC000000), androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    androidx.compose.material3.CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "AI ENHANCING THIS VIDEO",
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Analyzing frames - brightness, contrast, color...",
-                        color = Color.White.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            }
-        }
+        // Modern Glassmorphic AI Neural Frame Scanning Overlay
+        com.helpofai.videoplayer.feature.player.components.AIAnalyzingOverlay(
+            isAnalyzing = autoAIState.isAnalyzing,
+            modifier = Modifier.align(Alignment.Center)
+        )
 
         // Cinematic center-split reveal when Auto AI Enhancement activates
         aiRevealContentType?.let { contentType ->

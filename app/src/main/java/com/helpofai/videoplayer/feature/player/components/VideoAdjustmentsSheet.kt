@@ -22,6 +22,7 @@
 */
 package com.helpofai.videoplayer.feature.player.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.platform.LocalView
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,9 +58,14 @@ fun VideoAdjustmentsSheet(
     // Placeholder states for advanced color shaders
     var contrast by remember { mutableFloatStateOf(0.5f) }
     var saturation by remember { mutableFloatStateOf(0.5f) }
+    // Adjustments signature color — the page carries one per-tool identity
+    val accent = ToolIconPalette.Adjustments
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
         contentColor = Color.White
     ) {
@@ -75,12 +82,29 @@ fun VideoAdjustmentsSheet(
                 .padding(horizontal = 24.dp, vertical = 8.dp)
         ) {
             item {
-                Text(
-                    text = "Video Adjustments",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(bottom = 16.dp)
-                )
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.radialGradient(
+                                        colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent)
+                                    )
+                                )
+                        )
+                        Icon(Icons.Default.Tune, contentDescription = null, tint = accent, modifier = Modifier.size(26.dp))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Video Adjustments",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
             
             // Brightness Slider
@@ -93,8 +117,8 @@ fun VideoAdjustmentsSheet(
                         onValueChange = onBrightnessChanged,
                         modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFFEB3B),
-                            activeTrackColor = Color(0xFFFFEB3B)
+                            thumbColor = accent,
+                            activeTrackColor = accent
                         )
                     )
                     Icon(Icons.Default.BrightnessHigh, contentDescription = null, tint = Color.White)
@@ -112,8 +136,8 @@ fun VideoAdjustmentsSheet(
                         onValueChange = { contrast = it },
                         modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFFF9800),
-                            activeTrackColor = Color(0xFFFF9800)
+                            thumbColor = accent,
+                            activeTrackColor = accent
                         )
                     )
                 }
@@ -130,8 +154,8 @@ fun VideoAdjustmentsSheet(
                         onValueChange = { saturation = it },
                         modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFE91E63),
-                            activeTrackColor = Color(0xFFE91E63)
+                            thumbColor = accent,
+                            activeTrackColor = accent
                         )
                     )
                 }
@@ -199,10 +223,10 @@ fun VideoAdjustmentsSheet(
                         Text(
                             text = label,
                             modifier = Modifier.weight(1f),
-                            color = if (mode == currentResizeMode) MaterialTheme.colorScheme.primary else Color.White
+                            color = if (mode == currentResizeMode) accent else Color.White
                         )
                         if (mode == currentResizeMode) {
-                            Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Check, contentDescription = "Selected", tint = accent)
                         }
                     }
                 }

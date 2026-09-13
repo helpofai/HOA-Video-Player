@@ -2,23 +2,1053 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Privacy Policy - HOA Video Player</title>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-            line-height: 1.6;
-            padding: 2rem;
+        :root {
+            --bg-body: #080c14;
+            --bg-card: rgba(18, 26, 43, 0.75);
+            --bg-card-hover: rgba(26, 38, 64, 0.85);
+            --bg-subcard: rgba(11, 17, 30, 0.65);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(99, 102, 241, 0.35);
+            --border-cyan: rgba(6, 182, 212, 0.3);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --accent-cyan: #06b6d4;
+            --accent-cyan-glow: rgba(6, 182, 212, 0.2);
+            --accent-indigo: #6366f1;
+            --accent-indigo-glow: rgba(99, 102, 241, 0.25);
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            
+            --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
         }
-        h1 { color: #3b82f6; }
-        p { color: #94a3b8; }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            line-height: 1.65;
+            padding: 16px 14px 48px;
+            font-size: 13.5px;
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        .container {
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        /* Top Hero Header */
+        .hero {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(6, 182, 212, 0.12) 100%);
+            border: 1px solid var(--border-accent);
+            border-radius: var(--radius-lg);
+            padding: 24px 20px;
+            margin-bottom: 18px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .app-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .shield-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: var(--accent-emerald);
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .shield-badge.cyan {
+            background: rgba(6, 182, 212, 0.12);
+            border-color: rgba(6, 182, 212, 0.35);
+            color: var(--accent-cyan);
+        }
+
+        .shield-badge.indigo {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: rgba(99, 102, 241, 0.35);
+            color: #818cf8;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1.25;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .hero-desc {
+            color: var(--text-secondary);
+            font-size: 13.5px;
+            line-height: 1.55;
+            margin-bottom: 14px;
+        }
+
+        .metadata-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 14px;
+        }
+
+        .meta-cell {
+            background: var(--bg-subcard);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+        }
+
+        .meta-cell .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .meta-cell .val {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Search & Filter Nav */
+        .controls-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 18px;
+            position: sticky;
+            top: 6px;
+            z-index: 50;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(11, 17, 30, 0.8);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 9px 12px 9px 34px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px var(--accent-cyan-glow);
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 15px;
+            height: 15px;
+            fill: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .nav-pills {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+
+        .nav-pills::-webkit-scrollbar {
+            display: none;
+        }
+
+        .pill-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 5px 11px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pill-btn:hover, .pill-btn.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25));
+            border-color: var(--accent-cyan);
+            color: #ffffff;
+        }
+
+        /* Cards & Content */
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 20px 18px;
+            margin-bottom: 16px;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .section-card:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        .section-card.highlight {
+            border-color: var(--border-accent);
+            box-shadow: 0 6px 24px var(--accent-indigo-glow);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: var(--accent-indigo);
+        }
+
+        .card-icon.cyan {
+            background: rgba(6, 182, 212, 0.12);
+            border-color: rgba(6, 182, 212, 0.25);
+            color: var(--accent-cyan);
+        }
+
+        .card-icon.emerald {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: rgba(16, 185, 129, 0.25);
+            color: var(--accent-emerald);
+        }
+
+        .card-icon.amber {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.25);
+            color: var(--accent-amber);
+        }
+
+        .card-icon.rose {
+            background: rgba(244, 63, 94, 0.12);
+            border-color: rgba(244, 63, 94, 0.25);
+            color: var(--accent-rose);
+        }
+
+        .card-title-group h2 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.3;
+            margin-bottom: 3px;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-size: 13.5px;
+            line-height: 1.6;
+        }
+
+        p strong {
+            color: var(--text-primary);
+        }
+
+        /* Feature Matrix Table */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            margin: 14px 0;
+            background: var(--bg-subcard);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-subtle);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-tag.yes {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-tag.no {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--accent-rose);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        .status-tag.local {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .status-tag.admob {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-amber);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* Bullet Points & Grids */
+        ul {
+            padding-left: 18px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .pill-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .pill-card {
+            background: var(--bg-subcard);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 12px;
+        }
+
+        .pill-card .pill-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .pill-card .pill-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .pill-card .pill-body {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Callout Box */
+        .callout {
+            border-left: 3px solid var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.06);
+            padding: 12px 14px;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            margin: 12px 0;
+        }
+
+        .callout.indigo {
+            border-left-color: var(--accent-indigo);
+            background: rgba(99, 102, 241, 0.06);
+        }
+
+        .callout.emerald {
+            border-left-color: var(--accent-emerald);
+            background: rgba(16, 185, 129, 0.06);
+        }
+
+        .callout.amber {
+            border-left-color: var(--accent-amber);
+            background: rgba(245, 158, 11, 0.06);
+        }
+
+        .callout-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--accent-cyan);
+            margin-bottom: 4px;
+        }
+
+        .callout.indigo .callout-title { color: #818cf8; }
+        .callout.emerald .callout-title { color: var(--accent-emerald); }
+        .callout.amber .callout-title { color: var(--accent-amber); }
+
+        .callout-text {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Links */
+        a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 32px;
+            padding: 24px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            text-align: center;
+        }
+
+        .footer-logo {
+            font-size: 18px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .footer-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .no-results {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-    <h1>Privacy Policy</h1>
-    <p>At HOA Video Player, we respect your privacy. This application operates entirely offline and does not collect, store, or transmit any of your personal data or video metadata to any external servers.</p>
-    <p>All video indexing, bookmarks, and chapters are stored securely on your local device.</p>
+    <div class="container">
+        
+        <!-- HERO SECTION -->
+        <header class="hero">
+            <div class="app-badge-row">
+                <span class="shield-badge">&check; Offline-First Architecture</span>
+                <span class="shield-badge cyan">&bull; Zero Cloud Scraping</span>
+                <span class="shield-badge indigo">&bull; AES-256 Vault</span>
+            </div>
+            <h1>Privacy Policy &amp; Data Safety</h1>
+            <p class="hero-desc">
+                Comprehensive privacy architecture, technical data governance, and Google Play Data Safety compliance disclosures for <strong>HOA Video Player</strong>.
+            </p>
+            <div class="metadata-strip">
+                <div class="meta-cell">
+                    <div class="label">Organization</div>
+                    <div class="val">HelpOfAi (HOA)</div>
+                </div>
+                <div class="meta-cell">
+                    <div class="label">Lead Architect</div>
+                    <div class="val">Rajib Adhikary</div>
+                </div>
+                <div class="meta-cell">
+                    <div class="label">App Version</div>
+                    <div class="val">v4.1.0 (Production)</div>
+                </div>
+                <div class="meta-cell">
+                    <div class="label">Effective Date</div>
+                    <div class="val">March 2026</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- STICKY SEARCH & NAVIGATION -->
+        <div class="controls-card">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="policySearch" placeholder="Search privacy topics (e.g. AdMob, Vault, Permissions, GDPR)..." oninput="handleSearch(this.value)">
+            </div>
+            <div class="nav-pills">
+                <button class="pill-btn active" onclick="filterCategory('all', this)">All Sections</button>
+                <button class="pill-btn" onclick="filterCategory('data-safety', this)">Data Safety Matrix</button>
+                <button class="pill-btn" onclick="filterCategory('media', this)">Media Pipeline</button>
+                <button class="pill-btn" onclick="filterCategory('vault', this)">Private Vault</button>
+                <button class="pill-btn" onclick="filterCategory('watch-party', this)">Watch Party LAN</button>
+                <button class="pill-btn" onclick="filterCategory('admob', this)">Google AdMob</button>
+                <button class="pill-btn" onclick="filterCategory('permissions', this)">Permissions</button>
+                <button class="pill-btn" onclick="filterCategory('rights', this)">GDPR / CCPA</button>
+            </div>
+        </div>
+
+        <div id="noResults" class="no-results">
+            No sections match your search query. Try searching for "AdMob", "Vault", "Permissions", or "Storage".
+        </div>
+
+        <!-- SECTION 1: CORE PHILOSOPHY -->
+        <section class="section-card highlight" data-category="overview" id="sec-overview">
+            <div class="card-header">
+                <div class="card-icon emerald">&#9658;</div>
+                <div class="card-title-group">
+                    <h2>1. Executive Summary &amp; Core Privacy Philosophy</h2>
+                    <div class="card-subtitle">Zero-knowledge, offline-first client architecture</div>
+                </div>
+            </div>
+            <p>
+                At <strong>HelpOfAi (HOA)</strong>, we hold the conviction that privacy is a fundamental human right. Unlike cloud-based media aggregators, <strong>HOA Video Player</strong> is intentionally engineered as an <strong>offline-first, standalone media workstation</strong>.
+            </p>
+            <div class="callout emerald">
+                <div class="callout-title">Zero Remote Server Footprint</div>
+                <p class="callout-text">
+                    We do <strong>NOT</strong> operate proprietary user databases, cloud storage servers, scraping proxies, or user tracking telemetry servers. Your personal video files, audio tracks, folders, and private media never transit across any HelpOfAi server.
+                </p>
+            </div>
+            <p>
+                All video parsing, thumbnail generation, hardware decoding, subtitle formatting, audio equalization, and file protection happen <strong>100% locally on your physical device</strong>.
+            </p>
+        </section>
+
+        <!-- SECTION 2: GOOGLE PLAY DATA SAFETY MATRIX -->
+        <section class="section-card" data-category="data-safety" id="sec-data-safety">
+            <div class="card-header">
+                <div class="card-icon cyan">&#9638;</div>
+                <div class="card-title-group">
+                    <h2>2. Google Play Standardized Data Safety Matrix</h2>
+                    <div class="card-subtitle">Full transparency matching Google Play Console declarations</div>
+                </div>
+            </div>
+            <p>
+                The following table outlines our formal Data Safety declarations according to Google Play Store requirements:
+            </p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data Category</th>
+                            <th>Collected by HOA?</th>
+                            <th>Shared with 3rd Party?</th>
+                            <th>Processing Location</th>
+                            <th>Security Standard</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Videos &amp; Audio</strong></td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag no">&cross; NEVER</span></td>
+                            <td><span class="status-tag local">Local Device Only</span></td>
+                            <td>AES-256 (Vault items)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Personal Info</strong> (Name/Email/Phone)</td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag no">&cross; NEVER</span></td>
+                            <td><span class="status-tag local">None</span></td>
+                            <td>No account required</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Location Data</strong> (GPS)</td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag no">&cross; NEVER</span></td>
+                            <td><span class="status-tag local">None</span></td>
+                            <td>Zero location permissions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Advertising ID</strong> (GAID/AAID)</td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag admob">&check; AdMob SDK</span></td>
+                            <td>Google Ad Servers</td>
+                            <td>Encrypted via HTTPS / TLS</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Crash Stacktraces</strong></td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag no">&cross; NO (Manual Only)</span></td>
+                            <td><span class="status-tag local">Local Memory / Screen</span></td>
+                            <td>User-initiated email only</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Watch Party Video Streams</strong></td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag no">&cross; NEVER</span></td>
+                            <td><span class="status-tag local">Direct Local Wi-Fi P2P</span></td>
+                            <td>Private LAN socket only</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECTION 3: LOCAL MEDIA PIPELINE -->
+        <section class="section-card" data-category="media" id="sec-media">
+            <div class="card-header">
+                <div class="card-icon indigo">&#9670;</div>
+                <div class="card-title-group">
+                    <h2>3. On-Device Media Processing &amp; Diagnostics</h2>
+                    <div class="card-subtitle">Technical details of playback, indexing, and diagnostics</div>
+                </div>
+            </div>
+            <p>
+                To provide ultra-fast video browsing and studio-grade playback, HOA Video Player performs all computations in sandboxed local runtime environments:
+            </p>
+            <div class="pill-grid">
+                <div class="pill-card">
+                    <div class="pill-header">
+                        <span class="pill-title">MediaStore Indexing</span>
+                        <span class="status-tag local">Local Cache</span>
+                    </div>
+                    <div class="pill-body">
+                        Directly queries Android's native MediaStore provider for filenames, durations, resolutions, and folder paths. Stored in high-speed in-memory Room SQLite database.
+                    </div>
+                </div>
+                <div class="pill-card">
+                    <div class="pill-header">
+                        <span class="pill-title">Intelligent Thumbnails</span>
+                        <span class="status-tag local">App-Private</span>
+                    </div>
+                    <div class="pill-body">
+                        Keyframes extracted on-device using MediaMetadataRetriever. Thumbnails reside solely in your app-isolated internal cache and are never uploaded.
+                    </div>
+                </div>
+                <div class="pill-card">
+                    <div class="pill-header">
+                        <span class="pill-title">Diagnostics &amp; AI Engine</span>
+                        <span class="status-tag local">Hardware Shaders</span>
+                    </div>
+                    <div class="pill-body">
+                        Scene detection, bit-depth inspection, HDR transfers, and OpenGL video enhancements run entirely on your device's GPU and CPU.
+                    </div>
+                </div>
+                <div class="pill-card">
+                    <div class="pill-header">
+                        <span class="pill-title">Audio Pipeline</span>
+                        <span class="status-tag local">AudioFx Engine</span>
+                    </div>
+                    <div class="pill-body">
+                        Equalizer, Bass Boost, Virtualizer, and Reverb attach to the local media session. No microphone or voice recording capability exists in the app.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: PRIVATE VAULT SECURITY -->
+        <section class="section-card" data-category="vault" id="sec-vault">
+            <div class="card-header">
+                <div class="card-icon rose">&#128274;</div>
+                <div class="card-title-group">
+                    <h2>4. Zero-Knowledge Private Vault Architecture</h2>
+                    <div class="card-subtitle">Cryptographic specifications and user sovereignty</div>
+                </div>
+            </div>
+            <p>
+                The <strong>Private Vault</strong> provides military-grade file confidentiality for sensitive personal videos:
+            </p>
+            <ul>
+                <li><strong>Encryption Standard:</strong> Files moved into the Private Vault are encrypted using <strong>AES-256 in Galois/Counter Mode (GCM)</strong>, ensuring both confidentiality and data authenticity.</li>
+                <li><strong>Key Derivation:</strong> Your PIN derives the cryptographic master key using <strong>PBKDF2 with HMAC-SHA256</strong> utilizing salted iterations.</li>
+                <li><strong>Zero-Knowledge Assurance:</strong> The developer, HelpOfAi, does not possess or store your PIN or recovery keys. If you uninstall the app or forget your PIN, encrypted vault data cannot be recovered by any third party.</li>
+                <li><strong>Memory Protection:</strong> Decryption keys reside strictly in volatile RAM during active playback and are automatically purged upon exiting the vault or locking the screen.</li>
+            </ul>
+        </section>
+
+        <!-- SECTION 5: WATCH PARTY LOCAL STREAMING -->
+        <section class="section-card" data-category="watch-party" id="sec-watch-party">
+            <div class="card-header">
+                <div class="card-icon cyan">&#9881;</div>
+                <div class="card-title-group">
+                    <h2>5. Watch Party Peer-to-Peer (P2P) LAN Streaming</h2>
+                    <div class="card-subtitle">Direct Wi-Fi / Hotspot media synchronization</div>
+                </div>
+            </div>
+            <p>
+                The <strong>Watch Party</strong> feature enables synchronous media playback between multiple devices without routing through any external cloud relay:
+            </p>
+            <div class="callout cyan">
+                <div class="callout-title">Isolated Local Subnet Only</div>
+                <p class="callout-text">
+                    Media streaming occurs directly over your local Wi-Fi router, Wi-Fi Direct, or portable hotspot using an embedded point-to-point HTTP/WebSocket socket service.
+                </p>
+            </div>
+            <ul>
+                <li>No video data ever leaves your physical Wi-Fi network or touches external routing servers.</li>
+                <li>Control signaling (Play, Pause, Seek, Speed Sync) is exchanged solely between local IP addresses on your subnet.</li>
+                <li>Clients cannot access the host device's file system outside of the single selected video stream.</li>
+            </ul>
+        </section>
+
+        <!-- SECTION 6: THIRD-PARTY ADVERTISING (GOOGLE ADMOB) -->
+        <section class="section-card" data-category="admob" id="sec-admob">
+            <div class="card-header">
+                <div class="card-icon amber">&#128226;</div>
+                <div class="card-title-group">
+                    <h2>6. Third-Party Advertising (Google AdMob SDK)</h2>
+                    <div class="card-subtitle">Advertising governance, identifiers, and opt-out controls</div>
+                </div>
+            </div>
+            <p>
+                To provide <strong>HOA Video Player</strong> as a free utility without subscription paywalls, this application integrates the <strong>Google Mobile Ads (AdMob) SDK</strong>.
+            </p>
+            <p>
+                Google AdMob operates in accordance with Google's Privacy Policy. The SDK may process certain device diagnostics and advertising identifiers:
+            </p>
+            <ul>
+                <li><strong>Google Advertising ID (GAID / AAID):</strong> A resettable pseudonymous identifier used by advertising networks to serve personalized or contextual advertisements.</li>
+                <li><strong>Network &amp; Device Telemetry:</strong> IP address (utilized for coarse city/country location), mobile carrier, device manufacturer, screen dimensions, and operating system build.</li>
+                <li><strong>Ad Performance Metrics:</strong> Viewability status, clicks, impressions, and diagnostic latency metrics.</li>
+            </ul>
+            <div class="callout amber">
+                <div class="callout-title">Your Advertising Privacy Rights &amp; Opt-Out Options</div>
+                <p class="callout-text">
+                    You maintain complete control over targeted advertising. You can reset or permanently delete your Advertising ID at any time:
+                    <br><strong>Android Settings &rarr; Google &rarr; Ads &rarr; Reset Advertising ID or Delete Advertising ID</strong>.
+                </p>
+            </div>
+            <p>
+                For complete details regarding Google's data practices, please review the official <a href="https://policies.google.com/technologies/ads" target="_blank">Google Advertising Privacy Policy</a>.
+            </p>
+        </section>
+
+        <!-- SECTION 7: RUNTIME PERMISSIONS TABLE -->
+        <section class="section-card" data-category="permissions" id="sec-permissions">
+            <div class="card-header">
+                <div class="card-icon indigo">&#128273;</div>
+                <div class="card-title-group">
+                    <h2>7. Android Runtime Permissions &amp; Technical Justifications</h2>
+                    <div class="card-subtitle">Explicit technical rationale for every manifest permission</div>
+                </div>
+            </div>
+            <p>
+                We adhere strictly to the principle of least privilege. Permissions are requested only when necessary to execute user-demanded features:
+            </p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Permission Name</th>
+                            <th>Min API</th>
+                            <th>Purpose &amp; Technical Necessity</th>
+                            <th>Scope / Restriction</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>READ_MEDIA_VIDEO</code></td>
+                            <td>API 33+</td>
+                            <td>Index and play video files stored on internal/external storage.</td>
+                            <td>Read-only media scope.</td>
+                        </tr>
+                        <tr>
+                            <td><code>READ_EXTERNAL_STORAGE</code></td>
+                            <td>API 21-32</td>
+                            <td>Legacy media indexing on Android 12 and below.</td>
+                            <td>Read-only storage scope.</td>
+                        </tr>
+                        <tr>
+                            <td><code>MANAGE_EXTERNAL_STORAGE</code></td>
+                            <td>API 30+</td>
+                            <td>Optional. Required for advanced File Manager (move, rename, vault encryption, cut/paste).</td>
+                            <td>User-granted explicit consent only.</td>
+                        </tr>
+                        <tr>
+                            <td><code>FOREGROUND_SERVICE_MEDIA_PLAYBACK</code></td>
+                            <td>API 34+</td>
+                            <td>Uninterrupted background audio playback and Picture-in-Picture (PiP).</td>
+                            <td>Bound strictly to active playback service.</td>
+                        </tr>
+                        <tr>
+                            <td><code>INTERNET</code> &amp; <code>ACCESS_NETWORK_STATE</code></td>
+                            <td>All</td>
+                            <td>Delivery of Google AdMob ads and local Watch Party socket communication.</td>
+                            <td>No cloud telemetry transmission.</td>
+                        </tr>
+                        <tr>
+                            <td><code>POST_NOTIFICATIONS</code></td>
+                            <td>API 33+</td>
+                            <td>Display media playback controls (Play, Pause, Skip) in system shade.</td>
+                            <td>Media session controls only.</td>
+                        </tr>
+                        <tr>
+                            <td><code>SYSTEM_ALERT_WINDOW</code></td>
+                            <td>All</td>
+                            <td>Display floating pop-up mini player over other applications.</td>
+                            <td>Optional user toggle.</td>
+                        </tr>
+                        <tr>
+                            <td><code>WAKE_LOCK</code></td>
+                            <td>All</td>
+                            <td>Prevent screen timeout and sleep during active video playback.</td>
+                            <td>Released immediately on pause/exit.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECTION 8: CRASH DIAGNOSTICS & TELEMETRY -->
+        <section class="section-card" data-category="overview" id="sec-crash">
+            <div class="card-header">
+                <div class="card-icon rose">&#9888;</div>
+                <div class="card-title-group">
+                    <h2>8. Local Crash Reporting &amp; Telemetry Policy</h2>
+                    <div class="card-subtitle">No silent background tracking or surveillance daemons</div>
+                </div>
+            </div>
+            <p>
+                In the rare event of an unexpected application crash, HOA Video Player intercepts the exception via a custom local <code>UncaughtExceptionHandler</code>:
+            </p>
+            <ul>
+                <li>The diagnostic stack trace, Android SDK version, and device model are displayed on an interactive crash recovery screen on your device.</li>
+                <li><strong>No Silent Uploads:</strong> Stack traces are <strong>NEVER</strong> automatically uploaded to third-party crash analytics vendors (such as Firebase Crashlytics or Sentry).</li>
+                <li><strong>Manual User Transmission:</strong> You retain complete discretion. If you choose to contact our support engineers, the log is shared exclusively via your default email application.</li>
+            </ul>
+        </section>
+
+        <!-- SECTION 9: CHILDREN'S PRIVACY -->
+        <section class="section-card" data-category="rights" id="sec-children">
+            <div class="card-header">
+                <div class="card-icon emerald">&#9829;</div>
+                <div class="card-title-group">
+                    <h2>9. Children's Privacy (COPPA &amp; GDPR-K)</h2>
+                    <div class="card-subtitle">Protection for young users and general audience utility</div>
+                </div>
+            </div>
+            <p>
+                HOA Video Player is designed as a neutral general-utility video player. We do not knowingly solicit or collect personal information from children under the age of 13 (or under 16 within the European Economic Area).
+            </p>
+            <p>
+                Because our application requires no registration, username, email, or account creation, children may use local video playback safely without personal identity exposure.
+            </p>
+        </section>
+
+        <!-- SECTION 10: USER RIGHTS & DATA ERASURE -->
+        <section class="section-card" data-category="rights" id="sec-rights">
+            <div class="card-header">
+                <div class="card-icon cyan">&#9878;</div>
+                <div class="card-title-group">
+                    <h2>10. User Rights &amp; Complete Data Erasure (GDPR / CCPA)</h2>
+                    <div class="card-subtitle">Your absolute right to access, rectify, and destroy app data</div>
+                </div>
+            </div>
+            <p>
+                Under global privacy standards including the <strong>General Data Protection Regulation (GDPR)</strong>, the <strong>California Consumer Privacy Act (CCPA/CPRA)</strong>, and India's <strong>DPDP Act</strong>, you possess full data sovereignty:
+            </p>
+            <div class="pill-grid">
+                <div class="pill-card">
+                    <div class="pill-title" style="margin-bottom:4px; color:var(--accent-cyan); font-weight:700;">Instant Complete Erasure</div>
+                    <div class="pill-body">
+                        You can permanently delete all playback history, bookmarks, Room databases, preferences, and encrypted vault files at any second by visiting:
+                        <br><strong>Settings &rarr; Apps &rarr; HOA Video Player &rarr; Storage &rarr; Clear Data</strong>.
+                    </div>
+                </div>
+                <div class="pill-card">
+                    <div class="pill-title" style="margin-bottom:4px; color:var(--accent-indigo); font-weight:700;">Clean Uninstallation</div>
+                    <div class="pill-body">
+                        Uninstalling the application immediately purges all application-isolated databases, cached video thumbnails, and configuration preferences from device memory.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 11: CONTACT & LEGAL ENTITY -->
+        <section class="section-card" data-category="overview" id="sec-contact">
+            <div class="card-header">
+                <div class="card-icon emerald">&#9993;</div>
+                <div class="card-title-group">
+                    <h2>11. Developer Identification &amp; Contact</h2>
+                    <div class="card-subtitle">Official communication and regulatory inquiries</div>
+                </div>
+            </div>
+            <p>
+                For any inquiries, privacy concerns, technical verifications, or copyright notices, please reach out to our dedicated engineering and privacy team:
+            </p>
+            <ul>
+                <li><strong>Principal Developer:</strong> Rajib Adhikary</li>
+                <li><strong>Organization:</strong> HelpOfAi (HOA) Professional Software</li>
+                <li><strong>Official Website:</strong> <a href="https://helpofai.com" target="_blank">https://helpofai.com</a></li>
+                <li><strong>Registered Location:</strong> Basta Purba Para, Aranghata, Nadia, West Bengal, India</li>
+                <li><strong>Direct Privacy Email:</strong> <a href="mailto:support@helpofai.com">support@helpofai.com</a></li>
+            </ul>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <div class="footer-logo">HelpOfAi &bull; HOA Video Player</div>
+            <div class="footer-text">
+                &copy; 2026 Rajib Adhikary. All Rights Reserved.
+            </div>
+            <div class="footer-text">
+                Compliant with Google Play Developer Policies &bull; GDPR &bull; CCPA/CPRA &bull; COPPA
+            </div>
+            <div class="footer-links">
+                <a href="license.html">Commercial License</a>
+                <a href="changelog.html">Changelog</a>
+                <a href="https://helpofai.com" target="_blank">Website</a>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        function filterCategory(cat, btn) {
+            document.querySelectorAll('.pill-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            if (btn) btn.classList.add('active');
+
+            var cards = document.querySelectorAll('.section-card');
+            var visibleCount = 0;
+
+            cards.forEach(function(card) {
+                var cardCat = card.getAttribute('data-category');
+                if (cat === 'all' || cardCat === cat) {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        function handleSearch(query) {
+            var q = query.trim().toLowerCase();
+            var cards = document.querySelectorAll('.section-card');
+            var visibleCount = 0;
+
+            if (q === '') {
+                // Restore active category
+                var activePill = document.querySelector('.pill-btn.active');
+                if (activePill) {
+                    activePill.click();
+                } else {
+                    cards.forEach(function(c) { c.style.display = 'block'; });
+                }
+                document.getElementById('noResults').style.display = 'none';
+                return;
+            }
+
+            cards.forEach(function(card) {
+                var text = card.innerText.toLowerCase();
+                if (text.indexOf(q) !== -1) {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+    </script>
 </body>
 </html>

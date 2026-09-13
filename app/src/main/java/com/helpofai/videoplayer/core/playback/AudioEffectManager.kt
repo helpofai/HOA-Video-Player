@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
+import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,6 +39,7 @@ class AudioEffectManager @Inject constructor() {
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
 
     private val _isEqualizerEnabled = mutableStateOf(false)
     var isEqualizerEnabled: Boolean
@@ -53,6 +55,21 @@ class AudioEffectManager @Inject constructor() {
         set(value) {
             _isBassBoostEnabled.value = value
             bassBoost?.enabled = value
+            if (value && _bassStrength.value > 0) {
+                setBassBoostStrength(_bassStrength.value.toShort())
+            }
+        }
+
+    private val _bassStrength = mutableStateOf(0)
+    var bassStrength: Int
+        get() = _bassStrength.value
+        set(value) {
+            _bassStrength.value = value.coerceIn(0, 1000)
+            if (value > 0 && !_isBassBoostEnabled.value) {
+                _isBassBoostEnabled.value = true
+                bassBoost?.enabled = true
+            }
+            setBassBoostStrength(value.toShort())
         }
 
     private val _isVirtualizerEnabled = mutableStateOf(false)
@@ -61,6 +78,38 @@ class AudioEffectManager @Inject constructor() {
         set(value) {
             _isVirtualizerEnabled.value = value
             virtualizer?.enabled = value
+            if (value && _virtualizerStrength.value > 0) {
+                setVirtualizerStrength(_virtualizerStrength.value.toShort())
+            }
+        }
+
+    private val _virtualizerStrength = mutableStateOf(0)
+    var virtualizerStrength: Int
+        get() = _virtualizerStrength.value
+        set(value) {
+            _virtualizerStrength.value = value.coerceIn(0, 1000)
+            if (value > 0 && !_isVirtualizerEnabled.value) {
+                _isVirtualizerEnabled.value = true
+                virtualizer?.enabled = true
+            }
+            setVirtualizerStrength(value.toShort())
+        }
+
+    // Volume Boost (0% to 100% additional gain up to +15dB via LoudnessEnhancer)
+    private val _volumeBoostPercent = mutableStateOf(0)
+    var volumeBoostPercent: Int
+        get() = _volumeBoostPercent.value
+        set(value) {
+            setVolumeBoost(value)
+        }
+
+    // Dialogue / Vocal Clarity Enhancement
+    private val _isDialogueClarityEnabled = mutableStateOf(false)
+    var isDialogueClarityEnabled: Boolean
+        get() = _isDialogueClarityEnabled.value
+        set(value) {
+            _isDialogueClarityEnabled.value = value
+            applyDialogueClarity(value)
         }
 
     fun attachAudioSession(sessionId: Int) {
@@ -72,14 +121,28 @@ class AudioEffectManager @Inject constructor() {
             equalizer = Equalizer(1, sessionId)
             bassBoost = BassBoost(1, sessionId)
             virtualizer = Virtualizer(1, sessionId)
+            loudnessEnhancer = LoudnessEnhancer(sessionId)
 
             equalizer?.enabled = isEqualizerEnabled
             bassBoost?.enabled = isBassBoostEnabled
             virtualizer?.enabled = isVirtualizerEnabled
-            
-            // Set some default robust properties if supported
-            if (bassBoost?.strengthSupported == true) {
-                bassBoost?.setStrength(0)
+
+            if (_volumeBoostPercent.value > 0) {
+                loudnessEnhancer?.apply {
+                    enabled = true
+                    setTargetGain(_volumeBoostPercent.value * 15) // up to 1500 mB
+                }
+            }
+
+            if (bassBoost?.strengthSupported == true && _bassStrength.value > 0) {
+                bassBoost?.setStrength(_bassStrength.value.toShort())
+            }
+            if (virtualizer?.strengthSupported == true && _virtualizerStrength.value > 0) {
+                virtualizer?.setStrength(_virtualizerStrength.value.toShort())
+            }
+
+            if (_isDialogueClarityEnabled.value) {
+                applyDialogueClarity(true)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -87,26 +150,82 @@ class AudioEffectManager @Inject constructor() {
     }
 
     fun release() {
-        equalizer?.release()
-        bassBoost?.release()
-        virtualizer?.release()
-        
+        try {
+            equalizer?.release()
+            bassBoost?.release()
+            virtualizer?.release()
+            loudnessEnhancer?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         equalizer = null
         bassBoost = null
         virtualizer = null
+        loudnessEnhancer = null
+    }
+
+    // Volume Boost Control
+    fun setVolumeBoost(percent: Int) {
+        val clamped = percent.coerceIn(0, 100)
+        _volumeBoostPercent.value = clamped
+        try {
+            loudnessEnhancer?.apply {
+                if (clamped > 0) {
+                    enabled = true
+                    setTargetGain(clamped * 15) // 100% -> 1500 mB (+15dB)
+                } else {
+                    enabled = false
+                    setTargetGain(0)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Dialogue / Speech Clarity
+    fun applyDialogueClarity(enabled: Boolean) {
+        _isDialogueClarityEnabled.value = enabled
+        if (equalizer == null) return
+        try {
+            val numBands = equalizer?.numberOfBands ?: 0
+            if (numBands > 0) {
+                equalizer?.enabled = true
+                _isEqualizerEnabled.value = true
+                val levelRange = equalizer?.bandLevelRange ?: shortArrayOf(-1500, 1500)
+                val boost = (levelRange[1] * 0.40f).toInt().toShort()
+
+                for (i in 0 until numBands) {
+                    val band = i.toShort()
+                    val freqRange = equalizer?.getBandFreqRange(band) ?: intArrayOf(0, 0)
+                    val centerFreqHz = if (freqRange.isNotEmpty()) freqRange[0] / 1000 else 0
+
+                    if (centerFreqHz in 1000..4000) {
+                        // Boost speech/dialogue presence
+                        equalizer?.setBandLevel(band, if (enabled) boost else 0)
+                    } else if (centerFreqHz < 200 && enabled) {
+                        // Gently attenuate deep rumble so speech is clearer
+                        equalizer?.setBandLevel(band, (-boost / 3).toShort())
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     // Equalizer Controls
     fun getNumberOfBands(): Short = equalizer?.numberOfBands ?: 0
-    
+
     fun getBandLevel(band: Short): Short = equalizer?.getBandLevel(band) ?: 0
-    
+
     fun setBandLevel(band: Short, level: Short) {
         equalizer?.setBandLevel(band, level)
     }
 
     fun getBandFreqRange(band: Short): IntArray = equalizer?.getBandFreqRange(band) ?: intArrayOf(0, 0)
-    
+
     fun getBandLevelRange(): ShortArray = equalizer?.bandLevelRange ?: shortArrayOf(0, 0)
 
     fun getPresets(): List<String> {
@@ -121,14 +240,22 @@ class AudioEffectManager @Inject constructor() {
     // Bass Boost Controls
     fun setBassBoostStrength(strength: Short) {
         if (bassBoost?.strengthSupported == true) {
-            bassBoost?.setStrength(strength)
+            try {
+                bassBoost?.setStrength(strength)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
     // Virtualizer Controls
     fun setVirtualizerStrength(strength: Short) {
         if (virtualizer?.strengthSupported == true) {
-            virtualizer?.setStrength(strength)
+            try {
+                virtualizer?.setStrength(strength)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }

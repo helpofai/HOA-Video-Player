@@ -58,17 +58,17 @@ fun VideoThumbnailCard(
             
             val context = LocalContext.current
             val thumbModel = remember(video.id) {
-                val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
-                if (cachedFile.exists()) cachedFile else video.uri
+                com.helpofai.videoplayer.core.scanner.ThumbnailCacheRegistry.getThumbnailModel(context, video)
             }
 
             // Coil AsyncImage
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(thumbModel)
-                    .crossfade(true)
-                    .size(512) // Cap resolution to save RAM
+                    .crossfade(false)
+                    .size(360, 202) // Cap resolution to thumbnail size to save RAM and GPU time
                     .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                    .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                     .build(),
                 contentDescription = "Video Thumbnail",
                 modifier = Modifier.fillMaxSize(),
@@ -103,7 +103,7 @@ fun VideoThumbnailCard(
             if (video.lastPlayedPosition > 0 && video.duration > 0) {
                 val progress = (video.lastPlayedPosition.toFloat() / video.duration.toFloat()).coerceIn(0f, 1f)
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = { progress },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()

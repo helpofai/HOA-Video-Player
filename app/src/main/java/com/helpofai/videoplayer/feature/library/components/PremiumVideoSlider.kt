@@ -100,8 +100,7 @@ fun PremiumVideoSlider(
                 ) {
                     val context = LocalContext.current
                     val thumbModel = remember(video.id) {
-                        val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
-                        if (cachedFile.exists()) cachedFile else video.uri
+                        com.helpofai.videoplayer.core.scanner.ThumbnailCacheRegistry.getThumbnailModel(context, video)
                     }
 
                     // Thumbnail

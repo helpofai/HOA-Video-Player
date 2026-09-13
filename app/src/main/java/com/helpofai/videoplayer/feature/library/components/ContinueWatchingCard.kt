@@ -76,8 +76,7 @@ fun ContinueWatchingCard(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             val thumbModel = remember(video.id) {
-                val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${video.id}.jpg")
-                if (cachedFile.exists()) cachedFile else java.io.File(video.path)
+                com.helpofai.videoplayer.core.scanner.ThumbnailCacheRegistry.getThumbnailModel(context, video)
             }
 
             AsyncImage(

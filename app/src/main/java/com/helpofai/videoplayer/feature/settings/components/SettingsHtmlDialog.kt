@@ -41,33 +41,49 @@ import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 fun SettingsHtmlDialog(fileName: String, onDismissRequest: () -> Unit) {
+    val dialogTitle = when (fileName) {
+        "privacy.html" -> "Privacy Policy"
+        "license.html" -> "Commercial License"
+        "changelog.html" -> "Release Changelog"
+        else -> "Document"
+    }
+
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismissRequest,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF1E293B))
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF080C14))
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.End
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF0F172A))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = dialogTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
                     IconButton(
                         onClick = onDismissRequest,
                         modifier = Modifier
-                            .size(36.dp)
-                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                            .size(34.dp)
+                            .background(Color.White.copy(alpha = 0.12f), CircleShape)
                     ) {
                         Icon(
                             Icons.Default.Close, 
                             contentDescription = "Close", 
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -75,12 +91,15 @@ fun SettingsHtmlDialog(fileName: String, onDismissRequest: () -> Unit) {
                     factory = { context ->
                         WebView(context).apply {
                             settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
                             webViewClient = WebViewClient()
                             setBackgroundColor(android.graphics.Color.TRANSPARENT)
                             loadUrl("file:///android_asset/$fileName")
                         }
                     },
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp)
                 )
             }
         }

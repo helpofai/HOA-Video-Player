@@ -56,8 +56,11 @@ fun BookmarksSheet(
     isGeneratingChapters: Boolean,
     onDismissRequest: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
         contentColor = Color.White
     ) {

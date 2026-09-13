@@ -49,8 +49,11 @@ fun SortFilterSheet(
     onFilterSelected: (FilterOption) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = Color(0xFF0F172A)
     ) {
         Column(

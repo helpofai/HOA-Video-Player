@@ -22,49 +22,65 @@
 */
 package com.helpofai.videoplayer.feature.player.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer.MediaCompatibilityReport
 import com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager
 import com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager.VideoEnhancementConfig
-import com.helpofai.videoplayer.core.playback.diagnostics.MediaAnalyzer.MediaCompatibilityReport
+import com.helpofai.videoplayer.core.theme.ToolIconPalette
+import com.helpofai.videoplayer.feature.player.PlayerViewModel
+import java.util.Locale
 
 data class EnhancerPreset(
     val id: String,
     val name: String,
-    val icon: ImageVector
+    val subtitle: String,
+    val icon: ImageVector,
+    val accentColor: Color
 )
 
 val enhancerPresets = listOf(
-    EnhancerPreset("auto", "Auto", Icons.Default.AutoAwesome),
-    EnhancerPreset("original", "Original", Icons.Default.Block),
-    EnhancerPreset("cinema", "Cinema", Icons.Default.Movie),
-    EnhancerPreset("natural", "Natural", Icons.Default.FilterHdr),
-    EnhancerPreset("vivid", "Vivid", Icons.Default.ColorLens),
-    EnhancerPreset("amoled", "AMOLED", Icons.Default.BrightnessLow),
-    EnhancerPreset("hdr", "HDR Boost", Icons.Default.AutoFixHigh),
-    EnhancerPreset("anime", "Anime", Icons.Default.Brush),
-    EnhancerPreset("sports", "Sports", Icons.Default.DirectionsRun),
-    EnhancerPreset("low_light", "Low Light", Icons.Default.Nightlight),
-    EnhancerPreset("custom", "Custom", Icons.Default.Settings)
+    EnhancerPreset("auto", "Auto AI", "Diagnostics Tuned", Icons.Default.AutoAwesome, Color(0xFF00E5FF)),
+    EnhancerPreset("hq", "HD Mode", "Ultra Clarity 85%", Icons.Default.HighQuality, ToolIconPalette.HQ),
+    EnhancerPreset("original", "Original", "Untouched Stream", Icons.Default.Block, Color(0xFF9E9E9E)),
+    EnhancerPreset("cinema", "Cinema", "24p Warm Film", Icons.Default.Movie, Color(0xFFFFB300)),
+    EnhancerPreset("natural", "Natural", "True-to-Life Tone", Icons.Default.FilterHdr, Color(0xFF4CAF50)),
+    EnhancerPreset("vivid", "Vivid", "Saturated Pop", Icons.Default.ColorLens, Color(0xFFE91E63)),
+    EnhancerPreset("amoled", "AMOLED", "Deep Contrast", Icons.Default.BrightnessLow, Color(0xFF9C27B0)),
+    EnhancerPreset("hdr", "HDR Boost", "Expanded Range", Icons.Default.AutoFixHigh, Color(0xFFFF5722)),
+    EnhancerPreset("anime", "Anime", "Crisp Edge Lines", Icons.Default.Brush, Color(0xFF00BCD4)),
+    EnhancerPreset("sports", "Sports", "High Frame Clarity", Icons.Default.Speed, Color(0xFF8BC34A)),
+    EnhancerPreset("low_light", "Low Light", "Night Shadow Lift", Icons.Default.Nightlight, Color(0xFF3F51B5)),
+    EnhancerPreset("custom", "Custom", "Studio Tuned", Icons.Default.Settings, Color(0xFFAB47BC))
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,350 +88,684 @@ val enhancerPresets = listOf(
 fun VideoEnhancerSheet(
     enhancementManager: VideoEnhancementManager,
     report: MediaCompatibilityReport?,
+    autoAIState: PlayerViewModel.AutoAIState? = null,
+    onTriggerAutoAIScan: (() -> Unit)? = null,
     onDismissRequest: () -> Unit
 ) {
     val config by enhancementManager.config.collectAsState()
     val isOptimized by enhancementManager.isOptimizedForPerformance.collectAsState()
 
+    val isActive = config.preset != "original" && config.strength > 0f
+    val currentPreset = enhancerPresets.find { it.id == config.preset } ?: enhancerPresets.first()
+
+    // Temporary Before/After compare state
+    var isComparingOriginal by remember { mutableStateOf(false) }
+    var savedPreCompareConfig by remember { mutableStateOf<VideoEnhancementConfig?>(null) }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
+        sheetState = sheetState,
+        containerColor = Color(0xF00D111A), // Sleek OLED dark glass
         contentColor = Color.White,
-        scrimColor = Color.Black.copy(alpha = 0.6f),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.5f)) }
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                color = Color.White.copy(alpha = 0.35f),
+                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .fillMaxHeight(0.88f)
         ) {
-            // Header
+            // ================= HEADER =================
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Default.AutoFixHigh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Video Enhancement Center",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        "Device-adaptive real-time clarity engine",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(ToolIconPalette.VideoEnhancer.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoFixHigh,
+                            contentDescription = null,
+                            tint = ToolIconPalette.VideoEnhancer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Video Enhancement Studio",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Real-time Media3 OpenGL Clarity Pipeline",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.5f)
+                        )
+                    }
                 }
-                
-                // Active status
-                Surface(
-                    color = if (config.preset != "original") MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.DarkGray,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = if (config.preset != "original") "Active" else "Off",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (config.preset != "original") MaterialTheme.colorScheme.primary else Color.Gray,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Status Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isActive) ToolIconPalette.VideoEnhancer.copy(alpha = 0.2f)
+                                else Color.White.copy(alpha = 0.08f)
+                            )
+                            .border(
+                                1.dp,
+                                if (isActive) ToolIconPalette.VideoEnhancer.copy(alpha = 0.5f)
+                                else Color.White.copy(alpha = 0.1f),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isActive) currentPreset.name else "OFF",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isActive) ToolIconPalette.VideoEnhancer else Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+
+                    // Close (X) button
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(
+                color = Color.White.copy(alpha = 0.08f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
 
+            // ================= SCROLLABLE CONTENT =================
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Adaptive Warning / Message
+                // Adaptive Battery / Thermal Warning
                 if (isOptimized) {
-                    Surface(
-                        color = Color(0x33FF9800),
+                    Card(
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                            .border(1.dp, Color(0x66FF9800), RoundedCornerShape(12.dp))
+                        colors = CardDefaults.cardColors(containerColor = Color(0x25FF9800)),
+                        border = BorderStroke(1.dp, Color(0x66FF9800)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = "Warning", tint = Color(0xFFFF9800))
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Icon(Icons.Default.Warning, contentDescription = "Warning", tint = Color(0xFFFF9800), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                "Playback Optimization: Enhancement has been reduced to maintain smooth playback.",
-                                style = MaterialTheme.typography.bodySmall,
+                                "Thermal / Battery Saver Active: Shaders scaled down to maintain 60 FPS playback.",
+                                fontSize = 12.sp,
                                 color = Color(0xFFFFB74D)
                             )
                         }
                     }
                 }
 
-                // Auto Enhance Toggle Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.03f))
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                // ================= AUTO AI SMART BANNER =================
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ToolIconPalette.AutoAI.copy(alpha = 0.08f)
+                    ),
+                    border = BorderStroke(1.dp, ToolIconPalette.AutoAI.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Auto Enhance",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            "Automatically configure stages based on media diagnostics",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                    }
-                    Switch(
-                        checked = config.autoEnhance,
-                        onCheckedChange = { checked ->
-                            if (checked) {
-                                enhancementManager.applyPreset("auto", report)
-                            } else {
-                                enhancementManager.updateConfig(config.copy(autoEnhance = false))
-                            }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.primary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Enhancement Strength Slider (only if enabled)
-                if (config.preset != "original") {
-                    Text(
-                        "Enhancement Strength",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    ) {
-                        Slider(
-                            value = config.strength,
-                            onValueChange = { newValue ->
-                                enhancementManager.updateConfig(config.copy(strength = newValue))
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = "${(config.strength * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.width(42.dp),
-                            textAlign = TextAlign.End
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Presets Title
-                Text(
-                    "Quick Presets",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                // Presets Horizonal Row
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(enhancerPresets.size) { index ->
-                        val preset = enhancerPresets[index]
-                        val isSelected = config.preset == preset.id
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.05f))
-                                .border(
-                                    1.dp,
-                                    if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f),
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable {
-                                    enhancementManager.applyPreset(preset.id, report)
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            contentAlignment = Alignment.Center
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    preset.icon,
+                                    imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
-                                    tint = if (isSelected) Color.Black else Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = ToolIconPalette.AutoAI,
+                                    modifier = Modifier.size(22.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    preset.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.Black else Color.White
-                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Auto AI Scene Neural Engine",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    val aiContent = autoAIState?.result?.contentType
+                                    Text(
+                                        text = if (aiContent != null) "Detected: ${aiContent.uppercase()}" else "Samples 12 video frames for content profile",
+                                        fontSize = 11.sp,
+                                        color = ToolIconPalette.AutoAI
+                                    )
+                                }
+                            }
+
+                            if (onTriggerAutoAIScan != null) {
+                                Button(
+                                    onClick = onTriggerAutoAIScan,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ToolIconPalette.AutoAI
+                                    ),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Run AI Scan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                }
+                            }
+                        }
+
+                        // Stream Specs Chips (from MediaCompatibilityReport)
+                        if (report != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val resLabel = if (report.width > 0 && report.height > 0) "${report.width}x${report.height}" else "Auto"
+                                val hdrLabel = if (report.isHdr) "HDR10" else "SDR"
+                                val codecLabel = report.videoCodec?.substringAfter("/")?.uppercase() ?: "AVC"
+
+                                listOf(resLabel, hdrLabel, codecLabel).forEach { chip ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color.White.copy(alpha = 0.08f))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(chip, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.8f))
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                // ================= PRESETS CAROUSEL =================
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Clarity & Color Presets",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "${enhancerPresets.size} Profiles",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.45f)
+                        )
+                    }
 
-                // Custom sliders block (Enabled only for CUSTOM, otherwise show readonly stats)
-                val isCustom = config.preset == "custom"
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                ExpandableSection(
-                    title = "Image Adjustments",
-                    isCustom = isCustom,
-                    config = config
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(enhancerPresets) { preset ->
+                            val isSelected = config.preset == preset.id
+
+                            Card(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) preset.accentColor.copy(alpha = 0.2f)
+                                    else Color.White.copy(alpha = 0.05f)
+                                ),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) preset.accentColor.copy(alpha = 0.8f)
+                                    else Color.White.copy(alpha = 0.08f)
+                                ),
+                                modifier = Modifier
+                                    .width(128.dp)
+                                    .clickable {
+                                        enhancementManager.applyPreset(preset.id, report)
+                                    }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (isSelected) preset.accentColor.copy(alpha = 0.35f)
+                                                    else Color.White.copy(alpha = 0.08f)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = preset.icon,
+                                                contentDescription = null,
+                                                tint = if (isSelected) preset.accentColor else Color.White.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(18.dp)
+                                                    .clip(CircleShape)
+                                                    .background(preset.accentColor),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Column {
+                                        Text(
+                                            text = preset.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.85f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = preset.subtitle,
+                                            fontSize = 10.sp,
+                                            color = if (isSelected) preset.accentColor.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.45f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ================= MASTER STRENGTH & LIVE COMPARE =================
+                if (config.preset != "original") {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Enhancement Intensity",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Global shader convolution strength",
+                                        fontSize = 11.sp,
+                                        color = Color.White.copy(alpha = 0.5f)
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(ToolIconPalette.VideoEnhancer.copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "${(config.strength * 100).toInt()}%",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ToolIconPalette.VideoEnhancer
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Slider(
+                                value = config.strength,
+                                onValueChange = { newValue ->
+                                    enhancementManager.updateConfig(config.copy(strength = newValue))
+                                },
+                                valueRange = 0.1f..1.0f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = ToolIconPalette.VideoEnhancer,
+                                    activeTrackColor = ToolIconPalette.VideoEnhancer,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.12f)
+                                )
+                            )
+
+                            // Preset strength chips & Compare Button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    listOf(0.3f to "30%", 0.5f to "50%", 0.75f to "75%", 1.0f to "100%").forEach { (valF, label) ->
+                                        val isCurrent = (config.strength * 100).toInt() == (valF * 100).toInt()
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(
+                                                    if (isCurrent) ToolIconPalette.VideoEnhancer.copy(alpha = 0.25f)
+                                                    else Color.White.copy(alpha = 0.06f)
+                                                )
+                                                .clickable {
+                                                    enhancementManager.updateConfig(config.copy(strength = valF))
+                                                }
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 11.sp,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isCurrent) ToolIconPalette.VideoEnhancer else Color.White.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Interactive Before/After Compare Button
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (isComparingOriginal) Color(0xFFFF9800).copy(alpha = 0.25f)
+                                            else Color.White.copy(alpha = 0.08f)
+                                        )
+                                        .clickable {
+                                            if (!isComparingOriginal) {
+                                                savedPreCompareConfig = config
+                                                enhancementManager.updateConfig(
+                                                    VideoEnhancementConfig(preset = "original", strength = 0f)
+                                                )
+                                                isComparingOriginal = true
+                                            } else {
+                                                savedPreCompareConfig?.let { enhancementManager.updateConfig(it) }
+                                                savedPreCompareConfig = null
+                                                isComparingOriginal = false
+                                            }
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = if (isComparingOriginal) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = null,
+                                            tint = if (isComparingOriginal) Color(0xFFFF9800) else Color.White.copy(alpha = 0.8f),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (isComparingOriginal) "Viewing Original" else "Compare Original",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isComparingOriginal) Color(0xFFFF9800) else Color.White.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ================= EXPANDABLE FINE TUNING SECTIONS =================
+                // Section 1: Image & Color Tone
+                ModernExpandableSection(
+                    title = "Color & Tone Curve",
+                    subtitle = "Brightness, contrast, vibrance, gamma & color temperature",
+                    icon = Icons.Default.ColorLens,
+                    accentColor = Color(0xFF00E5FF)
                 ) {
-                    SliderItem(
+                    ModernSliderItem(
                         label = "Brightness",
                         value = config.brightness,
                         valueRange = -1f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(brightness = it)) }
+                        unit = if (config.brightness >= 0) "+%.2f" else "%.2f",
+                        accentColor = Color(0xFF00E5FF),
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", brightness = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
+                    ModernSliderItem(
                         label = "Contrast",
                         value = config.contrast,
                         valueRange = -1f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(contrast = it)) }
+                        unit = if (config.contrast >= 0) "+%.2f" else "%.2f",
+                        accentColor = Color(0xFF00E5FF),
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", contrast = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
+                    ModernSliderItem(
                         label = "Saturation",
                         value = config.saturation,
                         valueRange = -1f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(saturation = it)) }
+                        unit = if (config.saturation >= 0) "+%.2f" else "%.2f",
+                        accentColor = Color(0xFF00E5FF),
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", saturation = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
-                        label = "Vibrance",
+                    ModernSliderItem(
+                        label = "Vibrance (Smart Muted Lift)",
                         value = config.vibrance,
                         valueRange = -1f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(vibrance = it)) }
+                        unit = if (config.vibrance >= 0) "+%.2f" else "%.2f",
+                        accentColor = Color(0xFF00E5FF),
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", vibrance = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
-                        label = "Gamma",
+                    ModernSliderItem(
+                        label = "Gamma Linear Scale",
                         value = config.gamma,
                         valueRange = 0.5f..2.0f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(gamma = it)) }
+                        unit = "%.2fx",
+                        accentColor = Color(0xFF00E5FF),
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", gamma = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
-                        label = "Color Temperature",
+                    ModernSliderItem(
+                        label = "Color Temperature (Cool <-> Warm)",
                         value = config.colorTemperature,
                         valueRange = -1f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(colorTemperature = it)) }
+                        unit = if (config.colorTemperature >= 0) "+%.2f K" else "%.2f K",
+                        accentColor = Color(0xFF00E5FF),
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", colorTemperature = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                ExpandableSection(
-                    title = "Detail Adjustments",
-                    isCustom = isCustom,
-                    config = config
+                // Section 2: Detail, Sharpness & Denoise
+                ModernExpandableSection(
+                    title = "Detail & Unsharp Mask Engine",
+                    subtitle = "1D separable convolution sharpen, edge filter & Gaussian denoise",
+                    icon = Icons.Default.AutoFixHigh,
+                    accentColor = ToolIconPalette.VideoEnhancer
                 ) {
-                    SliderItem(
-                        label = "Sharpness",
+                    ModernSliderItem(
+                        label = "Sharpness (Unsharp Mask)",
                         value = config.sharpness,
                         valueRange = 0f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(sharpness = it)) }
+                        unit = "%.2f",
+                        accentColor = ToolIconPalette.VideoEnhancer,
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", sharpness = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
-                        label = "Edge Enhancement",
+                    ModernSliderItem(
+                        label = "Edge Definition",
                         value = config.edgeEnhancement,
                         valueRange = 0f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(edgeEnhancement = it)) }
+                        unit = "%.2f",
+                        accentColor = ToolIconPalette.VideoEnhancer,
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", edgeEnhancement = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
-                        label = "Noise Reduction",
+                    ModernSliderItem(
+                        label = "Noise Reduction (Gaussian Denoise)",
                         value = config.noiseReduction,
                         valueRange = 0f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(noiseReduction = it)) }
+                        unit = "%.2f",
+                        accentColor = ToolIconPalette.VideoEnhancer,
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", noiseReduction = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    SliderItem(
-                        label = "Texture Enhancement",
+                    ModernSliderItem(
+                        label = "Texture Pop",
                         value = config.textureEnhancement,
                         valueRange = 0f..1f,
-                        enabled = isCustom,
-                        onValueChange = { enhancementManager.updateConfig(config.copy(textureEnhancement = it)) }
+                        unit = "%.2f",
+                        accentColor = ToolIconPalette.VideoEnhancer,
+                        onValueChange = {
+                            val updated = config.copy(preset = "custom", textureEnhancement = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                ExpandableSection(
-                    title = "Playback & Color Rendering",
-                    isCustom = isCustom,
-                    config = config
+                // Section 3: Optics & Dynamic Rendering
+                ModernExpandableSection(
+                    title = "Optics, Tone Mapping & HDR",
+                    subtitle = "Wide color gamuts, dynamic range compression & color correction",
+                    icon = Icons.Default.FilterHdr,
+                    accentColor = Color(0xFFFFB300)
                 ) {
-                    ToggleItem(
+                    ModernSwitchItem(
                         label = "HDR Processing",
+                        description = "Hardware HDR10 wide gamut processing",
                         checked = config.hdrProcessing,
-                        enabled = isCustom,
-                        onCheckedChange = { enhancementManager.updateConfig(config.copy(hdrProcessing = it)) }
+                        accentColor = Color(0xFFFFB300),
+                        onCheckedChange = {
+                            val updated = config.copy(preset = "custom", hdrProcessing = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    ToggleItem(
-                        label = "Tone Mapping",
+                    ModernSwitchItem(
+                        label = "Dynamic Tone Mapping",
+                        description = "Compresses highlights and shadows naturally",
                         checked = config.toneMapping,
-                        enabled = isCustom,
-                        onCheckedChange = { enhancementManager.updateConfig(config.copy(toneMapping = it)) }
+                        accentColor = Color(0xFFFFB300),
+                        onCheckedChange = {
+                            val updated = config.copy(preset = "custom", toneMapping = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    ToggleItem(
+                    ModernSwitchItem(
                         label = "Frame Optimization",
+                        description = "Smoothes jitter in sports and action scenes",
                         checked = config.frameOptimization,
-                        enabled = isCustom,
-                        onCheckedChange = { enhancementManager.updateConfig(config.copy(frameOptimization = it)) }
+                        accentColor = Color(0xFFFFB300),
+                        onCheckedChange = {
+                            val updated = config.copy(preset = "custom", frameOptimization = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
-                    ToggleItem(
-                        label = "Color Correction",
+                    ModernSwitchItem(
+                        label = "Studio Color Correction",
+                        description = "Rec.709 skin tone accuracy correction",
                         checked = config.colorCorrection,
-                        enabled = isCustom,
-                        onCheckedChange = { enhancementManager.updateConfig(config.copy(colorCorrection = it)) }
+                        accentColor = Color(0xFFFFB300),
+                        onCheckedChange = {
+                            val updated = config.copy(preset = "custom", colorCorrection = it)
+                            enhancementManager.updateConfig(updated)
+                            enhancementManager.saveCustomPreset(updated)
+                        }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Custom controls (Save, Reset)
+                // ================= RESET & SAVE CONTROLS =================
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -426,21 +776,27 @@ fun VideoEnhancerSheet(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Reset")
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Reset to Flat")
                     }
 
-                    if (isCustom) {
-                        Button(
-                            onClick = {
-                                enhancementManager.saveCustomPreset(config)
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text("Save Custom Preset", color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
+                    Button(
+                        onClick = {
+                            enhancementManager.saveCustomPreset(config)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ToolIconPalette.VideoEnhancer
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Save Preset", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -449,20 +805,26 @@ fun VideoEnhancerSheet(
 }
 
 @Composable
-fun ExpandableSection(
+fun ModernExpandableSection(
     title: String,
-    isCustom: Boolean,
-    config: VideoEnhancementConfig,
+    subtitle: String,
+    icon: ImageVector,
+    accentColor: Color,
     content: @Composable ColumnScope.() -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "rot")
 
-    Surface(
-        color = Color.White.copy(alpha = 0.02f),
-        shape = RoundedCornerShape(12.dp),
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+        border = BorderStroke(
+            1.dp,
+            if (expanded) accentColor.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.07f)
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -471,92 +833,119 @@ fun ExpandableSection(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    if (!isCustom) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
                         Text(
-                            "(Locked to Preset)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.Gray
+                            text = title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.45f)
                         )
                     }
                 }
+
                 Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = Icons.Default.ExpandMore,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.rotate(rotation)
                 )
             }
 
-            if (expanded) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Column(content = content)
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier.padding(top = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    content = content
+                )
             }
         }
     }
 }
 
 @Composable
-fun SliderItem(
+fun ModernSliderItem(
     label: String,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
-    enabled: Boolean,
+    unit: String,
+    accentColor: Color,
     onValueChange: (Float) -> Unit
 ) {
-    Column(modifier = Modifier.padding(vertical = 6.dp)) {
+    Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = if (enabled) Color.White else Color.Gray)
+            Text(label, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.85f))
             Text(
-                text = String.format("%.2f", value),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (enabled) MaterialTheme.colorScheme.primary else Color.Gray
+                text = String.format(Locale.US, unit, value),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = accentColor
             )
         }
         Slider(
             value = value,
             valueRange = valueRange,
             onValueChange = onValueChange,
-            enabled = enabled,
             colors = SliderDefaults.colors(
-                thumbColor = if (enabled) MaterialTheme.colorScheme.primary else Color.DarkGray,
-                activeTrackColor = if (enabled) MaterialTheme.colorScheme.primary else Color.DarkGray,
-                inactiveTrackColor = Color.DarkGray
+                thumbColor = accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = Color.White.copy(alpha = 0.10f)
             )
         )
     }
 }
 
 @Composable
-fun ToggleItem(
+fun ModernSwitchItem(
     label: String,
+    description: String,
     checked: Boolean,
-    enabled: Boolean,
+    accentColor: Color,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = if (enabled) Color.White else Color.Gray)
-        Checkbox(
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(description, fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            colors = CheckboxDefaults.colors(
-                checkedColor = MaterialTheme.colorScheme.primary,
-                checkmarkColor = Color.Black
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = accentColor,
+                uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
+                uncheckedTrackColor = Color.White.copy(alpha = 0.15f)
             )
         )
     }

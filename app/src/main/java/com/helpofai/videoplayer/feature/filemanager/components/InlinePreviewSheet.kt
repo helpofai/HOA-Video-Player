@@ -38,9 +38,11 @@ fun InlinePreviewSheet(
     val isText = ext in setOf("txt", "xml", "json", "html", "css", "log", "csv") || ext in com.helpofai.videoplayer.core.media.MediaConstants.SUBTITLE_EXTENSIONS
     val isImage = ext in com.helpofai.videoplayer.core.media.MediaConstants.IMAGE_EXTENSIONS
     val isAudio = ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS || node.isAudio
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = Color(0xFF161A26),
         contentColor = Color.White,
         dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.2f)) }

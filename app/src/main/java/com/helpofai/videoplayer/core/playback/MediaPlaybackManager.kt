@@ -103,8 +103,9 @@ class MediaPlaybackManager @Inject constructor(
     }
 
     suspend fun recordPlaybackState(path: String, lastZoomLevel: Float) {
+        if (videoPlayer.isReleased) return
         val position = videoPlayer.player.currentPosition
-        val speed = videoPlayer.player.playbackParameters?.speed ?: 1.0f
+        val speed = videoPlayer.player.playbackParameters.speed
         val audioLang = videoPlayer.player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
         val subLang = videoPlayer.player.trackSelectionParameters.preferredTextLanguages.firstOrNull()
         

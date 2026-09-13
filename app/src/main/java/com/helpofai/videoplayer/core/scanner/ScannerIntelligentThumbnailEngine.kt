@@ -49,23 +49,33 @@ class ScannerIntelligentThumbnailEngine @Inject constructor(
             val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val durationMs = durationStr?.toLongOrNull() ?: return@withContext null
 
-            // Extract 5 candidate frames across the video
-            val fractions = listOf(0.15, 0.35, 0.5, 0.7, 0.85)
+            // Extract 3 candidate frames across the video at scaled resolution (low RAM)
+            val fractions = listOf(0.20, 0.50, 0.75)
             var bestBitmap: Bitmap? = null
             var bestScore = -1.0
 
             for (fraction in fractions) {
                 val timeUs = (durationMs * fraction * 1000).toLong()
-                val bitmap = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                    try {
+                        retriever.getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 360, 202)
+                    } catch (_: Throwable) {
+                        retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    }
+                } else {
+                    retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                }
                 if (bitmap != null) {
                     val score = calculateFrameScore(bitmap)
                     if (score > bestScore) {
                         bestScore = score
                         // Recycle previous best bitmap before replacing
                         if (bestBitmap != null && bestBitmap !== bitmap) {
-                            bestBitmap?.recycle()
+                            bestBitmap.recycle()
                         }
                         bestBitmap = bitmap
+                    } else if (bitmap !== bestBitmap) {
+                        bitmap.recycle()
                     }
                 }
             }
@@ -75,14 +85,16 @@ class ScannerIntelligentThumbnailEngine @Inject constructor(
 
                 val thumbFile = File(thumbnailsDir, "thumb_$videoId.jpg")
                 FileOutputStream(thumbFile).use { out ->
-                    bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 82, out)
                 }
+                bmp.recycle()
+                ThumbnailCacheRegistry.registerThumbnail(videoId)
                 return@withContext thumbFile.absolutePath
             }
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            retriever.release()
+            try { retriever.release() } catch (_: Exception) {}
         }
         null
     }

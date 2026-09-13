@@ -63,7 +63,12 @@ class MediaAnalyzer @Inject constructor(
         val recommendations: List<String>
     )
 
+    private val reportCache = java.util.concurrent.ConcurrentHashMap<String, MediaCompatibilityReport>()
+
     fun analyzeMedia(uri: Uri, path: String): MediaCompatibilityReport {
+        val cacheKey = "$path|$uri"
+        reportCache[cacheKey]?.let { return it }
+
         val retriever = MediaMetadataRetriever()
         var container = "Unknown"
         var durationMs = 0L
@@ -383,7 +388,7 @@ class MediaAnalyzer @Inject constructor(
             recommendations.add("Check if file has audio track or add external audio")
         }
 
-        return MediaCompatibilityReport(
+        val report = MediaCompatibilityReport(
             path = path,
             container = container,
             durationMs = durationMs,
@@ -408,5 +413,7 @@ class MediaAnalyzer @Inject constructor(
             issues = issues,
             recommendations = recommendations
         )
+        reportCache[cacheKey] = report
+        return report
     }
 }

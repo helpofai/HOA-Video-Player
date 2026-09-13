@@ -99,36 +99,38 @@ fun PlayerFeedbackOverlay(
         ) {
             when (feedback.type) {
                 FeedbackType.PLAY_PAUSE -> {
-                    Icon(
-                        imageVector = feedback.icon,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.8f),
-                        modifier = Modifier
-                            .size(80.dp)
-                            .scale(scale)
-                            .alpha(alpha)
-                    )
+                    // Center screen play/pause icon removed per user preference
                 }
                 FeedbackType.BRIGHTNESS, FeedbackType.VOLUME -> {
+                    val isAudioBoost = feedback.type == FeedbackType.VOLUME && feedback.text.contains("Boost")
                     // Vertical slider style
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color.Black.copy(alpha = 0.45f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
-                            .padding(12.dp)
+                            .background(Color.Black.copy(alpha = if (isAudioBoost) 0.65f else 0.45f))
+                            .border(
+                                width = if (isAudioBoost) 1.5.dp else 1.dp,
+                                color = if (isAudioBoost) feedback.color.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            .padding(horizontal = 14.dp, vertical = 14.dp)
                             .scale(scale)
                             .alpha(alpha)
                     ) {
-                        Icon(feedback.icon, contentDescription = null, tint = feedback.color)
+                        Icon(
+                            imageVector = feedback.icon,
+                            contentDescription = null,
+                            tint = feedback.color,
+                            modifier = if (isAudioBoost) Modifier.size(28.dp) else Modifier.size(24.dp)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         feedback.value?.let { value ->
                             Box(
                                 modifier = Modifier
-                                    .width(3.dp)
+                                    .width(if (isAudioBoost) 6.dp else 3.dp)
                                     .height(120.dp)
-                                    .clip(RoundedCornerShape(1.5.dp))
+                                    .clip(RoundedCornerShape(3.dp))
                                     .background(Color.White.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
@@ -136,7 +138,7 @@ fun PlayerFeedbackOverlay(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .fillMaxHeight(value.coerceIn(0f, 1f))
-                                        .background(rainbowColor) // Using animated rainbow color
+                                        .background(if (isAudioBoost) feedback.color else rainbowColor)
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -144,8 +146,8 @@ fun PlayerFeedbackOverlay(
                         Text(
                             text = feedback.text,
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            color = if (isAudioBoost) feedback.color else Color.White,
+                            fontWeight = if (isAudioBoost) FontWeight.ExtraBold else FontWeight.Bold
                         )
                     }
                 }

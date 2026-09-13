@@ -48,10 +48,12 @@ import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -87,9 +89,11 @@ fun SubtitleStyleSettingsSheet(
 ) {
     val config by styleManager.config.collectAsState()
     val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
         containerColor = ComposeColor.Transparent,
         contentColor = ComposeColor.White,
         scrimColor = ComposeColor.Black.copy(alpha = 0.4f),
