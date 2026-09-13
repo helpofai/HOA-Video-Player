@@ -112,6 +112,7 @@ fun HomeScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
     vaultViewModel: VaultViewModel = hiltViewModel(),
     onVideoClick: (Video) -> Unit = {},
+    onPlayMiniPlayer: (Video) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onVaultClick: () -> Unit = {},
     onEditorClick: (String) -> Unit = {}
@@ -585,7 +586,7 @@ fun HomeScreen(
         onDismiss = { activeActionTarget = null },
         onPlay = { video -> onVideoClick(video) },
         onPlayMiniPlayer = { video ->
-            com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(video)
+            onPlayMiniPlayer(video)
         },
         onPlayFolderAll = { folderVideos ->
             if (folderVideos.isNotEmpty()) {

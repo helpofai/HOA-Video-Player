@@ -196,6 +196,15 @@ class MainActivity : FragmentActivity() {
                                             val encodedPath = Uri.encode(video.path)
                                             navController.navigate("player/$encodedUri?path=$encodedPath")
                                         },
+                                        onPlayMiniPlayer = { video ->
+                                            val mediaItem = androidx.media3.common.MediaItem.Builder()
+                                                .setUri(video.uri)
+                                                .setMediaMetadata(androidx.media3.common.MediaMetadata.Builder().setTitle(video.title).build())
+                                                .build()
+                                            videoPlayer.prepare(mediaItem)
+                                            videoPlayer.play()
+                                            com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(video)
+                                        },
                                         onSettingsClick = {
                                             navController.navigate("settings")
                                         },
@@ -294,11 +303,7 @@ class MainActivity : FragmentActivity() {
                                 val encodedPath = Uri.encode(video.path)
                                 // Navigate back to player, dropping active mini player state
                                 com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().dismissMiniPlayer()
-                                navController.navigate("player/$encodedUri?path=$encodedPath") {
-                                    popUpTo("home") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navController.navigate("player/$encodedUri?path=$encodedPath")
                             }
                         )
 

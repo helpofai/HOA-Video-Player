@@ -41,10 +41,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Policy
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -113,8 +115,8 @@ fun SettingsScreen(
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
     
-    var autoPlayEnabled by remember { mutableStateOf(true) }
-    var subtitleEngine by remember { mutableStateOf("Advanced Auto-Detect") }
+    val autoPlayEnabled by viewModel.autoPlayNext.collectAsState()
+    val subtitleEngine by viewModel.subtitleEngine.collectAsState()
     
     var selectedHtmlFile by remember { mutableStateOf<String?>(null) }
 
@@ -164,7 +166,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Advanced Version 1.1.0",
+                        text = "Version ${com.helpofai.videoplayer.BuildConfig.VERSION_NAME} (Build ${com.helpofai.videoplayer.BuildConfig.VERSION_CODE})",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -198,7 +200,7 @@ fun SettingsScreen(
                         title = "Auto-Play Next Video",
                         subtitle = "Play the next video automatically.",
                         checked = autoPlayEnabled,
-                        onCheckedChange = { autoPlayEnabled = it }
+                        onCheckedChange = { viewModel.setAutoPlayNext(it) }
                     )
                 }
             }
@@ -221,7 +223,9 @@ fun SettingsScreen(
                         title = "Subtitle Engine",
                         subtitle = subtitleEngine,
                         onClick = {
-                            subtitleEngine = if (subtitleEngine == "Advanced Auto-Detect") "ExoPlayer Default" else "Advanced Auto-Detect"
+                            viewModel.setSubtitleEngine(
+                                if (subtitleEngine == "Advanced Auto-Detect") "ExoPlayer Default" else "Advanced Auto-Detect"
+                            )
                         }
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -256,7 +260,10 @@ fun SettingsScreen(
                     SettingsItem(
                         title = "Clear Watch History",
                         subtitle = "Remove all resume positions.",
-                        onClick = { viewModel.clearWatchHistory() }
+                        onClick = { 
+                            viewModel.clearWatchHistory()
+                            android.widget.Toast.makeText(context, "Watch history cleared", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     SettingsItem(
@@ -266,6 +273,7 @@ fun SettingsScreen(
                             context.imageLoader.diskCache?.clear()
                             context.imageLoader.memoryCache?.clear()
                             java.io.File(context.cacheDir, "smart_thumbnails").deleteRecursively()
+                            android.widget.Toast.makeText(context, "Cache and thumbnails cleared", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -473,61 +481,113 @@ fun SettingsScreen(
         val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
         AlertDialog(
             onDismissRequest = { showSpeedDialog = false },
-            containerColor = Color(0x66000000), // 40% Opaque Glassmorphism
-            title = { Text("Playback Speed", color = Color.White) },
+            containerColor = Color(0xF2121622),
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    text = "Playback Speed",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
             text = {
                 Column {
                     speeds.forEach { speed ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable {
                                     viewModel.setPlaybackSpeed(speed)
                                     showSpeedDialog = false
                                 }
-                                .padding(16.dp),
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${speed}x", modifier = Modifier.weight(1f))
+                            Text(
+                                text = "${speed}x",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (defaultSpeed == speed) MaterialTheme.colorScheme.primary else Color.White
+                            )
                             if (defaultSpeed == speed) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
                 }
             },
-            confirmButton = {}
+            confirmButton = {
+                TextButton(onClick = { showSpeedDialog = false }) {
+                    Text("Close", color = MaterialTheme.colorScheme.primary)
+                }
+            }
         )
     }
 
     if (showSubtitleDialog) {
-        val languages = listOf("Off", "en", "es", "fr", "de", "hi", "zh")
+        val languages = listOf(
+            "Off" to "Off",
+            "en" to "English (en)",
+            "es" to "Spanish (es)",
+            "fr" to "French (fr)",
+            "de" to "German (de)",
+            "hi" to "Hindi (hi)",
+            "zh" to "Chinese (zh)"
+        )
         AlertDialog(
             onDismissRequest = { showSubtitleDialog = false },
-            containerColor = Color(0x66000000), // 40% Opaque Glassmorphism
-            title = { Text("Default Subtitle Language", color = Color.White) },
+            containerColor = Color(0xF2121622),
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Text(
+                    text = "Default Subtitle Language",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
             text = {
-                Column {
-                    languages.forEach { lang ->
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    languages.forEach { (code, displayName) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable {
-                                    viewModel.setSubtitleLanguage(lang)
+                                    viewModel.setSubtitleLanguage(code)
                                     showSubtitleDialog = false
                                 }
-                                .padding(16.dp),
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(if (lang == "Off") "Off" else lang.uppercase(), modifier = Modifier.weight(1f))
-                            if (defaultSubtitle == lang) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Text(
+                                text = displayName,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (defaultSubtitle == code) MaterialTheme.colorScheme.primary else Color.White
+                            )
+                            if (defaultSubtitle == code) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
                 }
             },
-            confirmButton = {}
+            confirmButton = {
+                TextButton(onClick = { showSubtitleDialog = false }) {
+                    Text("Close", color = MaterialTheme.colorScheme.primary)
+                }
+            }
         )
     }
     

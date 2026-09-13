@@ -116,6 +116,17 @@ fun GlobalMiniPlayer(
     val currentPosition = if (!videoPlayer.isReleased) playbackState.currentPosition else 0L
     val duration = if (!videoPlayer.isReleased) playbackState.duration else 0L
 
+    var controlsVisible by remember { mutableStateOf(true) }
+    var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // Auto-hide controls after 3.5 seconds of inactivity while playing
+    LaunchedEffect(controlsVisible, isPlaying, lastInteractionTime) {
+        if (controlsVisible && isPlaying) {
+            kotlinx.coroutines.delay(3500)
+            controlsVisible = false
+        }
+    }
+
     // Mute state, keyed to the active video so switching videos re-syncs it.
     var isMuted by remember(currentVideo.id, videoPlayer.isReleased) {
         mutableStateOf(!videoPlayer.isReleased && videoPlayer.player.volume == 0f)
@@ -160,247 +171,264 @@ fun GlobalMiniPlayer(
                             offsetY = (offsetY + dragAmount.y).coerceIn(0f, screenHeightPx - cardHeightPx)
                         }
                     }
-                    .clickable { onRestore(currentVideo) },
+                    .clickable {
+                        controlsVisible = !controlsVisible
+                        if (controlsVisible) {
+                            lastInteractionTime = System.currentTimeMillis()
+                        }
+                    },
                 shape = RoundedCornerShape(16.dp),
                 color = Color(0xEC0D0F17), // Glassmorphic dark blue-gray
                 border = BorderStroke(1.dp, SolidColor(Color.White.copy(alpha = 0.08f))),
                 shadowElevation = 16.dp
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                // Seamlessly bind singleton ExoPlayer surface directly
-                if (!videoPlayer.isReleased) {
-                    AndroidView(
-                        factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                useController = false
-                                player = videoPlayer.player
-                                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                            }
-                        },
-                        update = { view ->
-                            if (!videoPlayer.isReleased) view.player = videoPlayer.player
-                        },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(16.dp))
-                    )
-                }
-
-                // Dark subtle gradient overlay to ensure UI controls readability
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.7f),
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.8f)
-                                )
-                            )
-                        )
-                )
-
-                // Layout hierarchy
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 4.dp) // Leave room for progress bar at the very bottom
-                ) {
-                    // Top Toolbar (Title & Utility Controls)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = video?.title ?: "Streaming",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    // Seamlessly bind singleton ExoPlayer surface directly
+                    if (!videoPlayer.isReleased) {
+                        AndroidView(
+                            factory = { ctx ->
+                                PlayerView(ctx).apply {
+                                    useController = false
+                                    player = videoPlayer.player
+                                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                }
+                            },
+                            update = { view ->
+                                if (!videoPlayer.isReleased) view.player = videoPlayer.player
+                            },
                             modifier = Modifier
-                                .weight(1f)
-                                .basicMarquee(iterations = Int.MAX_VALUE)
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(16.dp))
                         )
+                    }
 
-                        Spacer(modifier = Modifier.width(6.dp))
+                    // Controls overlay with smooth fade in/out
+                    AnimatedVisibility(
+                        visible = controlsVisible,
+                        enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(200)),
+                        exit = fadeOut(animationSpec = androidx.compose.animation.core.tween(250)),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Black.copy(alpha = 0.7f),
+                                            Color.Black.copy(alpha = 0.3f),
+                                            Color.Black.copy(alpha = 0.8f)
+                                        )
+                                    )
+                                )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = 6.dp)
+                            ) {
+                                // Top Toolbar (Title & Utility Controls)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = currentVideo.title.ifBlank { "Streaming" },
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .basicMarquee(iterations = Int.MAX_VALUE)
+                                    )
 
-                        // Mute / Unmute Button
-                        IconButton(
-                            onClick = {
-                                if (!videoPlayer.isReleased) {
-                                    if (isMuted) {
-                                        videoPlayer.player.volume = lastNonMutedVolume
-                                        isMuted = false
-                                    } else {
-                                        if (videoPlayer.player.volume > 0f) {
-                                            lastNonMutedVolume = videoPlayer.player.volume
-                                        }
-                                        videoPlayer.player.volume = 0f
-                                        isMuted = true
+                                    Spacer(modifier = Modifier.width(6.dp))
+
+                                    // Mute / Unmute Button
+                                    IconButton(
+                                        onClick = {
+                                            lastInteractionTime = System.currentTimeMillis()
+                                            if (!videoPlayer.isReleased) {
+                                                if (isMuted) {
+                                                    videoPlayer.player.volume = lastNonMutedVolume
+                                                    isMuted = false
+                                                } else {
+                                                    if (videoPlayer.player.volume > 0f) {
+                                                        lastNonMutedVolume = videoPlayer.player.volume
+                                                    }
+                                                    videoPlayer.player.volume = 0f
+                                                    isMuted = true
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                            contentDescription = "Mute Toggle",
+                                            tint = Color.White.copy(alpha = 0.85f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    // Restore/Fullscreen Button
+                                    IconButton(
+                                        onClick = { onRestore(currentVideo) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                            contentDescription = "Restore Fullscreen",
+                                            tint = Color.White.copy(alpha = 0.85f),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    // Close/Dismiss Button
+                                    IconButton(
+                                        onClick = {
+                                            videoPlayer.pause()
+                                            manager.dismissMiniPlayer()
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Close",
+                                            tint = Color.White.copy(alpha = 0.85f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
                                 }
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = "Mute Toggle",
-                                tint = Color.White.copy(alpha = 0.85f),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.weight(1f))
 
-                        // Restore/Fullscreen Button
-                        IconButton(
-                            onClick = { onRestore(currentVideo) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = "Restore Fullscreen",
-                                tint = Color.White.copy(alpha = 0.85f),
-                                modifier = Modifier.size(15.dp)
-                            )
-                        }
+                                // Center Control Options (Seek Back, Play/Pause, Seek Forward)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Seek Backward 10s
+                                    IconButton(
+                                        onClick = {
+                                            lastInteractionTime = System.currentTimeMillis()
+                                            if (!videoPlayer.isReleased) videoPlayer.seekBack()
+                                        },
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FastRewind,
+                                            contentDescription = "Seek Back 10s",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(16.dp))
 
-                        // Close/Dismiss Button
-                        IconButton(
-                            onClick = {
-                                // Pause instead of releasing: the player is a shared
-                                // singleton used by the full player & watch party too.
-                                videoPlayer.pause()
-                                manager.dismissMiniPlayer()
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Color.White.copy(alpha = 0.85f),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
+                                    // Play/Pause Button
+                                    IconButton(
+                                        onClick = {
+                                            lastInteractionTime = System.currentTimeMillis()
+                                            if (!videoPlayer.isReleased) {
+                                                if (isPlaying) videoPlayer.pause() else videoPlayer.play()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(19.dp))
+                                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(19.dp))
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = "Play/Pause",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                                    Spacer(modifier = Modifier.width(16.dp))
 
-                    // Center Control Options (Seek Back, Play/Pause, Seek Forward)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Seek Backward 10s
-                        IconButton(
-                            onClick = { if (!videoPlayer.isReleased) videoPlayer.seekBack() },
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FastRewind,
-                                contentDescription = "Seek Back 10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // Play/Pause Button
-                        IconButton(
-                            onClick = {
-                                if (!videoPlayer.isReleased) {
-                                    if (isPlaying) videoPlayer.pause() else videoPlayer.play()
+                                    // Seek Forward 10s
+                                    IconButton(
+                                        onClick = {
+                                            lastInteractionTime = System.currentTimeMillis()
+                                            if (!videoPlayer.isReleased) videoPlayer.seekForward()
+                                        },
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FastForward,
+                                            contentDescription = "Seek Forward 10s",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
-                            },
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(19.dp))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(19.dp))
-                        ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                                Spacer(modifier = Modifier.weight(1f))
 
-                        // Seek Forward 10s
-                        IconButton(
-                            onClick = { if (!videoPlayer.isReleased) videoPlayer.seekForward() },
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FastForward,
-                                contentDescription = "Seek Forward 10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
+                                // Bottom Metadata / Time Status Row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
+                                        color = Color.White.copy(alpha = 0.75f),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Bottom Metadata / Time Status Row
-                    Row(
+                    // Timer / Progress bar at the very bottom edge (Always visible)
+                    val progress = if (duration > 0) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f
+                    Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(3.dp)
+                            .align(Alignment.BottomCenter)
                     ) {
-                        Text(
-                            text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
+                        val width = size.width
+                        val height = size.height
+                        // Background track line
+                        drawRect(
+                            color = Color.White.copy(alpha = 0.12f),
+                            size = size
+                        )
+                        // Beautiful accent gradient active progress line
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Primary,   // Brand purple
+                                    Secondary // Brand teal
+                                )
+                            ),
+                            size = androidx.compose.ui.geometry.Size(width * progress, height)
                         )
                     }
                 }
-
-                // Timer / Progress bar at the very bottom edge
-                val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .align(Alignment.BottomCenter)
-                ) {
-                    val width = size.width
-                    val height = size.height
-                    // Background track line
-                    drawRect(
-                        color = Color.White.copy(alpha = 0.12f),
-                        size = size
-                    )
-                    // Beautiful accent gradient active progress line
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Primary,   // Brand purple
-                                Secondary // Brand teal
-                            )
-                        ),
-                        size = androidx.compose.ui.geometry.Size(width * progress, height)
-                    )
-                }
             }
-        }
         }
     }
 }

@@ -35,6 +35,7 @@ class PlayerPreferencesUseCase @Inject constructor(
 ) {
     val backgroundPlaybackEnabled: Flow<Boolean> = settingsRepository.backgroundPlayback
     val longPressBoostSpeed: Flow<Float> = settingsRepository.longPressBoostSpeed
+    val autoPlayNext: Flow<Boolean> = settingsRepository.autoPlayNext
 
     fun getPreferredPlaybackSpeed(): Float = learningEngine.getPreferredPlaybackSpeed()
     

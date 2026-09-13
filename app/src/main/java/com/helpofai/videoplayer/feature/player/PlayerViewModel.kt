@@ -108,6 +108,12 @@ class PlayerViewModel @Inject constructor(
         if (session == null || !watchPartySessionManager.isClientMode) true else session.allowVolume
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val autoPlayNext = preferencesUseCase.autoPlayNext.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        true
+    )
+
     val isAudioTrackAllowed = watchPartySessionManager.activeSession.map { session ->
         if (session == null || !watchPartySessionManager.isClientMode) true else session.allowAudioTrack
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -258,16 +264,26 @@ class PlayerViewModel @Inject constructor(
                 }
                 
                 if (!isClient) {
-                    playbackManager.prepareVideo(
-                        path = finalPath,
-                        uri = finalUri,
-                        meta = meta,
-                        resumePosition = 0L,
-                        preferredSpeed = preferencesUseCase.getPreferredPlaybackSpeed(),
-                        preferredSubtitleLang = preferencesUseCase.getPreferredSubtitleLanguage(),
-                        zoomLevel = meta?.zoomLevel ?: 1.0f,
-                        playWhenReady = true
-                    )
+                    val currentMediaUri = if (!videoPlayer.isReleased) videoPlayer.player.currentMediaItem?.localConfiguration?.uri else null
+                    val isAlreadyPlayingThisVideo = currentMediaUri != null && 
+                        (currentMediaUri == finalUri || currentMediaUri.path == finalUri.path || (!finalPath.isBlank() && currentMediaUri.path == finalPath))
+
+                    if (!isAlreadyPlayingThisVideo) {
+                        playbackManager.prepareVideo(
+                            path = finalPath,
+                            uri = finalUri,
+                            meta = meta,
+                            resumePosition = 0L,
+                            preferredSpeed = preferencesUseCase.getPreferredPlaybackSpeed(),
+                            preferredSubtitleLang = preferencesUseCase.getPreferredSubtitleLanguage(),
+                            zoomLevel = meta?.zoomLevel ?: 1.0f,
+                            playWhenReady = true
+                        )
+                    } else {
+                        if (!videoPlayer.player.isPlaying) {
+                            videoPlayer.play()
+                        }
+                    }
                 }
 
                 // Client-side: Watch Party active session video change observer
@@ -525,7 +541,9 @@ class PlayerViewModel @Inject constructor(
                         }
                     }
                 } else if (state.playbackState == androidx.media3.common.Player.STATE_ENDED) {
-                    playNextVideo()
+                    if (autoPlayNext.value) {
+                        playNextVideo()
+                    }
                 }
             }
         }
@@ -592,10 +610,12 @@ class PlayerViewModel @Inject constructor(
             
             currentVideoPath = path
             _currentPathFlow.value = path
+            val uri = Uri.fromFile(java.io.File(path))
+            savedStateHandle["path"] = path
+            savedStateHandle["videoUri"] = uri.toString()
             // HQ mode is per-video: reset when switching
             resetHQMode()
             videoEnhancementManager.applyPreset("original", null)
-            val uri = Uri.fromFile(java.io.File(path))
             
             val meta = repository.getMetadata(path)
             _videoMetadata.value = meta
@@ -679,22 +699,40 @@ class PlayerViewModel @Inject constructor(
     fun minimizePlayer() {
         isMinimizing = true
         
-        // Prepare mini-player data
-        val videoUriString = savedStateHandle.get<String>("videoUri")
-        val videoUri = if (videoUriString != null) android.net.Uri.parse(android.net.Uri.decode(videoUriString)) else android.net.Uri.EMPTY
-        val videoPath = savedStateHandle.get<String>("path")?.let { android.net.Uri.decode(it) } ?: videoUri.path ?: ""
-        val rawTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
-        val videoTitle = if (rawTitle.isNotBlank()) rawTitle else "Video"
-        
-        val currentVideo = com.helpofai.videoplayer.core.model.Video(
-            id = videoPath.hashCode().toLong(),
-            uri = videoUri,
-            title = videoTitle,
-            duration = videoPlayer.player.duration,
-            size = 0L,
-            dateAdded = 0L,
-            path = videoPath
-        )
+        // Dynamically resolve active video from currentVideoPath and playlist
+        val path = currentVideoPath
+        val videoFromPlaylist = _playlist.value.find { it.path == path }
+        val currentVideo = if (videoFromPlaylist != null) {
+            videoFromPlaylist
+        } else if (!path.isNullOrBlank()) {
+            val file = java.io.File(path)
+            val uri = if (file.exists()) android.net.Uri.fromFile(file) else android.net.Uri.parse(path)
+            val rawTitle = _watchPartyVideoTitle.value ?: file.name
+            com.helpofai.videoplayer.core.model.Video(
+                id = path.hashCode().toLong(),
+                uri = uri,
+                title = if (rawTitle.isNotBlank()) rawTitle else "Video",
+                duration = if (!videoPlayer.isReleased) videoPlayer.player.duration else 0L,
+                size = if (file.exists()) file.length() else 0L,
+                dateAdded = if (file.exists()) file.lastModified() else 0L,
+                path = path
+            )
+        } else {
+            val videoUriString = savedStateHandle.get<String>("videoUri")
+            val videoUri = if (videoUriString != null) android.net.Uri.parse(android.net.Uri.decode(videoUriString)) else android.net.Uri.EMPTY
+            val videoPath = savedStateHandle.get<String>("path")?.let { android.net.Uri.decode(it) } ?: videoUri.path ?: ""
+            val rawTitle = _watchPartyVideoTitle.value ?: java.io.File(videoPath).name
+            val videoTitle = if (rawTitle.isNotBlank()) rawTitle else "Video"
+            com.helpofai.videoplayer.core.model.Video(
+                id = videoPath.hashCode().toLong(),
+                uri = videoUri,
+                title = videoTitle,
+                duration = if (!videoPlayer.isReleased) videoPlayer.player.duration else 0L,
+                size = 0L,
+                dateAdded = 0L,
+                path = videoPath
+            )
+        }
         com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance().showMiniPlayer(currentVideo)
         
         // Continue playing in the background

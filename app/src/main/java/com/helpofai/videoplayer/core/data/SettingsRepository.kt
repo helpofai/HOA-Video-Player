@@ -48,6 +48,8 @@ class SettingsRepository @Inject constructor(
         val BACKGROUND_PLAYBACK = booleanPreferencesKey("background_playback")
         val FOLDER_VIEW_MODE = stringPreferencesKey("folder_view_mode")
         val LONG_PRESS_BOOST_SPEED = floatPreferencesKey("long_press_boost_speed")
+        val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
+        val SUBTITLE_ENGINE = stringPreferencesKey("subtitle_engine")
 
         // Subtitle Style Preferences
         val SUBTITLE_FONT_SIZE = stringPreferencesKey("subtitle_font_size")       // "small", "medium", "large", "xlarge"
@@ -86,6 +88,14 @@ class SettingsRepository @Inject constructor(
 
     val longPressBoostSpeed: Flow<Float> = dataStore.data.map { preferences ->
         preferences[LONG_PRESS_BOOST_SPEED] ?: 2.0f
+    }
+
+    val autoPlayNext: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[AUTO_PLAY_NEXT] ?: true
+    }
+
+    val subtitleEngine: Flow<String> = dataStore.data.map { preferences ->
+        preferences[SUBTITLE_ENGINE] ?: "Advanced Auto-Detect"
     }
 
     // Subtitle Style Flows
@@ -154,6 +164,18 @@ class SettingsRepository @Inject constructor(
     suspend fun setFolderViewMode(mode: String) {
         dataStore.edit { preferences ->
             preferences[FOLDER_VIEW_MODE] = mode
+        }
+    }
+
+    suspend fun setAutoPlayNext(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AUTO_PLAY_NEXT] = enabled
+        }
+    }
+
+    suspend fun setSubtitleEngine(engine: String) {
+        dataStore.edit { preferences ->
+            preferences[SUBTITLE_ENGINE] = engine
         }
     }
 

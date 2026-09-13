@@ -778,7 +778,17 @@ fun PlayerScreen(
                 lastPlayedPosition = null,
                 onPlayPauseClick = {
                     if (isPlayPauseAllowed) {
+                        val wasPlaying = playbackState.isPlaying
                         viewModel.togglePlayPause()
+                        if (wasPlaying) {
+                            // Pausing -> show pause ad
+                            activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP
+                        } else {
+                            // Resuming -> dismiss any active pause ad, never show ad on resume
+                            if (activeDialog == com.helpofai.videoplayer.feature.player.components.PlayerDialogType.AD_POPUP) {
+                                activeDialog = null
+                            }
+                        }
                     } else {
                         android.widget.Toast.makeText(context, "Host has disabled play/pause control", android.widget.Toast.LENGTH_SHORT).show()
                     }

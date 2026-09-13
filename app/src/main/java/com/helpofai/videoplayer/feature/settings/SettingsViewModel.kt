@@ -67,6 +67,18 @@ class SettingsViewModel @Inject constructor(
         false
     )
 
+    val autoPlayNext = settingsRepository.autoPlayNext.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
+    val subtitleEngine = settingsRepository.subtitleEngine.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "Advanced Auto-Detect"
+    )
+
     // Subtitle Style StateFlows
     val subtitleFontSize = settingsRepository.subtitleFontSize.stateIn(
         viewModelScope,
@@ -143,6 +155,18 @@ class SettingsViewModel @Inject constructor(
     fun setBackgroundPlayback(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBackgroundPlayback(enabled)
+        }
+    }
+
+    fun setAutoPlayNext(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoPlayNext(enabled)
+        }
+    }
+
+    fun setSubtitleEngine(engine: String) {
+        viewModelScope.launch {
+            settingsRepository.setSubtitleEngine(engine)
         }
     }
 

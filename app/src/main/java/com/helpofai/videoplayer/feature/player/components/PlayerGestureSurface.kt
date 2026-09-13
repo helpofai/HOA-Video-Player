@@ -405,7 +405,9 @@ fun PlayerGestureSurface(
                             if (isPlayPauseAllowed) {
                                 val wasPlaying = isPlaying
                                 viewModel.togglePlayPause()
-                                onPlayPauseToggle(!wasPlaying)
+                                // When video was playing, toggling pauses it -> show pause ad (wasPlaying = true)
+                                // When video was paused, toggling resumes it -> never show ad on resume (wasPlaying = false)
+                                onPlayPauseToggle(wasPlaying)
                             } else {
                                 onFeedbackEvent(FeedbackEvent(FeedbackType.INFO, Icons.Default.Close, "Play/Pause is disabled by Host"))
                             }
