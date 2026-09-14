@@ -19,7 +19,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -35,7 +36,9 @@ fun WatchPartyClientDashboard(
     session: WatchPartySession,
     videos: List<com.helpofai.videoplayer.core.model.Video>,
     syncStatus: String,
+    paddingValues: PaddingValues = PaddingValues(0.dp),
     onDisconnect: () -> Unit,
+    onOpenPlayer: ((com.helpofai.videoplayer.core.model.Video) -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val activeVideoFolder = remember(session.video) {
@@ -55,15 +58,16 @@ fun WatchPartyClientDashboard(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding() + 8.dp))
         // Top Bar
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
@@ -89,10 +93,29 @@ fun WatchPartyClientDashboard(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Room Connection", color = Color(0xFF7C5CE7), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Room Connection", color = Color(0xFF7C5CE7), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    if (session.video != null && onOpenPlayer != null) {
+                        Button(
+                            onClick = { onOpenPlayer(session.video) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00B894), contentColor = Color.Black),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Watch Stream", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
                 Text("Room ID: ${session.id}", color = Color.White, fontSize = 12.sp)
                 Text("Host Address: ${session.hostIp}", color = Color.LightGray, fontSize = 12.sp)
+                Text("Streaming: ${session.video?.title ?: "Waiting for host..."}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 if (activeVideoFolder != null) {
                     Text("Host Folder Filter: $activeVideoFolder", color = Color(0xFF00CEC9), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 }
@@ -186,5 +209,6 @@ fun WatchPartyClientDashboard(
         ) {
             Text("Disconnect Watch Party", fontWeight = FontWeight.Bold, color = Color.White)
         }
+        Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
     }
 }

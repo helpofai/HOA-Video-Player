@@ -33,7 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import android.os.Build
 import com.helpofai.videoplayer.core.playback.AudioEffectManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,10 +51,20 @@ fun AudioEqualizerSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val view = LocalView.current
+    LaunchedEffect(view) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = Color(0xF00D111A), // Frosted glass aesthetic
+        contentColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null
     ) {
         // We use derivedStateOf or just simple remember updated states.
         // Because AudioEffectManager doesn't expose StateFlow yet, we poll or use snapshot state.
@@ -68,11 +85,28 @@ fun AudioEqualizerSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
+
             Text(
                 text = "Audio Equalizer",
                 style = MaterialTheme.typography.titleLarge,

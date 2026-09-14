@@ -25,6 +25,8 @@ package com.helpofai.videoplayer.feature.player.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -66,8 +68,10 @@ fun VideoAdjustmentsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
-        contentColor = Color.White
+        containerColor = Color(0xF00D111A), // Frosted glass aesthetic
+        contentColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null
     ) {
         val view = LocalView.current
         LaunchedEffect(view) {
@@ -79,12 +83,28 @@ fun VideoAdjustmentsSheet(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
             item {
+                // Compact Drag Handle
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 36.dp, height = 4.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.35f))
+                    )
+                }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Box(

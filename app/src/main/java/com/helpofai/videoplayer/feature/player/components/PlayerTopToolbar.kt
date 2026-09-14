@@ -73,7 +73,7 @@ fun PlayerTopToolbar(
     abRepeatState: String,
     onABRepeatClick: () -> Unit,
     onAudioClick: () -> Unit,
-    onSubtitlesClick: () -> Unit,
+    onSubtitlesClick: () -> Unit = {},
     onScreenshotClick: () -> Unit,
     onMoreClick: () -> Unit,
     isToolsExpanded: Boolean,
@@ -198,14 +198,8 @@ fun PlayerTopToolbar(
                     PaletteIconButton(
                         onClick = onAudioClick,
                         icon = Icons.Default.Audiotrack,
-                        contentDescription = "Audio",
+                        contentDescription = "Audio & Subtitles",
                         color = ToolIconPalette.Audio
-                    )
-                    PaletteIconButton(
-                        onClick = onSubtitlesClick,
-                        icon = Icons.Default.Subtitles,
-                        contentDescription = "Subtitles",
-                        color = ToolIconPalette.Subtitles
                     )
                     PaletteIconButton(
                         onClick = onVideoEnhancerClick,
@@ -279,14 +273,8 @@ fun PlayerTopToolbar(
                         PaletteIconButton(
                             onClick = onAudioClick,
                             icon = Icons.Default.Audiotrack,
-                            contentDescription = "Audio",
+                            contentDescription = "Audio & Subtitles",
                             color = ToolIconPalette.Audio
-                        )
-                        PaletteIconButton(
-                            onClick = onSubtitlesClick,
-                            icon = Icons.Default.Subtitles,
-                            contentDescription = "Subtitles",
-                            color = ToolIconPalette.Subtitles
                         )
                         PaletteIconButton(
                             onClick = onScreenshotClick,

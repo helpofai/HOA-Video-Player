@@ -72,10 +72,10 @@ class VideoEditorViewModel @Inject constructor(
 
                 // 2. Define output path in public Downloads folder for easy access
                 val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-                val outDir = File(downloadsDir, "VidPlay")
+                val outDir = File(downloadsDir, "HOAVideo")
                 if (!outDir.exists()) outDir.mkdirs()
                 
-                val outputFile = File(outDir, "VidPlay_${System.currentTimeMillis()}.$extension")
+                val outputFile = File(outDir, "HOAVideo_${System.currentTimeMillis()}.$extension")
 
                 // 3. Execute FFmpeg
                 val success = action(tempInput.absolutePath, outputFile.absolutePath)

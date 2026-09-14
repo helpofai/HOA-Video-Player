@@ -43,7 +43,7 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             VideoDatabase::class.java,
-            "vidplay_database"
+            "hoavideo_database"
         ).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 

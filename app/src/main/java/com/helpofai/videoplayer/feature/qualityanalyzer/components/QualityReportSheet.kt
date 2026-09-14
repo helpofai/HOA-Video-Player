@@ -40,6 +40,13 @@ import androidx.compose.ui.unit.sp
 import com.helpofai.videoplayer.feature.qualityanalyzer.QualityReport
 import com.helpofai.videoplayer.core.theme.ToolIconPalette
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.runtime.LaunchedEffect
+import android.os.Build
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QualityReportSheet(
@@ -51,17 +58,41 @@ fun QualityReportSheet(
     val accent = ToolIconPalette.QualityAnalyzer
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val view = LocalView.current
+    LaunchedEffect(view) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = Color(0xFF001F3F).copy(alpha = 0.95f), // Professional transparent blue
-        contentColor = Color.White
+        containerColor = Color(0xF0001F3F), // Professional transparent glass blue
+        contentColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 24.dp)

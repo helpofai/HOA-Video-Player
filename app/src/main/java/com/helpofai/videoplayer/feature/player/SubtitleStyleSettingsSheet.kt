@@ -33,6 +33,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -91,33 +93,48 @@ fun SubtitleStyleSettingsSheet(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.LaunchedEffect(view) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = ComposeColor.Transparent,
+        containerColor = ComposeColor(0xF00D111A), // Frosted glass aesthetic
         contentColor = ComposeColor.White,
-        scrimColor = ComposeColor.Black.copy(alpha = 0.4f),
-        dragHandle = { BottomSheetDefaults.DragHandle(color = ComposeColor.White.copy(alpha = 0.7f)) },
-        // Real backdrop blur on API 31+ (Android 12). On API 30 blur is a no-op,
-        // so we compensate with a translucent fallback scrim on the content column below.
-        modifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(5.dp) else Modifier
+        scrimColor = ComposeColor.Black.copy(alpha = 0.55f),
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
-                // Fallback translucent backdrop for API 30 (where blur is unavailable),
-                // and a subtle darkening for 31+ so white text keeps contrast over the video.
-                .background(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) ComposeColor.Black.copy(alpha = 0.25f)
-                    else ComposeColor(0xCC000000)
-                )
+                .fillMaxHeight()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(ComposeColor.White.copy(alpha = 0.35f))
+                )
+            }
+
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(

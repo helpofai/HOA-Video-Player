@@ -27,6 +27,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import android.os.Build
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InlinePreviewSheet(
@@ -40,21 +45,43 @@ fun InlinePreviewSheet(
     val isAudio = ext in com.helpofai.videoplayer.core.media.MediaConstants.AUDIO_EXTENSIONS || node.isAudio
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val view = LocalView.current
+    LaunchedEffect(view) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF161A26),
+        containerColor = Color(0xF0161A26), // Frosted glass aesthetic
         contentColor = Color.White,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.2f)) }
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

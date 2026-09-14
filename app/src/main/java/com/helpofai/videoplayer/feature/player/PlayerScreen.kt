@@ -28,6 +28,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -132,8 +134,6 @@ fun PlayerScreen(
         }
         onNavigateBack()
     }
-
-    androidx.activity.compose.BackHandler(onBack = handleBackPress)
     
     var isLongPressing by remember { mutableStateOf(false) }
     
@@ -212,6 +212,29 @@ fun PlayerScreen(
     // Use real title from session when client is streaming from host
     LaunchedEffect(watchPartyVideoTitle) {
         watchPartyVideoTitle?.let { currentVideoTitle = it }
+    }
+
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+
+    androidx.activity.compose.BackHandler {
+        if (isControlsLocked) {
+            val now = System.currentTimeMillis()
+            if (now - lastBackPressTime < 2000L) {
+                isControlsLocked = false
+                handleBackPress()
+            } else {
+                lastBackPressTime = now
+                isControllerVisible = true
+                autoHideTrigger++
+                feedbackEvent = FeedbackEvent(
+                    type = FeedbackType.INFO,
+                    icon = Icons.Default.Lock,
+                    text = "Screen is Locked (Press back again to exit)"
+                )
+            }
+        } else {
+            handleBackPress()
+        }
     }
 
     // Auto AI Enhancement & Diagnostics state
@@ -376,11 +399,16 @@ fun PlayerScreen(
         }
     }
 
-    // Auto-hide controls after 5 seconds, reset whenever interaction happens
+    // Auto-hide controls: 5 seconds when playing, 3 seconds when locked
     LaunchedEffect(isControllerVisible, isPlaying, isControlsLocked, isToolsExpanded, autoHideTrigger) {
-        if (isControllerVisible && isPlaying && !isControlsLocked && !isToolsExpanded) {
-            kotlinx.coroutines.delay(5000)
-            isControllerVisible = false
+        if (isControllerVisible) {
+            if (isControlsLocked) {
+                kotlinx.coroutines.delay(3000)
+                isControllerVisible = false
+            } else if (isPlaying && !isToolsExpanded) {
+                kotlinx.coroutines.delay(5000)
+                isControllerVisible = false
+            }
         }
     }
 
@@ -608,7 +636,11 @@ fun PlayerScreen(
                 isVisible = isControllerVisible,
                 title = currentVideoTitle,
                 onBackClick = handleBackPress,
-                onLockClick = { isControlsLocked = true },
+                onLockClick = {
+                    isControlsLocked = true
+                    isControllerVisible = false
+                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.Lock, "Screen Locked")
+                },
                 onSpeedClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.SPEED_DIAL },
                 onEqClick = { activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.EQUALIZER },
                 onLoopClick = {
@@ -719,49 +751,87 @@ fun PlayerScreen(
                     isControllerVisible = !isControllerVisible
                     autoHideTrigger++
                 },
-                isStreaming = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().activeSession.value != null,
+                isStreaming = if (!com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().isClientMode) {
+                    com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().isSyncModeEnabled.value &&
+                    com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().activeSession.value != null
+                } else {
+                    com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().activeSession.value != null
+                },
                 isHost = !com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().isClientMode,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
             
-            // Watch Party Host Monitoring Overlay
+            // Watch Party Host & Sync Mode Controls Overlay
             val sessionManager = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
             val activeSession by sessionManager.activeSession.collectAsState()
+            val isSyncModeEnabled by sessionManager.isSyncModeEnabled.collectAsState()
+            val playlist by viewModel.playlist.collectAsState()
             
-            // Streaming/LIVE tag
+            val onToggleSyncMode: (Boolean) -> Unit = { enabled ->
+                sessionManager.setSyncMode(enabled)
+                if (enabled) {
+                    val currentVideo = playlist.firstOrNull { it.path == currentVideoPath } ?: currentVideoPath?.let { path ->
+                        com.helpofai.videoplayer.core.model.Video(
+                            id = path.hashCode().toLong(),
+                            uri = android.net.Uri.fromFile(java.io.File(path)),
+                            title = java.io.File(path).name,
+                            duration = 0L,
+                            size = 0L,
+                            dateAdded = 0L,
+                            path = path
+                        )
+                    }
+                    if (currentVideo != null) {
+                        sessionManager.setStreamingVideo(currentVideo)
+                    }
+                    android.widget.Toast.makeText(
+                        context,
+                        "Watch Party Synchronized Mode: ENABLED\nStreaming to guests",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    sessionManager.setStreamingVideo(null)
+                    android.widget.Toast.makeText(
+                        context,
+                        "Watch Party Synchronized Mode: DISABLED\nLocal playback only (not streaming)",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            // Interactive Synchronized Mode Overlay on Now Playing screen
             if (activeSession != null) {
-                val isHost = !sessionManager.isClientMode
-                val tagText = "LIVE STREAMING"
-                val tagColor = if (isHost) Color(0xFF7C5CE7) else Color(0xFFE74C3C)
-                Surface(
-                    color = tagColor,
-                    shape = RoundedCornerShape(4.dp),
+                com.helpofai.videoplayer.feature.player.components.WatchPartySyncModeOverlay(
+                    session = activeSession!!,
+                    isHost = !sessionManager.isClientMode,
+                    isSyncModeEnabled = isSyncModeEnabled,
+                    isControllerVisible = isControllerVisible,
+                    onToggleSyncMode = onToggleSyncMode,
+                    onShowControls = {
+                        isControllerVisible = true
+                        autoHideTrigger++
+                    },
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(start = 16.dp, top = 80.dp)
-                ) {
-                    Text(
-                        text = tagText,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
+                        .padding(start = 16.dp, top = if (isControllerVisible) 76.dp else 20.dp)
+                )
             }
 
             if (activeSession != null && !sessionManager.isClientMode && isControllerVisible) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 100.dp, end = 16.dp)
-                        .width(250.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        .padding(top = 76.dp, end = 16.dp)
+                        .width(260.dp),
+                    color = Color(0xEE0F172A),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF7C5CE7).copy(alpha = 0.35f)),
+                    shadowElevation = 8.dp
                 ) {
                     com.helpofai.videoplayer.feature.watch_party.ui.host_dashboard.WatchPartyPlayerMonitoringView(
-                        session = activeSession!!
+                        session = activeSession!!,
+                        isSyncModeEnabled = isSyncModeEnabled,
+                        onToggleSyncMode = onToggleSyncMode
                     )
                 }
             }
@@ -875,29 +945,62 @@ fun PlayerScreen(
                         indication = null
                     ) {
                         isControllerVisible = !isControllerVisible
+                        if (isControllerVisible) {
+                            feedbackEvent = FeedbackEvent(
+                                type = FeedbackType.INFO,
+                                icon = Icons.Default.Lock,
+                                text = "Screen Locked • Drag to Unlock"
+                            )
+                        }
                         autoHideTrigger++
                     }
             )
         }
 
-        // Lock Controls Button
+        // Advanced Drag to Unlock Slider (Active when locked)
         AnimatedVisibility(
-            visible = isControllerVisible,
+            visible = isControllerVisible && isControlsLocked,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 48.dp)
+        ) {
+            com.helpofai.videoplayer.feature.player.components.SlideToUnlockSlider(
+                onUnlocked = {
+                    isControlsLocked = false
+                    isControllerVisible = true
+                    autoHideTrigger++
+                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.LockOpen, "Screen Unlocked")
+                },
+                onDragInteraction = {
+                    autoHideTrigger++
+                }
+            )
+        }
+
+        // Quick Lock Controls Button (when unlocked)
+        AnimatedVisibility(
+            visible = isControllerVisible && !isControlsLocked,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
             IconButton(
-                onClick = { isControlsLocked = !isControlsLocked },
+                onClick = {
+                    isControlsLocked = true
+                    isControllerVisible = false
+                    feedbackEvent = FeedbackEvent(FeedbackType.INFO, Icons.Default.Lock, "Screen Locked")
+                },
                 modifier = Modifier
                     .padding(16.dp)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
                 Icon(
-                    if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    Icons.Default.LockOpen,
                     contentDescription = "Lock Controls",
-                    tint = if (isControlsLocked) MaterialTheme.colorScheme.primary else Color.White
+                    tint = Color.White
                 )
             }
         }

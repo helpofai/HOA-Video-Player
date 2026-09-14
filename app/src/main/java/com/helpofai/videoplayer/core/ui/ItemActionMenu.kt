@@ -273,28 +273,42 @@ fun MediaActionBottomSheet(
 
     var showPropertiesDialog by remember { mutableStateOf(false) }
 
+    val view = androidx.compose.ui.platform.LocalView.current
+    LaunchedEffect(view) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0A0F1D),
-        scrimColor = Color.Black.copy(alpha = 0.65f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 10.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.25f))
-            )
-        },
+        containerColor = Color(0xF00A0F1D), // Frosted glass aesthetic
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 24.dp)
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
+
             // ── Target Header ────────────────────────────────────────────────
             when (target) {
                 is MediaActionTarget.SingleVideo -> {

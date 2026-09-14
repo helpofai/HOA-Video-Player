@@ -22,10 +22,13 @@
 */
 package com.helpofai.videoplayer.feature.player.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -49,35 +52,53 @@ import com.helpofai.videoplayer.core.database.entities.BookmarkEntity
 fun BookmarksSheet(
     bookmarks: List<BookmarkEntity>,
     currentPosition: Long,
-    onSeekTo: (Long) -> Unit,
     onAddBookmark: (Long) -> Unit,
     onDeleteBookmark: (BookmarkEntity) -> Unit,
+    onSeekTo: (Long) -> Unit,
     onGenerateAutoChapters: () -> Unit,
     isGeneratingChapters: Boolean,
     onDismissRequest: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val view = LocalView.current
+    LaunchedEffect(view) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = Color.Black.copy(alpha = 0.45f), // Frosted glass aesthetic
-        contentColor = Color.White
+        containerColor = Color(0xF00D111A), // Frosted glass aesthetic
+        contentColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null
     ) {
-        val view = LocalView.current
-        LaunchedEffect(view) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
-            }
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
+
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {

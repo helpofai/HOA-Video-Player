@@ -5,6 +5,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,11 +32,13 @@ private val WarnAmber    = Color(0xFFFDCB6E)
 @Composable
 fun WatchPartyRoomPreviewScreen(
     roomData: String,
+    paddingValues: PaddingValues = PaddingValues(0.dp),
     onJoin: (
         roomId: String,
         roomName: String,
         hostIp: String,
         port: String,
+        tunnelPort: Int,
         token: String,
         videoTitle: String?,
         videoDuration: Long?,
@@ -44,7 +47,7 @@ fun WatchPartyRoomPreviewScreen(
     ) -> Unit,
     onClose: () -> Unit
 ) {
-    // Parse Uri to extract variables (scheme: vidplay://join?roomId=...&hostIp=...&port=...&token=...)
+    // Parse Uri to extract variables (scheme: hoavideo://join?roomId=...&hostIp=...&port=...&tunnelPort=...&token=...)
     val parsedUri = remember(roomData) {
         try {
             Uri.parse(roomData)
@@ -58,6 +61,7 @@ fun WatchPartyRoomPreviewScreen(
     val roomName = try { java.net.URLDecoder.decode(rawRoomName, "UTF-8") } catch(e: Exception) { rawRoomName }
     val hostIp = parsedUri?.getQueryParameter("hostIp") ?: "192.168.1.1"
     val hostPort = parsedUri?.getQueryParameter("port") ?: "8080"
+    val tunnelPort = parsedUri?.getQueryParameter("tunnelPort")?.toIntOrNull() ?: 9990
     val securityToken = parsedUri?.getQueryParameter("token") ?: "open"
 
     val rawVideoTitle = parsedUri?.getQueryParameter("videoTitle")
@@ -71,15 +75,16 @@ fun WatchPartyRoomPreviewScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BgDeep)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding() + 8.dp))
         // Toolbar Title
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.ArrowBack, "Back", tint = TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary)
             }
             Text(
                 "Room Preview Details",
@@ -166,7 +171,7 @@ fun WatchPartyRoomPreviewScreen(
             }
 
             Button(
-                onClick = { onJoin(roomId, roomName, hostIp, hostPort, securityToken, videoTitle, videoDuration, videoPath, videoSize) },
+                onClick = { onJoin(roomId, roomName, hostIp, hostPort, tunnelPort, securityToken, videoTitle, videoDuration, videoPath, videoSize) },
                 colors = ButtonDefaults.buttonColors(containerColor = AccentGreen, contentColor = Color.Black),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1.5f).height(50.dp)
@@ -176,6 +181,7 @@ fun WatchPartyRoomPreviewScreen(
                 Text("Join Now", fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }
         }
+        Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
     }
 }
 

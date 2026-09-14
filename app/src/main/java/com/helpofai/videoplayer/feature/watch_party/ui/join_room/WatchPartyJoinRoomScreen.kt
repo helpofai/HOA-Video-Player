@@ -7,6 +7,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +29,7 @@ import com.helpofai.videoplayer.feature.watch_party.ui.qr_preview.WatchPartyRoom
 import com.helpofai.videoplayer.feature.watch_party.discovery.WatchPartyDeviceDiscoveryService
 import com.helpofai.videoplayer.feature.watch_party.discovery.DiscoveredHost
 import com.helpofai.videoplayer.feature.watch_party.notification.WatchPartyNotificationManager
+import com.helpofai.videoplayer.feature.watch_party.ui.guide.WatchPartyGuideDialog
 
 // Colors
 private val BgDeep       = Color.Transparent
@@ -69,6 +71,7 @@ fun WatchPartyJoinRoomScreen(
     // Manual Form parameters
     var manualRoomId by remember { mutableStateOf("") }
     var manualPassword by remember { mutableStateOf("") }
+    var showGuideDialog by remember { mutableStateOf(false) }
 
     val discoveryService = remember { WatchPartyDeviceDiscoveryService() }
     val discoveredHosts by discoveryService.discoveredHosts.collectAsState()
@@ -115,9 +118,10 @@ fun WatchPartyJoinRoomScreen(
     if (scannedData != null) {
         WatchPartyRoomPreviewScreen(
             roomData = scannedData!!,
-            onJoin = { roomId, roomName, hostIp, port, token, videoTitle, videoDuration, videoPath, videoSize ->
+            paddingValues = paddingValues,
+            onJoin = { roomId, roomName, hostIp, port, tunnelPort, token, videoTitle, videoDuration, videoPath, videoSize ->
                 Toast.makeText(context, "Joining room...", Toast.LENGTH_SHORT).show()
-                val streamPort = com.helpofai.videoplayer.feature.watch_party.streaming.WatchPartyVideoStreamServer.VIDEO_STREAM_PORT
+                val streamPort = port.toIntOrNull() ?: com.helpofai.videoplayer.feature.watch_party.streaming.WatchPartyVideoStreamServer.VIDEO_STREAM_PORT
                 val matchedVideo = com.helpofai.videoplayer.core.model.Video(
                     id = 9999L,
                     title = videoTitle ?: "Watch Party Stream",
@@ -134,7 +138,8 @@ fun WatchPartyJoinRoomScreen(
                     hostDeviceName = "Host $hostIp",
                     video = matchedVideo,
                     securityToken = token,
-                    id = roomId
+                    id = roomId,
+                    tunnelPort = tunnelPort
                 )
                 WatchPartyNotificationManager.getInstance().notifyJoinAccepted(roomName)
                 Toast.makeText(context, "Joined! Connecting to stream...", Toast.LENGTH_LONG).show()
@@ -153,22 +158,26 @@ fun WatchPartyJoinRoomScreen(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding() + 8.dp))
         // Toolbar with Back Button & Dynamic Title
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 pageTitle,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
+                fontSize = 20.sp,
+                modifier = Modifier.weight(1f)
             )
+            IconButton(onClick = { showGuideDialog = true }) {
+                Icon(Icons.Default.HelpOutline, contentDescription = "Visual Guide", tint = AccentPurple)
+            }
         }
 
         // Section 1: Connected Room Data
@@ -283,7 +292,7 @@ fun WatchPartyJoinRoomScreen(
                     value = manualRoomId,
                     onValueChange = { manualRoomId = it },
                     label = { Text("Room ID", color = TextSub) },
-                    placeholder = { Text("e.g. wp_1720894", color = TextSub) },
+                    placeholder = { Text("e.g. hoa-1720894", color = TextSub) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AccentPurple,
                         unfocusedBorderColor = DivColor,
@@ -458,6 +467,10 @@ fun WatchPartyJoinRoomScreen(
             }
         }
         Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
+    }
+
+    if (showGuideDialog) {
+        WatchPartyGuideDialog(onDismiss = { showGuideDialog = false })
     }
 }
 

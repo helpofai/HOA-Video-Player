@@ -36,8 +36,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import com.helpofai.videoplayer.core.theme.frostedGlass
+import com.helpofai.videoplayer.feature.watch_party.ui.guide.WatchPartyGuideDialog
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager
-import com.helpofai.videoplayer.feature.watch_party.streaming.WatchPartyLocalStreamingServer
 import java.net.NetworkInterface
 import java.util.Collections
 import java.util.UUID
@@ -71,6 +76,7 @@ private val WarnAmber    = Color(0xFFFDCB6E)
 @Composable
 fun WatchPartyHostRoomSetupScreen(
     paddingValues: PaddingValues,
+    videos: List<com.helpofai.videoplayer.core.model.Video> = emptyList(),
     onBack: () -> Unit,
     onRoomCreated: () -> Unit
 ) {
@@ -80,7 +86,10 @@ fun WatchPartyHostRoomSetupScreen(
     val sessionMgr     = remember { WatchPartySessionManager.getInstance() }
     val streamingVideo by sessionMgr.currentStreamingVideo.collectAsState()
     val activeSession  by sessionMgr.activeSession.collectAsState()
-    val streamingServer = remember { WatchPartyLocalStreamingServer(context) }
+
+    var selectedVideo by remember { mutableStateOf<com.helpofai.videoplayer.core.model.Video?>(null) }
+    var showVideoPicker by remember { mutableStateOf(false) }
+    val effectiveVideo = selectedVideo ?: streamingVideo
 
     // Room config state
     val autoRoomId = remember { "ROOM-" + UUID.randomUUID().toString().take(6).uppercase() }
@@ -100,6 +109,7 @@ fun WatchPartyHostRoomSetupScreen(
     var allowSubtitleToggle  by remember { mutableStateOf(false) }
     var allowAudioTrack      by remember { mutableStateOf(false) }
     var allowFolderQueue     by remember { mutableStateOf(false) }
+    var showGuideDialog      by remember { mutableStateOf(false) }
 
     val localIp = remember { getLocalIpForSetup() }
     val deviceName = remember {
@@ -108,7 +118,7 @@ fun WatchPartyHostRoomSetupScreen(
         "$brand $model"
     }
 
-    val isVideoReady   = streamingVideo != null
+    val isVideoReady    = effectiveVideo != null
     val isRoomNameValid = roomName.isNotBlank()
 
     // If room already created, go to dashboard
@@ -126,23 +136,24 @@ fun WatchPartyHostRoomSetupScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
+            Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding() + 8.dp))
             // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(listOf(MaterialTheme.colorScheme.background.copy(alpha = 0.8f), Color.Transparent))
-                    )
+                    .background(Color.Transparent)
                     .padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary)
                 }
-                Column(modifier = Modifier.padding(start = 4.dp)) {
+                Column(modifier = Modifier.padding(start = 4.dp).weight(1f)) {
                     Text("Host Room Setup", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text("Configure your watch party room", color = TextSub, fontSize = 11.sp)
+                }
+                IconButton(onClick = { showGuideDialog = true }) {
+                    Icon(Icons.Default.HelpOutline, "Visual Guide", tint = AccentPurple)
                 }
             }
 
@@ -154,7 +165,8 @@ fun WatchPartyHostRoomSetupScreen(
             ) {
 
                 // Video Source Banner
-                if (isVideoReady) {
+                if (isVideoReady && effectiveVideo != null) {
+                    val currVideo = effectiveVideo
                     SetupCard(borderColor = AccentGreen.copy(alpha = 0.4f), bgColor = AccentGreen.copy(alpha = 0.05f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -168,9 +180,9 @@ fun WatchPartyHostRoomSetupScreen(
                                     .background(AccentGreen.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                val thumbModel = remember(streamingVideo!!.id) {
-                                    val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${streamingVideo!!.id}.jpg")
-                                    if (cachedFile.exists()) cachedFile else streamingVideo!!.uri
+                                val thumbModel = remember(currVideo.id) {
+                                    val cachedFile = java.io.File(context.cacheDir, "smart_thumbnails/thumb_${currVideo.id}.jpg")
+                                    if (cachedFile.exists()) cachedFile else currVideo.uri
                                 }
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
@@ -196,55 +208,69 @@ fun WatchPartyHostRoomSetupScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Video Ready to Stream", color = AccentGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 Text(
-                                    streamingVideo!!.title,
+                                    currVideo.title,
                                     color = TextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Text("From currently playing video \u2022 Watch Party tick is ON", color = TextSub, fontSize = 10.sp)
+                                Text("${currVideo.formattedSize} \u2022 ${currVideo.formattedDuration}", color = TextSub, fontSize = 10.sp)
                             }
-                            Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(20.dp))
+                            if (videos.isNotEmpty()) {
+                                OutlinedButton(
+                                    onClick = { showVideoPicker = true },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, AccentGreen.copy(alpha = 0.5f))
+                                ) {
+                                    Text("Change", color = AccentGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Icon(Icons.Default.CheckCircle, null, tint = AccentGreen, modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
                 } else {
                     SetupCard(borderColor = WarnAmber.copy(alpha = 0.4f), bgColor = WarnAmber.copy(alpha = 0.05f)) {
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(WarnAmber.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Icon(Icons.Default.MovieFilter, null, tint = WarnAmber, modifier = Modifier.size(26.dp))
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "No Video Selected for Streaming",
-                                    color = WarnAmber,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "To stream a video, open a video in the main player, then enable the \"Watch Party\" toggle in the player's Tools panel. Once enabled, come back here.",
-                                    color = TextSub,
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(top = 4.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(WarnAmber.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    HowToStep(number = "1", text = "Open any video")
-                                    HowToStep(number = "2", text = "Tools \u2192 Watch Party \u2713")
-                                    HowToStep(number = "3", text = "Come back here")
+                                    Icon(Icons.Default.MovieFilter, null, tint = WarnAmber, modifier = Modifier.size(26.dp))
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "No Video Selected for Streaming",
+                                        color = WarnAmber,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                    Text(
+                                        "Select a video from your library to stream to guests, or open any video in the player.",
+                                        color = TextSub,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            if (videos.isNotEmpty()) {
+                                Button(
+                                    onClick = { showVideoPicker = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth().height(42.dp)
+                                ) {
+                                    Icon(Icons.Default.VideoLibrary, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Select Video from Library (${videos.size} items)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -437,17 +463,16 @@ fun WatchPartyHostRoomSetupScreen(
 
                 Button(
                     onClick = {
-                        val video = sessionMgr.currentStreamingVideo.value
+                        val targetVideo = effectiveVideo
                         sessionMgr.isClientMode = false
-                        if (video != null) {
-                            streamingServer.startStreamingServer(video, 8080)
-                            sessionMgr.setStreamingVideo(video)
+                        if (targetVideo != null) {
+                            sessionMgr.setStreamingVideo(targetVideo)
                         }
                         sessionMgr.createSession(
                             name = roomName,
                             hostIp = localIp,
                             hostDeviceName = deviceName,
-                            video = video,
+                            video = targetVideo,
                             securityToken = if (usePassword) password else "hoa-${System.currentTimeMillis()}",
                             usePassword = usePassword,
                             password = password,
@@ -488,7 +513,7 @@ fun WatchPartyHostRoomSetupScreen(
 
                 if (!isVideoReady) {
                     Text(
-                        "\u26A0 Open a video in the player and enable Watch Party to start streaming",
+                        "\u26A0 Select a video above or open a video in the player to stream",
                         color = WarnAmber,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center,
@@ -499,6 +524,122 @@ fun WatchPartyHostRoomSetupScreen(
                 Spacer(Modifier.height(32.dp))
             }
             Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
+        }
+
+        // Video Picker Modal Dialog
+        if (showVideoPicker) {
+            var searchQuery by remember { mutableStateOf("") }
+            val filtered = remember(searchQuery, videos) {
+                if (searchQuery.isBlank()) videos else videos.filter { it.title.contains(searchQuery, ignoreCase = true) }
+            }
+
+            Dialog(
+                onDismissRequest = { showVideoPicker = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFF131825).copy(alpha = 0.90f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .fillMaxHeight(0.85f)
+                        .frostedGlass(cornerRadius = 20.dp, surfaceAlpha = 0.35f, surfaceColor = Color.Black)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Select Video to Stream", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            IconButton(onClick = { showVideoPicker = false }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Default.Close, null, tint = TextSub)
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search videos...", color = TextSub, fontSize = 12.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, null, tint = TextSub, modifier = Modifier.size(18.dp)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentPurple,
+                                unfocusedBorderColor = DivColor,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        if (filtered.isEmpty()) {
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                Text("No matching videos found", color = TextSub, fontSize = 12.sp)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(filtered) { vid ->
+                                    val isSelected = effectiveVideo?.id == vid.id
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) AccentPurple.copy(alpha = 0.15f) else Color.Transparent,
+                                        border = BorderStroke(1.dp, if (isSelected) AccentPurple else DivColor),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                selectedVideo = vid
+                                                sessionMgr.setStreamingVideo(vid)
+                                                showVideoPicker = false
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(56.dp, 36.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(AccentPurple.copy(alpha = 0.15f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(context)
+                                                        .data(vid.uri)
+                                                        .crossfade(true)
+                                                        .size(160)
+                                                        .memoryCachePolicy(CachePolicy.ENABLED)
+                                                        .build(),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            }
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(vid.title, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text("${vid.formattedSize} \u2022 ${vid.formattedDuration}", color = TextSub, fontSize = 10.sp)
+                                            }
+                                            if (isSelected) {
+                                                Icon(Icons.Default.CheckCircle, null, tint = AccentPurple, modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showGuideDialog) {
+            WatchPartyGuideDialog(onDismiss = { showGuideDialog = false })
         }
     }
 }

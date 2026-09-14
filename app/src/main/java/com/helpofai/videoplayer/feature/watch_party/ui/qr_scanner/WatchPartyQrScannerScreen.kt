@@ -26,7 +26,7 @@ import androidx.core.content.ContextCompat
 import com.helpofai.videoplayer.feature.watch_party.qr.scanner.WatchPartyQrScannerEngine
 import java.util.concurrent.Executors
 
-private val BgDeep       = Color.Transparent
+private val BgDeep       = Color.Black
 private val TextPrimary  = Color(0xFFECF0F1)
 
 @Composable

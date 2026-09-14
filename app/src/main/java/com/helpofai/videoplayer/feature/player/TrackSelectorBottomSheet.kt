@@ -24,12 +24,17 @@ package com.helpofai.videoplayer.feature.player
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -136,7 +141,7 @@ fun TrackSelectorBottomSheet(
     onLoadExternalSubtitle: () -> Unit = {},
     onOpenSubtitleStyle: () -> Unit = {}
 ) {
-    var selectedTab by remember { mutableIntStateOf(initialTab) }
+    var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab) }
 
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
@@ -167,6 +172,15 @@ fun TrackSelectorBottomSheet(
     }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val audioListState = rememberLazyListState()
+    val subtitleListState = rememberLazyListState()
+
+    val view = androidx.compose.ui.platform.LocalView.current
+    LaunchedEffect(view) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -174,23 +188,35 @@ fun TrackSelectorBottomSheet(
         containerColor = Color(0xF00D111A), // Sleek OLED glassmorphic dark container
         contentColor = Color.White,
         scrimColor = Color.Black.copy(alpha = 0.55f),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = Color.White.copy(alpha = 0.35f),
-                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
-            )
-        }
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.88f)
+                .fillMaxHeight()
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
+            // Compact Drag Capsule
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
+
             // Modern Dual-Tab Bar Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -238,20 +264,21 @@ fun TrackSelectorBottomSheet(
                 modifier = Modifier.padding(top = 4.dp)
             )
 
-            val tracks = player.currentTracks.groups
+            val tracks = remember(player.currentTracks) { player.currentTracks.groups }
 
             LazyColumn(
+                state = if (selectedTab == 0) audioListState else subtitleListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 if (selectedTab == 0) {
                     // ==========================================
                     // 1. AUDIO TRACKS SECTION
                     // ==========================================
-                    item {
+                    item(key = "audio_tracks_header") {
                         val audioGroups = tracks.filter { it.type == C.TRACK_TYPE_AUDIO }
                         var totalTracks = 0
                         audioGroups.forEach { totalTracks += it.length }
@@ -284,7 +311,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Mute Audio Option
-                    item {
+                    item(key = "audio_tracks_mute") {
                         val audioGroups = tracks.filter { it.type == C.TRACK_TYPE_AUDIO }
                         val isMuted = audioGroups.none { it.isSelected }
 
@@ -308,7 +335,7 @@ fun TrackSelectorBottomSheet(
                     // Dynamic Audio Tracks
                     val audioGroups = tracks.filter { it.type == C.TRACK_TYPE_AUDIO }
                     if (audioGroups.isEmpty()) {
-                        item {
+                        item(key = "audio_tracks_empty") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -325,8 +352,11 @@ fun TrackSelectorBottomSheet(
                             }
                         }
                     } else {
-                        audioGroups.forEach { group ->
-                            items(group.length) { trackIndex ->
+                        audioGroups.forEachIndexed { groupIdx, group ->
+                            items(
+                                count = group.length,
+                                key = { trackIndex -> "audio_${groupIdx}_${group.mediaTrackGroup.id}_$trackIndex" }
+                            ) { trackIndex ->
                                 val format = group.getTrackFormat(trackIndex)
                                 val isSelected = group.isTrackSelected(trackIndex)
                                 val languageCode = format.language ?: "und"
@@ -371,7 +401,7 @@ fun TrackSelectorBottomSheet(
                     // 2. LIVE STREAM FIDELITY & DIAGNOSTICS
                     // ==========================================
                     if (audioQualityReport != null) {
-                        item {
+                        item(key = "audio_diagnostics") {
                             Spacer(modifier = Modifier.height(4.dp))
                             AudioDiagnosticsCard(report = audioQualityReport)
                         }
@@ -380,7 +410,7 @@ fun TrackSelectorBottomSheet(
                     // ==========================================
                     // 3. SOUND ENHANCEMENTS & HARDWARE CONTROLS
                     // ==========================================
-                    item {
+                    item(key = "audio_fx_header") {
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -403,7 +433,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Unified Volume & Hardware Boost Slider (0% to 200%)
-                    item {
+                    item(key = "audio_volume_card") {
                         val currentTotalVol = totalVolumeSlider.roundToInt()
                         val isBoostActive = currentTotalVol > 100
                         val isExtremeBoost = currentTotalVol > 150
@@ -558,7 +588,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Dialogue / Vocal Clarity Toggle
-                    item {
+                    item(key = "audio_dialogue_card") {
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
@@ -629,7 +659,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Bass Boost & 3D Spatializer in sleek dual cards
-                    item {
+                    item(key = "audio_bass_spatial_card") {
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
@@ -679,7 +709,11 @@ fun TrackSelectorBottomSheet(
                                         )
                                     }
 
-                                    AnimatedVisibility(visible = isBassEnabled) {
+                                    AnimatedVisibility(
+                                        visible = isBassEnabled,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
                                         Column(modifier = Modifier.padding(top = 8.dp)) {
                                             Slider(
                                                 value = bassStrength,
@@ -747,7 +781,11 @@ fun TrackSelectorBottomSheet(
                                         )
                                     }
 
-                                    AnimatedVisibility(visible = isVirtualizerEnabled) {
+                                    AnimatedVisibility(
+                                        visible = isVirtualizerEnabled,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
+                                    ) {
                                         Column(modifier = Modifier.padding(top = 8.dp)) {
                                             Slider(
                                                 value = virtualizerStrength,
@@ -778,7 +816,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Open 10-Band Graphic Equalizer
-                    item {
+                    item(key = "audio_equalizer_card") {
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = ToolIconPalette.Equalizer.copy(alpha = 0.12f)),
@@ -839,7 +877,7 @@ fun TrackSelectorBottomSheet(
                     // ==========================================
                     // 4. SUBTITLES SECTION
                     // ==========================================
-                    item {
+                    item(key = "sub_tracks_header") {
                         val textGroups = tracks.filter { it.type == C.TRACK_TYPE_TEXT }
                         var totalSubs = 0
                         textGroups.forEach { totalSubs += it.length }
@@ -872,7 +910,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Disable Subtitles Option
-                    item {
+                    item(key = "sub_tracks_off") {
                         val textGroups = tracks.filter { it.type == C.TRACK_TYPE_TEXT }
                         val isOffSelected = textGroups.none { it.isSelected }
 
@@ -896,7 +934,7 @@ fun TrackSelectorBottomSheet(
                     // Subtitle Tracks List
                     val textGroups = tracks.filter { it.type == C.TRACK_TYPE_TEXT }
                     if (textGroups.isEmpty()) {
-                        item {
+                        item(key = "sub_tracks_empty") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -913,8 +951,11 @@ fun TrackSelectorBottomSheet(
                             }
                         }
                     } else {
-                        textGroups.forEach { group ->
-                            items(group.length) { trackIndex ->
+                        textGroups.forEachIndexed { groupIdx, group ->
+                            items(
+                                count = group.length,
+                                key = { trackIndex -> "sub_${groupIdx}_${group.mediaTrackGroup.id}_$trackIndex" }
+                            ) { trackIndex ->
                                 val format = group.getTrackFormat(trackIndex)
                                 val isSelected = group.isTrackSelected(trackIndex)
                                 val languageCode = format.language ?: "und"
@@ -952,7 +993,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Import External Subtitle
-                    item {
+                    item(key = "sub_external_file_card") {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "External Subtitles & Style",
@@ -1021,7 +1062,7 @@ fun TrackSelectorBottomSheet(
                     }
 
                     // Subtitle Customization
-                    item {
+                    item(key = "sub_style_card") {
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),

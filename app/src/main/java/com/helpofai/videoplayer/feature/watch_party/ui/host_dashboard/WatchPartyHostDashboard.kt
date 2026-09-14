@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.NotificationCompat
 import com.helpofai.videoplayer.feature.watch_party.qr.generator.WatchPartyQrGenerator
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySession
@@ -42,6 +44,7 @@ import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionMan
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartyDevice
 import com.helpofai.videoplayer.feature.watch_party.notification.WatchPartyNotificationManager
 import com.helpofai.videoplayer.feature.watch_party.notification.WatchPartyNotification
+import com.helpofai.videoplayer.core.theme.frostedGlass
 import com.helpofai.videoplayer.feature.watch_party.notification.WatchPartyNotificationType
 
 // Color Scheme
@@ -59,10 +62,13 @@ private val WarnAmber    = Color(0xFFFDCB6E)
 fun WatchPartyHostDashboard(
     session: WatchPartySession,
     discoveredHosts: List<com.helpofai.videoplayer.feature.watch_party.discovery.DiscoveredHost>,
+    paddingValues: PaddingValues = PaddingValues(0.dp),
     onKickDevice: (String) -> Unit,
     onBanDevice: (String) -> Unit,
     onUnbanDevice: (String) -> Unit,
     onUpdatePermissions: (String, Boolean, Boolean, Boolean) -> Unit,
+    onOpenPlayer: ((com.helpofai.videoplayer.core.model.Video) -> Unit)? = null,
+    onEndRoom: (() -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -76,16 +82,17 @@ fun WatchPartyHostDashboard(
     val videoParam = session.video?.let {
         "&videoTitle=${java.net.URLEncoder.encode(it.title, "UTF-8")}&videoDuration=${it.duration}&videoPath=${java.net.URLEncoder.encode(it.path, "UTF-8")}&videoSize=${it.size}"
     } ?: ""
-    val joinLink = "vidplay://join?roomId=${session.id}&hostIp=${session.hostIp}&port=${session.port}&token=${session.securityToken}&roomName=${java.net.URLEncoder.encode(session.name, "UTF-8")}$videoParam"
+    val joinLink = "hoavideo://join?roomId=${session.id}&hostIp=${session.hostIp}&port=${session.port}&tunnelPort=${session.tunnelPort}&token=${session.securityToken}&roomName=${java.net.URLEncoder.encode(session.name, "UTF-8")}$videoParam"
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BgDeep)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding() + 8.dp))
         // Room Identity, Back Navigation & Edit Button
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -101,7 +108,7 @@ fun WatchPartyHostDashboard(
                     modifier = Modifier.padding(end = 8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back to Setup",
                         tint = TextPrimary
                     )
@@ -127,15 +134,29 @@ fun WatchPartyHostDashboard(
                 }
             }
             
-            Button(
-                onClick = { showEditDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Icon(Icons.Default.Edit, "Edit Room", modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Edit Room", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (session.video != null && onOpenPlayer != null) {
+                    Button(
+                        onClick = { onOpenPlayer(session.video) },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentGreen, contentColor = Color.Black),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, "Play", modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Player", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Button(
+                    onClick = { showEditDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.Edit, "Edit Room", modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Edit Room", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
@@ -253,7 +274,7 @@ fun WatchPartyHostDashboard(
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_SUBJECT, "Join my Watch Party")
-                                putExtra(Intent.EXTRA_TEXT, "Hey, join my watch party in VidPlay using this link: $joinLink")
+                                putExtra(Intent.EXTRA_TEXT, "Hey, join my watch party in HOA Video using this link: $joinLink")
                             }
                             context.startActivity(Intent.createChooser(intent, "Share Join Link"))
                         },
@@ -393,6 +414,22 @@ fun WatchPartyHostDashboard(
                 }
             }
         }
+
+        if (onEndRoom != null) {
+            Button(
+                onClick = onEndRoom,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C))
+            ) {
+                Icon(Icons.Default.PowerSettingsNew, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("End Watch Party Room", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
+        }
     }
 
     // Edit Room Details Dialog
@@ -409,58 +446,50 @@ fun WatchPartyHostDashboard(
         var editGestures by remember { mutableStateOf(session.allowGestures) }
         var editReactions by remember { mutableStateOf(session.allowReactions) }
 
-        Dialog(onDismissRequest = { showEditDialog = false }) {
+        Dialog(
+            onDismissRequest = { showEditDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = BgCard,
-                border = BorderStroke(1.dp, DivColor),
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF131825).copy(alpha = 0.88f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth(0.94f)
+                    .fillMaxHeight(0.88f)
+                    .frostedGlass(cornerRadius = 24.dp, surfaceAlpha = 0.35f, surfaceColor = Color.Black)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp)
                 ) {
+                    // Dialog Header
                     Text(
                         "Edit Room Setup",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-
-                    OutlinedTextField(
-                        value = editName,
-                        onValueChange = { editName = it },
-                        label = { Text("Room Name", color = TextSub) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentPurple,
-                            unfocusedBorderColor = DivColor,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Update room configurations & guest control permissions",
+                        color = TextSub,
+                        fontSize = 12.sp
                     )
+                    Spacer(Modifier.height(16.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Scrollable Fields
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text("Require Password", color = TextPrimary, fontSize = 13.sp)
-                        Switch(
-                            checked = editUsePassword,
-                            onCheckedChange = { editUsePassword = it },
-                            colors = SwitchDefaults.colors(checkedTrackColor = AccentPurple)
-                        )
-                    }
-
-                    if (editUsePassword) {
                         OutlinedTextField(
-                            value = editPassword,
-                            onValueChange = { editPassword = it },
-                            label = { Text("Password", color = TextSub) },
-                            visualTransformation = PasswordVisualTransformation(),
+                            value = editName,
+                            onValueChange = { editName = it },
+                            label = { Text("Room Name", color = TextSub) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = AccentPurple,
                                 unfocusedBorderColor = DivColor,
@@ -469,43 +498,76 @@ fun WatchPartyHostDashboard(
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
-                    }
 
-                    // Max connections slider
-                    Column {
-                        Text("Maximum Guests: ${editMaxUsers.toInt()}", color = TextPrimary, fontSize = 13.sp)
-                        Slider(
-                            value = editMaxUsers,
-                            onValueChange = { editMaxUsers = it },
-                            valueRange = 1f..30f,
-                            steps = 29,
-                            colors = SliderDefaults.colors(
-                                thumbColor = AccentPurple,
-                                activeTrackColor = AccentPurple,
-                                inactiveTrackColor = DivColor
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Require Password", color = TextPrimary, fontSize = 13.sp)
+                            Switch(
+                                checked = editUsePassword,
+                                onCheckedChange = { editUsePassword = it },
+                                colors = SwitchDefaults.colors(checkedTrackColor = AccentPurple)
                             )
-                        )
+                        }
+
+                        if (editUsePassword) {
+                            OutlinedTextField(
+                                value = editPassword,
+                                onValueChange = { editPassword = it },
+                                label = { Text("Password", color = TextSub) },
+                                visualTransformation = PasswordVisualTransformation(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AccentPurple,
+                                    unfocusedBorderColor = DivColor,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        // Max connections slider
+                        Column {
+                            Text("Maximum Guests: ${editMaxUsers.toInt()}", color = TextPrimary, fontSize = 13.sp)
+                            Slider(
+                                value = editMaxUsers,
+                                onValueChange = { editMaxUsers = it },
+                                valueRange = 1f..30f,
+                                steps = 29,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = AccentPurple,
+                                    activeTrackColor = AccentPurple,
+                                    inactiveTrackColor = DivColor
+                                )
+                            )
+                        }
+
+                        Text("Client Control Options", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+
+                        // Control toggles
+                        PermissionRow("Play / Pause Controls", editPlayPause) { editPlayPause = it }
+                        PermissionRow("Seek / Scrubbing Controls", editSeek) { editSeek = it }
+                        PermissionRow("Local Volume Adjustment", editVolume) { editVolume = it }
+                        PermissionRow("Next / Previous Controls", editNextPrev) { editNextPrev = it }
+                        PermissionRow("Gesture Controls", editGestures) { editGestures = it }
+                        PermissionRow("Emoji Reactions Support", editReactions) { editReactions = it }
                     }
 
-                    Text("Client Control Options", color = AccentCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Spacer(Modifier.height(16.dp))
 
-                    // Control toggles
-                    PermissionRow("Play / Pause Controls", editPlayPause) { editPlayPause = it }
-                    PermissionRow("Seek / Scrubbing Controls", editSeek) { editSeek = it }
-                    PermissionRow("Local Volume Adjustment", editVolume) { editVolume = it }
-                    PermissionRow("Next / Previous Controls", editNextPrev) { editNextPrev = it }
-                    PermissionRow("Gesture Controls", editGestures) { editGestures = it }
-                    PermissionRow("Emoji Reactions Support", editReactions) { editReactions = it }
-
+                    // Pinned Action Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedButton(
                             onClick = { showEditDialog = false },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                             border = BorderStroke(1.dp, DivColor),
-                            modifier = Modifier.weight(1f)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
                         ) {
                             Text("Cancel")
                         }
@@ -531,7 +593,8 @@ fun WatchPartyHostDashboard(
                                 Toast.makeText(context, "Room settings updated!", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
-                            modifier = Modifier.weight(1f)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
                         ) {
                             Text("Save", fontWeight = FontWeight.Bold)
                         }

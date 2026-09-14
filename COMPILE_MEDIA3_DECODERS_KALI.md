@@ -2,7 +2,7 @@
 
 This guide provides step-by-step instructions for compiling the AndroidX Media3 software video decoders (`libgav1` and `libvpx`) natively on Kali Linux. 
 
-These compiled `.aar` files will allow your Android app (VidPlay) to decode 4K AV1 and VP9 videos on devices where the hardware decoder fails.
+These compiled `.aar` files will allow your Android app (HOAVideo) to decode 4K AV1 and VP9 videos on devices where the hardware decoder fails.
 
 ---
 
@@ -76,9 +76,9 @@ cd media
 
 ---
 
-## Step 6: Importing the Decoders into VidPlay
+## Step 6: Importing the Decoders into HOAVideo
 
-1. Copy the `.aar` files from your Kali machine into your VidPlay project folder. 
+1. Copy the `.aar` files from your Kali machine into your HOAVideo project folder. 
    *(If Kali is running via WSL, you can copy them directly to your Windows C: drive like this:)*
    ```bash
    cp ~/media/libraries/decoder_av1/build/outputs/aar/*.aar /mnt/c/Users/rajib/Desktop/vidplay/app/libs/
@@ -86,7 +86,7 @@ cd media
    ```
    *(If Kali is on a separate machine, use a USB drive, SCP, or a shared folder to move the `.aar` files to `C:\Users\rajib\Desktop\vidplay\app\libs\` on your Windows PC).*
 
-2. Open `build.gradle.kts` in your VidPlay Android Studio project and uncomment/add the decoders:
+2. Open `build.gradle.kts` in your HOAVideo Android Studio project and uncomment/add the decoders:
    ```kotlin
    implementation("androidx.media3:media3-decoder-av1:1.10.1")
    implementation("androidx.media3:media3-decoder-vp9:1.10.1")

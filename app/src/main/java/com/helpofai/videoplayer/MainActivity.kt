@@ -394,7 +394,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handleDeepLink(uri: Uri) {
-        if (uri.scheme == "vidplay" && uri.host == "join") {
+        if (uri.scheme == "hoavideo" && uri.host == "join") {
             com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
                 .pendingDeepLink.value = uri.toString()
         }

@@ -384,7 +384,7 @@ fun PlayerMorePopup(
                                 val videoParam = session.video?.let {
                                     "&videoTitle=${java.net.URLEncoder.encode(it.title, "UTF-8")}&videoDuration=${it.duration}&videoPath=${java.net.URLEncoder.encode(it.path, "UTF-8")}&videoSize=${it.size}"
                                 } ?: ""
-                                val joinLink = "vidplay://join?roomId=${session.id}&hostIp=${session.hostIp}&port=${session.port}&token=${session.securityToken}&roomName=${java.net.URLEncoder.encode(session.name, "UTF-8")}$videoParam"
+                                val joinLink = "hoavideo://join?roomId=${session.id}&hostIp=${session.hostIp}&port=${session.port}&tunnelPort=${session.tunnelPort}&token=${session.securityToken}&roomName=${java.net.URLEncoder.encode(session.name, "UTF-8")}$videoParam"
                                 val qrBitmap = remember(joinLink) { WatchPartyQrGenerator.generateQrBitmap(joinLink, 400) }
                                 Dialog(onDismissRequest = { showQrDialog = false }) {
                                     Surface(

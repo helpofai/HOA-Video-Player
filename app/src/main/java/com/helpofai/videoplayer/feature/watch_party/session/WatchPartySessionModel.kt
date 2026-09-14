@@ -22,6 +22,7 @@ data class WatchPartySession(
     val name: String,
     val hostIp: String,
     val port: Int = 8080,
+    val tunnelPort: Int = 9990,
     val video: Video?,
     val devices: List<WatchPartyDevice> = emptyList(),
     val currentPositionMs: Long = 0,

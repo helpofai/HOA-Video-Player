@@ -54,24 +54,22 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import kotlinx.coroutines.delay
 
-@Composable
-private fun rememberAnimatedRainbowColor(): State<Color> {
-    val transition = rememberInfiniteTransition(label = "rainbow")
-    val hue = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing)
-        ),
-        label = "hue"
-    )
-    return remember {
-        derivedStateOf { Color.hsv(hue = hue.value, saturation = 0.8f, value = 1f) }
-    }
-}
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.PI
+import kotlin.math.sin
+
+private val SnakeGradientColors = listOf(
+    Color(0xFF00E5FF), // Electric Cyan
+    Color(0xFF0072FF), // Neon Cobalt
+    Color(0xFF7A00FF), // Vivid Violet
+    Color(0xFFFF007F), // Hot Magenta / Pink
+    Color(0xFFFF8800)  // Sunset Amber
+)
 
 @Composable
-fun ThinRainbowSeekBar(
+fun SnakeGradientSeekBar(
     value: Float,
     max: Float,
     bookmarks: List<Long>,
@@ -81,12 +79,36 @@ fun ThinRainbowSeekBar(
     isSeekEnabled: Boolean = true,
     abRepeatA: Long? = null,
     abRepeatB: Long? = null,
-    onScrub: ((Float?) -> Unit)? = null
+    onScrub: ((Float?) -> Unit)? = null,
+    isPlaying: Boolean = true
 ) {
-    val rainbowColorState = rememberAnimatedRainbowColor()
     var isDragging by remember { mutableStateOf(false) }
     var dragPosition by remember { mutableFloatStateOf(0f) }
     var pendingSeekTarget by remember { mutableStateOf<Float?>(null) }
+
+    // Running Snake Wave animation (traveling sinusoidal wave)
+    val infiniteTransition = rememberInfiniteTransition(label = "snake_runner")
+    val phaseAnimation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "snake_phase"
+    )
+    val thumbPulse by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "thumb_pulse"
+    )
+
+    // Wave travels when video is actively playing and not being scrubbed
+    val phase = if (isPlaying && !isDragging) phaseAnimation else 0f
 
     // Clear pendingSeekTarget once value catches up (within 1.5 seconds)
     LaunchedEffect(value) {
@@ -114,7 +136,7 @@ fun ThinRainbowSeekBar(
     
     Canvas(
         modifier = modifier
-            .height(24.dp)
+            .height(28.dp)
             .fillMaxWidth()
             .then(
                 if (isSeekEnabled) {
@@ -158,54 +180,64 @@ fun ThinRainbowSeekBar(
                 } else Modifier
             )
     ) {
-        val rainbowColor = rainbowColorState.value
-        val trackHeight = 2.dp.toPx()
-        val thumbRadius = 4.dp.toPx()
         val centerY = size.height / 2f
-        
-        // Background track
+        val trackHeight = 3.dp.toPx()
+        val activeTrackStroke = 3.5.dp.toPx()
+        val thumbBaseRadius = if (isDragging) 6.5.dp.toPx() else 4.5.dp.toPx()
+        val activeWidth = size.width * currentProgress
+
+        // Rich horizontal static gradient across the full timeline
+        val snakeGradient = Brush.horizontalGradient(
+            colors = SnakeGradientColors,
+            startX = 0f,
+            endX = size.width.coerceAtLeast(1f)
+        )
+
+        // 1. Background unplayed track (from activeWidth to total length)
         drawLine(
-            color = Color.White.copy(alpha = 0.3f),
-            start = Offset(0f, centerY),
+            color = Color.White.copy(alpha = 0.22f),
+            start = Offset(activeWidth.coerceAtLeast(0f), centerY),
             end = Offset(size.width, centerY),
             strokeWidth = trackHeight,
             cap = StrokeCap.Round
         )
-        
-        // Last played history region
+
+        // 2. Last played history region
         if (lastPlayedPosition != null && max > 0) {
             val historyFraction = (lastPlayedPosition / max).coerceIn(0f, 1f)
+            val historyWidth = size.width * historyFraction
             drawLine(
-                color = Color.LightGray.copy(alpha = 0.5f),
+                color = Color.White.copy(alpha = 0.35f),
                 start = Offset(0f, centerY),
-                end = Offset(size.width * historyFraction, centerY),
+                end = Offset(historyWidth, centerY),
                 strokeWidth = trackHeight,
                 cap = StrokeCap.Round
             )
             // History Marker
             drawLine(
-                color = Color.Yellow.copy(alpha = 0.8f),
-                start = Offset(size.width * historyFraction, centerY - 6.dp.toPx()),
-                end = Offset(size.width * historyFraction, centerY + 6.dp.toPx()),
+                color = Color.Yellow.copy(alpha = 0.85f),
+                start = Offset(historyWidth, centerY - 6.dp.toPx()),
+                end = Offset(historyWidth, centerY + 6.dp.toPx()),
                 strokeWidth = 2.dp.toPx()
             )
         }
-        
-        // Bookmarks & Scenes Marker
+
+        // 3. Bookmarks & Scenes Markers
         if (max > 0) {
             bookmarks.forEach { timeMs ->
                 val fraction = (timeMs.toFloat() / max).coerceIn(0f, 1f)
                 val x = size.width * fraction
                 drawLine(
-                    color = Color.White,
-                    start = Offset(x, centerY - 4.dp.toPx()),
-                    end = Offset(x, centerY + 4.dp.toPx()),
-                    strokeWidth = 2.dp.toPx()
+                    color = Color.White.copy(alpha = 0.9f),
+                    start = Offset(x, centerY - 5.dp.toPx()),
+                    end = Offset(x, centerY + 5.dp.toPx()),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round
                 )
             }
         }
 
-        // A-B Repeat Markers
+        // 4. A-B Repeat Markers
         if (max > 0) {
             abRepeatA?.let { startMs ->
                 val fraction = (startMs.toFloat() / max).coerceIn(0f, 1f)
@@ -228,27 +260,94 @@ fun ThinRainbowSeekBar(
                 )
             }
         }
-        
-        // Active track
-        val activeWidth = size.width * currentProgress
+
+        // 5. Active Played Track: Running Snake Wave Bar with Static Gradient
         if (activeWidth > 0f) {
-            drawLine(
-                color = rainbowColor,
-                start = Offset(0f, centerY),
-                end = Offset(activeWidth, centerY),
-                strokeWidth = trackHeight,
-                cap = StrokeCap.Round
+            val wavelength = 22.dp.toPx()
+            val amplitude = 3.5.dp.toPx()
+            val transitionDist = 12.dp.toPx()
+            val twoPi = (2f * PI).toFloat()
+
+            val snakePath = Path().apply {
+                moveTo(0f, centerY)
+                val step = 2f
+                var x = 0f
+                while (x <= activeWidth) {
+                    val startFade = (x / transitionDist).coerceIn(0f, 1f)
+                    val endFade = ((activeWidth - x) / transitionDist).coerceIn(0f, 1f)
+                    val envelope = minOf(startFade, endFade)
+                    // Animated running phase reversed in direction
+                    val y = centerY + amplitude * envelope * sin((x / wavelength) * twoPi + phase)
+                    lineTo(x, y)
+                    x += step
+                }
+                lineTo(activeWidth, centerY)
+            }
+
+            drawPath(
+                path = snakePath,
+                brush = snakeGradient,
+                style = Stroke(
+                    width = activeTrackStroke,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
+
+            // 6. Snake Head / Scrubber Thumb (with living breathing glow)
+            val glowSpread = if (isPlaying && !isDragging) {
+                (2.5f + 1.5f * thumbPulse).dp.toPx()
+            } else {
+                2.5.dp.toPx()
+            }
+            // Outer halo glow
+            drawCircle(
+                color = Color.White.copy(alpha = 0.22f),
+                radius = thumbBaseRadius + glowSpread,
+                center = Offset(activeWidth, centerY)
+            )
+            // Vibrant gradient thumb core
+            drawCircle(
+                brush = snakeGradient,
+                radius = thumbBaseRadius,
+                center = Offset(activeWidth, centerY)
+            )
+            // Crisp white inner dot
+            drawCircle(
+                color = Color.White,
+                radius = (thumbBaseRadius * 0.45f).coerceAtLeast(1.5.dp.toPx()),
+                center = Offset(activeWidth, centerY)
             )
         }
-        
-        // Thumb
-        drawCircle(
-            color = rainbowColor,
-            radius = thumbRadius,
-            center = Offset(activeWidth, centerY)
-        )
     }
 }
+
+@Composable
+fun ThinRainbowSeekBar(
+    value: Float,
+    max: Float,
+    bookmarks: List<Long>,
+    lastPlayedPosition: Long?,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    isSeekEnabled: Boolean = true,
+    abRepeatA: Long? = null,
+    abRepeatB: Long? = null,
+    onScrub: ((Float?) -> Unit)? = null,
+    isPlaying: Boolean = true
+) = SnakeGradientSeekBar(
+    value = value,
+    max = max,
+    bookmarks = bookmarks,
+    lastPlayedPosition = lastPlayedPosition,
+    onSeek = onSeek,
+    modifier = modifier,
+    isSeekEnabled = isSeekEnabled,
+    abRepeatA = abRepeatA,
+    abRepeatB = abRepeatB,
+    onScrub = onScrub,
+    isPlaying = isPlaying
+)
 
 @Composable
 fun PlayerBottomController(
@@ -310,7 +409,7 @@ fun PlayerBottomController(
                         style = MaterialTheme.typography.labelMedium
                     )
 
-                    ThinRainbowSeekBar(
+                    SnakeGradientSeekBar(
                         value = currentPosition.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat()),
                         max = duration.coerceAtLeast(1).toFloat(),
                         bookmarks = bookmarks,
@@ -325,6 +424,7 @@ fun PlayerBottomController(
                         isSeekEnabled = isSeekEnabled,
                         abRepeatA = abRepeatA,
                         abRepeatB = abRepeatB,
+                        isPlaying = isPlaying,
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 12.dp)

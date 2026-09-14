@@ -176,7 +176,7 @@ class VaultCryptoManager @Inject constructor(
                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, originalName)
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/VidPlayVault")
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/HOAVideoVault")
                 }
             }
             

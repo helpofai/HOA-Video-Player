@@ -90,7 +90,35 @@ The **Watch Party** feature allows multiple users on the same local network (Wi-
 2. Enter a **Room Name** (no initial video selection is required).
 3. Optionally configure **Viewer Permissions** (Seek, Play/Pause, Volume controls) or set a password.
 4. Tap **Create Room**.
-5. Go to your local video library, open the video player, tap the **More Settings (Three Dots)** button, and toggle **Watch Party Synchronized Mode** to **ON**. The host is now actively broadcasting the video!
+5. Go to your local video library and start playing your video. A dedicated **Watch Party Synchronized Mode** card appears directly on the Now Playing screen. Toggle it **ON** to start broadcasting to room members!
+
+### 📺 Now Playing Screen: Watch Party Synchronized Mode
+
+When a party room is created, the room admin (Host) can view and control the **Watch Party Synchronized Mode** directly within the **Now Playing** video screen (`PlayerScreen.kt`).
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ [← Back]  Inception (2010).mkv           [HD] [EQ] [More]  │
+│                                                            │
+│ ┌──────────────────────────────────────┐                   │
+│ │ 📡 Watch Party Synchronized Mode     │  [Switch: ON/OFF] │
+│ │ ● STREAMING ACTIVE                   │                   │
+│ │ ──────────────────────────────────── │                   │
+│ │ 🟢 Video & controls are synced live   │                   │
+│ │    with 3 joined party members.      │                   │
+│ │ Room: Weekend Movie Night   ID: 9942 │                   │
+│ └──────────────────────────────────────┘                   │
+│                                                            │
+│                         [ ▶ Play ]                         │
+│                                                            │
+│ 00:14:20 ═════════════════●═════════════════════ 02:28:00 │
+└────────────────────────────────────────────────────────────┘
+```
+
+* **Required for Streaming**: To broadcast video to party guests and synchronize playback, the room admin must enable **Synchronized Mode**.
+* **Private Local Playback**: When Synchronized Mode is toggled OFF, videos play strictly locally on the host's device without streaming to the room.
+* **Instant Toggle**: The host can toggle sync mode directly from the player overlay card or the right-side host monitoring panel.
+* **Glanceable Badge**: When player controls auto-hide during playback, an unobtrusive floating pill (`● LIVE SYNC (X)` or `⚠️ SYNC OFF`) keeps the admin informed without obstructing the video.
 
 #### 2. Client Device (Join a Watch Party Room)
 1. Connect to the **same Wi-Fi network** or Hotspot as the host device.

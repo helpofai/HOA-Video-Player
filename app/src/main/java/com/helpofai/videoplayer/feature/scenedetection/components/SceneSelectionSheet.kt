@@ -61,6 +61,10 @@ import com.helpofai.videoplayer.core.theme.ToolIconPalette
 import com.helpofai.videoplayer.core.theme.PaletteSheetHeader
 import java.util.Locale
 
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import android.os.Build
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SceneSelectionSheet(
@@ -68,20 +72,18 @@ fun SceneSelectionSheet(
     bookmarks: List<BookmarkEntity>,
     currentPosition: Long = 0L,
     videoDuration: Long = 0L,
-    isGeneratingChapters: Boolean,
+    isGeneratingChapters: Boolean = false,
+    generationProgress: Float = 0f,
     onGenerateAutoChapters: () -> Unit,
-    onClearScenes: (() -> Unit)? = null,
     onSeekTo: (Long) -> Unit,
+    onClearScenes: (() -> Unit)? = null,
     onDismissRequest: () -> Unit
 ) {
+    // Signature color for Scene Detection
     val accent = ToolIconPalette.AutoAI
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    
-    // User can toggle between 3 and 4 previews per row
-    var columnsCount by rememberSaveable {
-        mutableIntStateOf(if (isLandscape) 4 else 3)
-    }
+
+    // User preference for column count (3 or 4). Default to 3 for readability
+    var columnsCount by rememberSaveable { mutableIntStateOf(3) }
 
     val sortedScenes = remember(bookmarks) {
         bookmarks.sortedBy { it.timeMs }
@@ -89,29 +91,44 @@ fun SceneSelectionSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val view = LocalView.current
+    LaunchedEffect(view) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (view.parent as? DialogWindowProvider)?.window?.setBackgroundBlurRadius(60)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = Color(0xFF080D1A),
-        scrimColor = Color.Black.copy(alpha = 0.7f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 10.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.25f))
-            )
-        },
+        containerColor = Color(0xF0080D1A),
+        scrimColor = Color.Black.copy(alpha = 0.55f),
+        dragHandle = null,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .padding(horizontal = 14.dp)
-                .padding(bottom = 32.dp)
         ) {
+            // Compact Drag Handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.35f))
+                )
+            }
+
             PaletteSheetHeader(
                 title = "Smart Scenes",
                 subtitle = if (sortedScenes.isNotEmpty()) "${sortedScenes.size} Scenes • ${columnsCount} per row" else "Offline AI Visual Chapters",
@@ -310,7 +327,7 @@ fun SceneSelectionSheet(
                     columns = GridCells.Fixed(columnsCount),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                 ) {
                     itemsIndexed(sortedScenes, key = { _, item -> item.id }) { index, bookmark ->
                         val nextBookmark = sortedScenes.getOrNull(index + 1)

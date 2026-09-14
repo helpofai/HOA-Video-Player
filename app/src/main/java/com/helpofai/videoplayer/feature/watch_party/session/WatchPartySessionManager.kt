@@ -292,10 +292,11 @@ class WatchPartySessionManager {
         }
 
         val session = WatchPartySession(
-            id = id ?: ("wp_" + System.currentTimeMillis()),
+            id = id ?: ("hoa-" + System.currentTimeMillis()),
             name = name,
             hostIp = hostIp,
             port = currentStreamPort,
+            tunnelPort = currentTunnelPort,
             video = video,
             securityToken = securityToken,
             usePassword = usePassword,
@@ -324,7 +325,11 @@ class WatchPartySessionManager {
         notificationManager.notifySessionCreated(name)
 
         if (id == null) {
-            // We are Host -> Start TCP socket server & UDP discovery responder
+            // We are Host -> Start video streaming if video provided
+            if (video != null) {
+                setStreamingVideo(video)
+            }
+            // Start TCP socket server & UDP discovery responder
             startHostTunnelServer(currentTunnelPort)
             startHostDiscoveryUdpServer(name, currentTunnelPort)
         } else {
@@ -369,6 +374,14 @@ class WatchPartySessionManager {
     }
     
     fun endSession() {
+        if (!isClientMode) {
+            try {
+                val endMsg = JSONObject().apply {
+                    put("command", "room_ended")
+                }.toString() + "\n"
+                broadcastToClients(endMsg, null)
+            } catch (e: Exception) {}
+        }
         try { hostServerSocket?.close() } catch(e: Exception){}
         hostServerSocket = null
         try { hostDiscoveryUdpSocket?.close() } catch(e: Exception){}
@@ -406,6 +419,15 @@ class WatchPartySessionManager {
         _activeSession.value = updated
         if (removedDevice != null) {
             notificationManager.notifyDeviceDisconnected(removedDevice, updated.devices.size)
+        }
+        if (!isClientMode) {
+            try {
+                val kickMsg = JSONObject().apply {
+                    put("command", "kicked")
+                    put("deviceId", deviceId)
+                }.toString() + "\n"
+                broadcastToClients(kickMsg, null)
+            } catch (e: Exception) {}
         }
     }
     
@@ -652,6 +674,17 @@ class WatchPartySessionManager {
                                     timestamp = json.getLong("timestamp")
                                 )
                                 _reactions.value = _reactions.value + r
+                            } else if (cmd == "room_ended") {
+                                android.util.Log.d("WatchPartySession", "Client: Host ended watch party")
+                                endSession()
+                                break
+                            } else if (cmd == "kicked") {
+                                val kickedId = json.optString("deviceId")
+                                if (kickedId == deviceId) {
+                                    android.util.Log.d("WatchPartySession", "Client: Kicked from watch party")
+                                    endSession()
+                                    break
+                                }
                             } else {
                                 // Assume it's a full session update
                                 val session = jsonToSession(line)
@@ -677,6 +710,7 @@ class WatchPartySessionManager {
         json.put("name", session.name)
         json.put("hostIp", session.hostIp)
         json.put("port", session.port)
+        json.put("tunnelPort", session.tunnelPort)
         json.put("currentPositionMs", session.currentPositionMs)
         json.put("isPlaying", session.isPlaying)
         json.put("maxUsers", session.maxUsers)
@@ -771,6 +805,7 @@ class WatchPartySessionManager {
             name = json.getString("name"),
             hostIp = json.getString("hostIp"),
             port = json.optInt("port", 8080),
+            tunnelPort = json.optInt("tunnelPort", 9990),
             video = video,
             devices = devicesList,
             currentPositionMs = json.getLong("currentPositionMs"),

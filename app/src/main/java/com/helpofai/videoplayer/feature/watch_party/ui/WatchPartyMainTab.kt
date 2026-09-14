@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wifi
@@ -36,7 +37,6 @@ import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionMan
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartyDevice
 import com.helpofai.videoplayer.feature.watch_party.host.WatchPartyHostManager
 import com.helpofai.videoplayer.feature.watch_party.client.WatchPartyClientManager
-import com.helpofai.videoplayer.feature.watch_party.streaming.WatchPartyLocalStreamingServer
 import com.helpofai.videoplayer.feature.watch_party.qr_pairing.WatchPartyQrPairingManager
 import com.helpofai.videoplayer.feature.watch_party.discovery.WatchPartyDeviceDiscoveryService
 import com.helpofai.videoplayer.feature.watch_party.discovery.DiscoveredHost
@@ -49,6 +49,7 @@ import com.helpofai.videoplayer.feature.watch_party.settings.WatchPartySettingsV
 import com.helpofai.videoplayer.feature.watch_party.ui.connection_status.WatchPartyConnectionStatusSection
 import com.helpofai.videoplayer.feature.watch_party.background.WatchPartyBackgroundService
 import com.helpofai.videoplayer.feature.watch_party.networking.WatchPartyConnectionPreferences
+import com.helpofai.videoplayer.feature.watch_party.ui.guide.WatchPartyGuideDialog
 import java.net.NetworkInterface
 import java.util.Collections
 
@@ -64,7 +65,6 @@ fun WatchPartyMainTab(
     val prefs = remember { WatchPartyConnectionPreferences.getInstance(context) }
     val hostManager = remember { WatchPartyHostManager(sessionManager) }
     val clientManager = remember { WatchPartyClientManager(sessionManager) }
-    val streamingServer = remember { WatchPartyLocalStreamingServer(context) }
     val qrPairingManager = remember { WatchPartyQrPairingManager() }
     val discoveryService = remember { WatchPartyDeviceDiscoveryService() }
     
@@ -84,6 +84,7 @@ fun WatchPartyMainTab(
     // Navigation state — which sub-page to show
     var showHostSetup by remember { mutableStateOf(false) }
     var showJoinRoom by remember { mutableStateOf(false) }
+    var showGuideDialog by remember { mutableStateOf(false) }
     val isClientMode by sessionManager.isClientModeFlow.collectAsState()
     var showActiveRoom by remember { mutableStateOf(true) }
 
@@ -95,11 +96,6 @@ fun WatchPartyMainTab(
             showActiveRoom = true
         }
     }
-
-    // Real Network Detection
-    val wifiSsid = remember { getWifiSsid(context) }
-    val realIp = remember { getLocalIpAddress() }
-    val isWifiActive = remember { isWifiConnected(context) }
     
     // Auto discovery trigger
     LaunchedEffect(isClientMode) {
@@ -113,6 +109,7 @@ fun WatchPartyMainTab(
     if (showHostSetup) {
         WatchPartyHostRoomSetupScreen(
             paddingValues = paddingValues,
+            videos = videos,
             onBack = { showHostSetup = false },
             onRoomCreated = {
                 showHostSetup = false
@@ -139,19 +136,15 @@ fun WatchPartyMainTab(
     Box(modifier = modifier.fillMaxSize().background(Color.Transparent)) {
         if (activeSession != null && showActiveRoom) {
             val session = activeSession!!
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
-                        top = paddingValues.calculateTopPadding(),
-                        bottom = paddingValues.calculateBottomPadding() + 80.dp
-                    )
+            Box(
+                modifier = Modifier.fillMaxSize()
             ) {
                 if (!isClientMode) {
                     // Show Host Dashboard
                     WatchPartyHostDashboard(
                         session = session,
                         discoveredHosts = discoveredHosts,
+                        paddingValues = paddingValues,
                         onKickDevice = { id -> 
                             hostManager.kickDevice(id)
                             Toast.makeText(context, "Kicked device", Toast.LENGTH_SHORT).show()
@@ -168,6 +161,11 @@ fun WatchPartyMainTab(
                             sessionManager.setDevicePermission(id, p, s, v)
                             Toast.makeText(context, "Permissions updated", Toast.LENGTH_SHORT).show()
                         },
+                        onOpenPlayer = onVideoClick,
+                        onEndRoom = {
+                            sessionManager.endSession()
+                            Toast.makeText(context, "Watch Party room ended", Toast.LENGTH_SHORT).show()
+                        },
                         onBack = { showActiveRoom = false }
                     )
                 } else {
@@ -176,12 +174,14 @@ fun WatchPartyMainTab(
                         session = session,
                         videos = videos,
                         syncStatus = if (session.isPlaying) "Synchronized (Playing)" else "Paused",
+                        paddingValues = paddingValues,
                         onDisconnect = {
                             clientManager.disconnect()
                             sessionManager.endSession()
                             sessionManager.isClientMode = false
                             Toast.makeText(context, "Disconnected from watch party room", Toast.LENGTH_SHORT).show()
                         },
+                        onOpenPlayer = onVideoClick,
                         onBack = { showActiveRoom = false }
                     )
                 }
@@ -192,15 +192,11 @@ fun WatchPartyMainTab(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(
-                        top = paddingValues.calculateTopPadding(),
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = paddingValues.calculateBottomPadding() + 80.dp
-                    ),
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding() + 8.dp))
                 WatchPartyConnectionStatusSection()
 
                 if (activeSession != null) {
@@ -271,14 +267,71 @@ fun WatchPartyMainTab(
                         }
                     }
                 }
+
+                // Visual Guide Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .frostedGlass(cornerRadius = 16.dp, surfaceAlpha = 0.25f, surfaceColor = Color.Black)
+                        .clickable { showGuideDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(
+                                        androidx.compose.ui.graphics.Brush.linearGradient(
+                                            listOf(Color(0xFF7C5CE7), Color(0xFF00CEC9))
+                                        ),
+                                        RoundedCornerShape(12.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.HelpOutline,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    "Watch Party Visual Guide",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    "How to host, join, stream & offline sync",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Open Visual Guide",
+                            tint = Color(0xFF00CEC9)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
             }
+        }
+
+        if (showGuideDialog) {
+            WatchPartyGuideDialog(onDismiss = { showGuideDialog = false })
         }
     }
 }
 
-// Helpers
-private fun getLocalIpAddress(): String = "192.168.1.100"
-private fun getWifiSsid(context: android.content.Context): String = "Local Network"
-private fun getDeviceBatteryLevel(context: android.content.Context): Int = 90
-private fun isWifiConnected(context: android.content.Context): Boolean = true
 data class WatchPartyInvitationDetails(val hostName: String, val videoTitle: String, val resolution: String, val codec: String, val duration: String)
