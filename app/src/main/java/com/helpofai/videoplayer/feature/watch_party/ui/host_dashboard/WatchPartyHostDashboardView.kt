@@ -274,7 +274,13 @@ fun WatchPartyHostDashboardView(
                             WatchPartyPermissionsView(
                                 device = guest,
                                 onPermissionChange = { play, seek ->
-                                    // Normally updates state, triggers mock toast representation
+                                    com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance()
+                                        .setDevicePermission(
+                                            deviceId = guest.id,
+                                            playPause = play,
+                                            seek = seek,
+                                            volume = guest.hasVolumePermission
+                                        )
                                     Toast.makeText(context, "Permissions updated for ${guest.name}", Toast.LENGTH_SHORT).show()
                                 }
                             )

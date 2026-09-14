@@ -37,6 +37,15 @@ class WatchPartySessionManager {
     private val _playbackCommands = MutableSharedFlow<PlaybackCommand>()
     val playbackCommands = _playbackCommands.asSharedFlow()
 
+    private var localDeviceId: String = "host_id"
+    fun getLocalDeviceId(): String = localDeviceId
+    fun setLocalDeviceId(id: String) { localDeviceId = id }
+
+    fun getLocalDevice(): WatchPartyDevice? {
+        val current = _activeSession.value ?: return null
+        return current.devices.firstOrNull { it.id == localDeviceId }
+    }
+
     fun setFullPlayerActive(active: Boolean) {
         _isFullPlayerActive.value = active
     }
@@ -143,7 +152,7 @@ class WatchPartySessionManager {
 
     fun sendMessage(text: String) {
         val session = _activeSession.value ?: return
-        val deviceId = if (isClientMode) "client_id" else "host_id"
+        val deviceId = localDeviceId
         val deviceName = if (isClientMode) {
             val brand = android.os.Build.MANUFACTURER?.replaceFirstChar { it.uppercase() } ?: "Android"
             val model = android.os.Build.MODEL ?: "Device"
@@ -185,7 +194,14 @@ class WatchPartySessionManager {
 
     fun sendReaction(emoji: String) {
         val session = _activeSession.value ?: return
-        val deviceId = if (isClientMode) "client_id" else "host_id"
+        val deviceId = localDeviceId
+        if (isClientMode) {
+            val myDev = session.devices.firstOrNull { it.id == deviceId }
+            if (myDev != null && !myDev.hasReactionPermission) {
+                android.util.Log.d("WatchPartySession", "Reaction restricted for this device")
+                return
+            }
+        }
         val deviceName = if (isClientMode) {
             val brand = android.os.Build.MANUFACTURER?.replaceFirstChar { it.uppercase() } ?: "Android"
             val model = android.os.Build.MODEL ?: "Device"
@@ -230,6 +246,7 @@ class WatchPartySessionManager {
         }
         val json = JSONObject().apply {
             put("command", "playback_control")
+            put("deviceId", localDeviceId)
             put("isPlaying", isPlaying)
             put("position", positionMs)
         }
@@ -284,6 +301,7 @@ class WatchPartySessionManager {
     ): WatchPartySession {
         if (id == null) {
             // We are Host -> Find and allocate available ports
+            localDeviceId = "host_id"
             currentTunnelPort = findAvailablePort(9990)
             currentStreamPort = findAvailablePort(9980)
         } else {
@@ -444,14 +462,99 @@ class WatchPartySessionManager {
         _activeSession.value = current.copy(devices = updatedDevices)
     }
 
-    fun setDevicePermission(deviceId: String, playPause: Boolean, seek: Boolean, volume: Boolean) {
+    fun setDevicePermission(
+        deviceId: String,
+        playPause: Boolean,
+        seek: Boolean,
+        volume: Boolean,
+        gestures: Boolean = true,
+        audioTrack: Boolean = false,
+        subtitle: Boolean = false,
+        reactions: Boolean = true
+    ) {
         val current = _activeSession.value ?: return
         val updatedDevices = current.devices.map {
             if (it.id == deviceId) {
-                it.copy(hasPlayPausePermission = playPause, hasSeekPermission = seek, hasVolumePermission = volume)
+                it.copy(
+                    hasPlayPausePermission = playPause,
+                    hasSeekPermission = seek,
+                    hasVolumePermission = volume,
+                    hasGesturePermission = gestures,
+                    hasAudioTrackPermission = audioTrack,
+                    hasSubtitlePermission = subtitle,
+                    hasReactionPermission = reactions
+                )
             } else it
         }
         _activeSession.value = current.copy(devices = updatedDevices)
+    }
+
+    fun setDevicePermission(deviceId: String, playPause: Boolean, seek: Boolean, volume: Boolean) {
+        val current = _activeSession.value ?: return
+        val currentDev = current.devices.firstOrNull { it.id == deviceId }
+        setDevicePermission(
+            deviceId = deviceId,
+            playPause = playPause,
+            seek = seek,
+            volume = volume,
+            gestures = currentDev?.hasGesturePermission ?: true,
+            audioTrack = currentDev?.hasAudioTrackPermission ?: false,
+            subtitle = currentDev?.hasSubtitlePermission ?: false,
+            reactions = currentDev?.hasReactionPermission ?: true
+        )
+    }
+
+    fun applyDevicePreset(deviceId: String, preset: DevicePermissionPreset) {
+        when (preset) {
+            DevicePermissionPreset.CO_HOST -> {
+                setDevicePermission(
+                    deviceId = deviceId,
+                    playPause = true,
+                    seek = true,
+                    volume = true,
+                    gestures = true,
+                    audioTrack = true,
+                    subtitle = true,
+                    reactions = true
+                )
+            }
+            DevicePermissionPreset.CONTROLLER -> {
+                setDevicePermission(
+                    deviceId = deviceId,
+                    playPause = true,
+                    seek = true,
+                    volume = true,
+                    gestures = true,
+                    audioTrack = false,
+                    subtitle = false,
+                    reactions = true
+                )
+            }
+            DevicePermissionPreset.VIEWER -> {
+                setDevicePermission(
+                    deviceId = deviceId,
+                    playPause = false,
+                    seek = false,
+                    volume = true,
+                    gestures = true,
+                    audioTrack = false,
+                    subtitle = false,
+                    reactions = true
+                )
+            }
+            DevicePermissionPreset.RESTRICTED -> {
+                setDevicePermission(
+                    deviceId = deviceId,
+                    playPause = false,
+                    seek = false,
+                    volume = false,
+                    gestures = false,
+                    audioTrack = false,
+                    subtitle = false,
+                    reactions = false
+                )
+            }
+        }
     }
 
     fun banDevice(deviceId: String) {
@@ -545,26 +648,41 @@ class WatchPartySessionManager {
                                         val clientName = action.optString("deviceName", "Unknown Device")
                                         val roomName = activeSession.value?.name ?: ""
                                         notificationManager.notifyClientConnectedToRoom(clientName, roomName)
-                                        // Add device to session
+                                        // Add device to session inheriting room defaults
                                         val deviceId = action.optString("deviceId", java.util.UUID.randomUUID().toString())
+                                        val cur = activeSession.value
                                         addDevice(WatchPartyDevice(
                                             id = deviceId,
                                             name = clientName,
                                             ipAddress = socket.inetAddress.hostAddress ?: "",
                                             isHost = false,
+                                            hasPlayPausePermission = cur?.allowPlayPause ?: true,
+                                            hasSeekPermission = cur?.allowSeek ?: false,
+                                            hasVolumePermission = cur?.allowVolume ?: true,
+                                            hasGesturePermission = cur?.allowGestures ?: true,
+                                            hasAudioTrackPermission = cur?.allowAudioTrack ?: false,
+                                            hasSubtitlePermission = cur?.allowSubtitleToggle ?: false,
+                                            hasReactionPermission = cur?.allowReactions ?: true,
                                             status = "Connected"
                                         ))
                                     }
                                     "reaction" -> {
-                                        val r = Reaction(
-                                            id = action.getString("id"),
-                                            senderId = action.getString("senderId"),
-                                            emoji = action.getString("emoji"),
-                                            timestamp = action.getLong("timestamp")
-                                        )
-                                        _reactions.value = _reactions.value + r
-                                        // Broadcast reaction to other clients
-                                        broadcastToClients(action.toString() + "\n", excludeSocket = socket)
+                                        val senderId = action.getString("senderId")
+                                        val senderDevice = activeSession.value?.devices?.firstOrNull { it.id == senderId }
+                                        val canReact = senderDevice?.hasReactionPermission ?: (activeSession.value?.allowReactions ?: true)
+                                        if (canReact) {
+                                            val r = Reaction(
+                                                id = action.getString("id"),
+                                                senderId = senderId,
+                                                emoji = action.getString("emoji"),
+                                                timestamp = action.getLong("timestamp")
+                                            )
+                                            _reactions.value = _reactions.value + r
+                                            // Broadcast reaction to other clients
+                                            broadcastToClients(action.toString() + "\n", excludeSocket = socket)
+                                        } else {
+                                            android.util.Log.d("WatchPartySession", "Host: Ignored reaction from $senderId (permission revoked)")
+                                        }
                                     }
                                     "chat" -> {
                                         val msg = ChatMessage(
@@ -579,11 +697,25 @@ class WatchPartySessionManager {
                                         broadcastToClients(action.toString() + "\n", excludeSocket = socket)
                                     }
                                     "playback_control" -> {
+                                        val senderId = action.optString("deviceId")
+                                        val senderDevice = activeSession.value?.devices?.firstOrNull { it.id == senderId }
                                         val playPause = action.optBoolean("isPlaying")
                                         val position = action.optLong("position")
-                                        updatePlaybackState(position, playPause)
-                                        CoroutineScope(Dispatchers.IO).launch {
-                                            _playbackCommands.emit(PlaybackCommand(playPause, position))
+
+                                        val cur = activeSession.value
+                                        val canPlayPause = senderDevice?.hasPlayPausePermission ?: (cur?.allowPlayPause ?: true)
+                                        val canSeek = senderDevice?.hasSeekPermission ?: (cur?.allowSeek ?: false)
+
+                                        val isStateChanged = cur != null && playPause != cur.isPlaying
+                                        val isSeekChanged = cur != null && Math.abs(position - cur.currentPositionMs) > 1500L
+
+                                        if ((isStateChanged && !canPlayPause) || (isSeekChanged && !canSeek)) {
+                                            android.util.Log.w("WatchPartySession", "Host: Rejected unauthorized playback control from $senderId (PlayPauseAllowed=$canPlayPause, SeekAllowed=$canSeek)")
+                                        } else {
+                                            updatePlaybackState(position, playPause)
+                                            CoroutineScope(Dispatchers.IO).launch {
+                                                _playbackCommands.emit(PlaybackCommand(playPause, position))
+                                            }
                                         }
                                     }
                                 }
@@ -619,6 +751,7 @@ class WatchPartySessionManager {
             } catch (e: Exception) {
                 java.util.UUID.randomUUID().toString()
             }
+            localDeviceId = deviceId
 
             while (isActive) {
                 var socket: java.net.Socket? = null
@@ -752,6 +885,10 @@ class WatchPartySessionManager {
             dj.put("hasPlayPausePermission", d.hasPlayPausePermission)
             dj.put("hasSeekPermission", d.hasSeekPermission)
             dj.put("hasVolumePermission", d.hasVolumePermission)
+            dj.put("hasGesturePermission", d.hasGesturePermission)
+            dj.put("hasAudioTrackPermission", d.hasAudioTrackPermission)
+            dj.put("hasSubtitlePermission", d.hasSubtitlePermission)
+            dj.put("hasReactionPermission", d.hasReactionPermission)
             dj.put("status", d.status)
             dj.put("isBanned", d.isBanned)
             devicesArr.put(dj)
@@ -793,6 +930,10 @@ class WatchPartySessionManager {
                         hasPlayPausePermission = dj.optBoolean("hasPlayPausePermission", true),
                         hasSeekPermission = dj.optBoolean("hasSeekPermission", false),
                         hasVolumePermission = dj.optBoolean("hasVolumePermission", true),
+                        hasGesturePermission = dj.optBoolean("hasGesturePermission", true),
+                        hasAudioTrackPermission = dj.optBoolean("hasAudioTrackPermission", false),
+                        hasSubtitlePermission = dj.optBoolean("hasSubtitlePermission", false),
+                        hasReactionPermission = dj.optBoolean("hasReactionPermission", true),
                         status = dj.optString("status", "Idle"),
                         isBanned = dj.optBoolean("isBanned", false)
                     )

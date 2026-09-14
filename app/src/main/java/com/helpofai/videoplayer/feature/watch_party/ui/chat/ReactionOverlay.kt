@@ -11,6 +11,16 @@ import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionMan
 fun ReactionOverlay(
     sessionManager: WatchPartySessionManager = WatchPartySessionManager.getInstance()
 ) {
+    val session by sessionManager.activeSession.collectAsState()
+    val localDev = remember(session) {
+        val devId = sessionManager.getLocalDeviceId()
+        session?.devices?.firstOrNull { it.id == devId }
+    }
+    val canReact = if (!sessionManager.isClientMode) true
+        else (localDev?.hasReactionPermission ?: (session?.allowReactions ?: true))
+
+    if (!canReact) return
+
     val reactions = listOf("❤️", "😂", "😮", "👍", "🔥")
     
     Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {

@@ -272,8 +272,10 @@ class WatchPartyVideoStreamServer {
     }
 
     private fun streamFilePortion(file: File, output: OutputStream, start: Long, length: Long) {
-        val buffer = ByteArray(128 * 1024) // 128KB chunks
+        val buffer = ByteArray(256 * 1024) // 256KB chunks for optimal local network throughput
+        val bufferedOutput = java.io.BufferedOutputStream(output, 256 * 1024)
         var remaining = length
+        var bytesSinceFlush = 0
         try {
             RandomAccessFile(file, "r").use { raf ->
                 raf.seek(start)
@@ -281,18 +283,27 @@ class WatchPartyVideoStreamServer {
                     val toRead = minOf(buffer.size.toLong(), remaining).toInt()
                     val read = raf.read(buffer, 0, toRead)
                     if (read <= 0) break
-                    output.write(buffer, 0, read)
+                    bufferedOutput.write(buffer, 0, read)
                     remaining -= read
+                    bytesSinceFlush += read
+                    if (bytesSinceFlush >= 512 * 1024 || remaining <= 0) {
+                        bufferedOutput.flush()
+                        bytesSinceFlush = 0
+                    }
                 }
+                bufferedOutput.flush()
             }
         } catch (e: Exception) {
-            android.util.Log.e("VideoStreamServer", "Error streaming file portion: ${e.message}", e)
+            // Normal when client seeks or terminates connection early
+            android.util.Log.d("VideoStreamServer", "Stream file ended or client seeked: ${e.message}")
         }
     }
 
     private fun streamUriPortion(context: Context, uri: Uri, output: OutputStream, start: Long, length: Long) {
-        val buffer = ByteArray(128 * 1024) // 128KB chunks
+        val buffer = ByteArray(256 * 1024) // 256KB chunks
+        val bufferedOutput = java.io.BufferedOutputStream(output, 256 * 1024)
         var remaining = length
+        var bytesSinceFlush = 0
         try {
             context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                 java.io.FileInputStream(pfd.fileDescriptor).use { fis ->
@@ -312,13 +323,19 @@ class WatchPartyVideoStreamServer {
                         val toRead = minOf(buffer.size.toLong(), remaining).toInt()
                         val read = fis.read(buffer, 0, toRead)
                         if (read <= 0) break
-                        output.write(buffer, 0, read)
+                        bufferedOutput.write(buffer, 0, read)
                         remaining -= read
+                        bytesSinceFlush += read
+                        if (bytesSinceFlush >= 512 * 1024 || remaining <= 0) {
+                            bufferedOutput.flush()
+                            bytesSinceFlush = 0
+                        }
                     }
+                    bufferedOutput.flush()
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("VideoStreamServer", "Error streaming URI portion: ${e.message}", e)
+            android.util.Log.d("VideoStreamServer", "Stream URI ended or client seeked: ${e.message}")
         }
     }
 

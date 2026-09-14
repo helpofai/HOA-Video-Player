@@ -2,6 +2,13 @@ package com.helpofai.videoplayer.feature.watch_party.session
 
 import com.helpofai.videoplayer.core.model.Video
 
+enum class DevicePermissionPreset(val label: String) {
+    VIEWER("Viewer"),
+    CONTROLLER("Controller"),
+    CO_HOST("Co-Host"),
+    RESTRICTED("Restricted")
+}
+
 data class WatchPartyDevice(
     val id: String,
     val name: String,
@@ -13,9 +20,23 @@ data class WatchPartyDevice(
     val hasPlayPausePermission: Boolean = true,
     val hasSeekPermission: Boolean = false,
     val hasVolumePermission: Boolean = true,
+    val hasGesturePermission: Boolean = true,
+    val hasAudioTrackPermission: Boolean = false,
+    val hasSubtitlePermission: Boolean = false,
+    val hasReactionPermission: Boolean = true,
     val status: String = "Idle", // "Playing", "Paused", "Buffering"
     val isBanned: Boolean = false
-)
+) {
+    fun getRole(): DevicePermissionPreset {
+        return when {
+            isHost -> DevicePermissionPreset.CO_HOST
+            hasPlayPausePermission && hasSeekPermission && hasAudioTrackPermission && hasSubtitlePermission -> DevicePermissionPreset.CO_HOST
+            hasPlayPausePermission && hasSeekPermission -> DevicePermissionPreset.CONTROLLER
+            !hasPlayPausePermission && !hasSeekPermission && !hasGesturePermission -> DevicePermissionPreset.RESTRICTED
+            else -> DevicePermissionPreset.VIEWER
+        }
+    }
+}
 
 data class WatchPartySession(
     val id: String,

@@ -78,6 +78,7 @@ fun WatchPartyHostDashboard(
     val banned = session.devices.filter { it.isBanned }
 
     var showEditDialog by remember { mutableStateOf(false) }
+    var selectedDeviceForPermissions by remember { mutableStateOf<WatchPartyDevice?>(null) }
 
     val videoParam = session.video?.let {
         "&videoTitle=${java.net.URLEncoder.encode(it.title, "UTF-8")}&videoDuration=${it.duration}&videoPath=${java.net.URLEncoder.encode(it.path, "UTF-8")}&videoSize=${it.size}"
@@ -371,17 +372,63 @@ fun WatchPartyHostDashboard(
                 } else {
                     guestList.forEach { guest ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color.White.copy(alpha = 0.03f))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(guest.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(guest.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    val role = guest.getRole()
+                                    val roleColor = when (role) {
+                                        com.helpofai.videoplayer.feature.watch_party.session.DevicePermissionPreset.CO_HOST -> AccentPurple
+                                        com.helpofai.videoplayer.feature.watch_party.session.DevicePermissionPreset.CONTROLLER -> AccentCyan
+                                        com.helpofai.videoplayer.feature.watch_party.session.DevicePermissionPreset.RESTRICTED -> Color(0xFFEF4444)
+                                        else -> AccentGreen
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = roleColor.copy(alpha = 0.15f),
+                                        border = BorderStroke(0.5.dp, roleColor.copy(alpha = 0.5f))
+                                    ) {
+                                        Text(
+                                            text = role.label,
+                                            color = roleColor,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                                 Text("IP: ${guest.ipAddress} • Ping: ${guest.latency}ms", color = TextSub, fontSize = 10.sp)
                             }
                             
-                            IconButton(onClick = { onKickDevice(guest.id) }) {
-                                Icon(Icons.Default.Delete, "Kick", tint = Color.Red.copy(alpha = 0.8f))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                IconButton(
+                                    onClick = { selectedDeviceForPermissions = guest }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Tune,
+                                        contentDescription = "Manage Permissions",
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                IconButton(onClick = { onKickDevice(guest.id) }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        "Kick",
+                                        tint = Color(0xFFEF4444).copy(alpha = 0.8f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -602,6 +649,37 @@ fun WatchPartyHostDashboard(
                 }
             }
         }
+    }
+
+    selectedDeviceForPermissions?.let { dev ->
+        val currentDev = session.devices.firstOrNull { it.id == dev.id } ?: dev
+        DevicePermissionDialog(
+            device = currentDev,
+            onDismiss = { selectedDeviceForPermissions = null },
+            onSavePermissions = { p, s, v, g, a, sub, r ->
+                sessionManager.setDevicePermission(
+                    deviceId = dev.id,
+                    playPause = p,
+                    seek = s,
+                    volume = v,
+                    gestures = g,
+                    audioTrack = a,
+                    subtitle = sub,
+                    reactions = r
+                )
+                onUpdatePermissions(dev.id, p, s, v)
+                Toast.makeText(context, "Permissions updated for ${dev.name}", Toast.LENGTH_SHORT).show()
+                selectedDeviceForPermissions = null
+            },
+            onKickDevice = {
+                onKickDevice(dev.id)
+                selectedDeviceForPermissions = null
+            },
+            onBanDevice = {
+                onBanDevice(dev.id)
+                selectedDeviceForPermissions = null
+            }
+        )
     }
 }
 

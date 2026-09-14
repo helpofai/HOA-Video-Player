@@ -104,17 +104,29 @@ class PlayerViewModel @Inject constructor(
         videoPlayer.switchDecoder(mode)
     }
 
-    // Watch Party Permissions Flow
+    // Watch Party Granular Permissions Flow
     val isPlayPauseAllowed = watchPartySessionManager.activeSession.map { session ->
-        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowPlayPause
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasPlayPausePermission ?: session.allowPlayPause
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val isSeekAllowed = watchPartySessionManager.activeSession.map { session ->
-        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowSeek
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasSeekPermission ?: session.allowSeek
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val isVolumeAllowed = watchPartySessionManager.activeSession.map { session ->
-        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowVolume
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasVolumePermission ?: session.allowVolume
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val autoPlayNext = preferencesUseCase.autoPlayNext.stateIn(
@@ -124,15 +136,35 @@ class PlayerViewModel @Inject constructor(
     )
 
     val isAudioTrackAllowed = watchPartySessionManager.activeSession.map { session ->
-        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowAudioTrack
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasAudioTrackPermission ?: session.allowAudioTrack
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val isSubtitleToggleAllowed = watchPartySessionManager.activeSession.map { session ->
-        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowSubtitleToggle
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasSubtitlePermission ?: session.allowSubtitleToggle
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val isGesturesAllowed = watchPartySessionManager.activeSession.map { session ->
-        if (session == null || !watchPartySessionManager.isClientMode) true else session.allowGestures
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasGesturePermission ?: session.allowGestures
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val isReactionsAllowed = watchPartySessionManager.activeSession.map { session ->
+        if (session == null || !watchPartySessionManager.isClientMode) true
+        else {
+            val myDevice = session.devices.firstOrNull { it.id == watchPartySessionManager.getLocalDeviceId() }
+            myDevice?.hasReactionPermission ?: session.allowReactions
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     // Holds the real video title for watch party clients (since path is "http_stream")
@@ -366,7 +398,10 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
 
-                // Client synchronization handler: sync play state and seek position dynamically
+                // Client synchronization handler: smooth adaptive playback synchronization
+                var lastSyncSeekTime = 0L
+                var isAdaptiveSpeedActive = false
+
                 launch {
                     combine(
                         watchPartySessionManager.activeSession,
@@ -377,20 +412,61 @@ class PlayerViewModel @Inject constructor(
                             val state = exoState.playbackState
                             val isIdle = state == androidx.media3.common.Player.STATE_IDLE
                             val isEnded = state == androidx.media3.common.Player.STATE_ENDED
+                            val isBuffering = state == androidx.media3.common.Player.STATE_BUFFERING
                             if (isIdle || isEnded) return@collect
 
-                            if (session.isPlaying && !exoState.isPlaying) {
+                            // 1. Play / Pause state synchronization
+                            val playWhenReady = videoPlayer.player.playWhenReady
+                            if (session.isPlaying && !playWhenReady) {
                                 videoPlayer.play()
-                            } else if (!session.isPlaying && exoState.isPlaying) {
+                            } else if (!session.isPlaying && playWhenReady) {
                                 videoPlayer.pause()
                             }
 
-                            val isActionTimeout = System.currentTimeMillis() - lastClientActionTime > 2500L
-                            if (isActionTimeout) {
-                                val drift = kotlin.math.abs(exoState.currentPosition - session.currentPositionMs)
-                                if (drift > 1500L) {
-                                    videoPlayer.seekTo(session.currentPositionMs)
+                            // 2. Do not sync position if user recently performed a manual action
+                            val now = System.currentTimeMillis()
+                            if (now - lastClientActionTime < 3500L) return@collect
+
+                            // 3. CRITICAL: Never seek or alter position while player is BUFFERING!
+                            // Interrupting a buffering state causes an infinite re-buffering loop.
+                            if (isBuffering) return@collect
+
+                            // 4. Calculate position offset between host and client
+                            val hostPos = session.currentPositionMs
+                            val clientPos = exoState.currentPosition
+                            val drift = hostPos - clientPos
+                            val absDrift = kotlin.math.abs(drift)
+
+                            // 5. Large drift (> 4.5 seconds): Host jumped or scrubbed timeline
+                            // Perform a clean seek with a 6-second cooldown lock to prevent seek loops
+                            if (absDrift > 4500L) {
+                                if (now - lastSyncSeekTime > 6000L) {
+                                    lastSyncSeekTime = now
+                                    if (isAdaptiveSpeedActive) {
+                                        videoPlayer.setPlaybackSpeed(1.0f)
+                                        isAdaptiveSpeedActive = false
+                                    }
+                                    videoPlayer.seekTo(hostPos)
                                 }
+                                return@collect
+                            }
+
+                            // 6. Smooth Adaptive Speed for minor/moderate drift (600ms to 4500ms):
+                            // Silently catch up or wait without causing ANY buffering spinners!
+                            if (absDrift in 600L..4500L && session.isPlaying) {
+                                if (drift > 0) {
+                                    // Client is behind host -> slightly speed up (+6%)
+                                    videoPlayer.setPlaybackSpeed(1.06f)
+                                    isAdaptiveSpeedActive = true
+                                } else {
+                                    // Client is ahead of host -> slightly slow down (-6%)
+                                    videoPlayer.setPlaybackSpeed(0.94f)
+                                    isAdaptiveSpeedActive = true
+                                }
+                            } else if (absDrift < 400L && isAdaptiveSpeedActive) {
+                                // In sync -> restore normal 1.0x speed
+                                videoPlayer.setPlaybackSpeed(1.0f)
+                                isAdaptiveSpeedActive = false
                             }
                         }
                     }

@@ -656,11 +656,18 @@
                             <td>No account required</td>
                         </tr>
                         <tr>
-                            <td><strong>Location Data</strong> (GPS)</td>
+                            <td><strong>Location Data</strong> (Wi-Fi P2P Discovery)</td>
                             <td><span class="status-tag no">&cross; NO</span></td>
                             <td><span class="status-tag no">&cross; NEVER</span></td>
-                            <td><span class="status-tag local">None</span></td>
-                            <td>Zero location permissions</td>
+                            <td><span class="status-tag local">Local OS Subsystem</span></td>
+                            <td>Android requirement for Wi-Fi Direct (Android 9-12). Zero GPS tracking.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Camera</strong> (QR Code Optical Scanner)</td>
+                            <td><span class="status-tag no">&cross; NO</span></td>
+                            <td><span class="status-tag no">&cross; NEVER</span></td>
+                            <td><span class="status-tag local">Volatile RAM Only</span></td>
+                            <td>Instant on-device QR scanning for Watch Party. Zero photos or videos captured.</td>
                         </tr>
                         <tr>
                             <td><strong>Advertising ID</strong> (GAID/AAID)</td>
@@ -677,11 +684,11 @@
                             <td>User-initiated email only</td>
                         </tr>
                         <tr>
-                            <td><strong>Watch Party Video Streams</strong></td>
+                            <td><strong>Watch Party Video Streams &amp; Permissions</strong></td>
                             <td><span class="status-tag no">&cross; NO</span></td>
                             <td><span class="status-tag no">&cross; NEVER</span></td>
                             <td><span class="status-tag local">Direct Local Wi-Fi P2P</span></td>
-                            <td>Private LAN socket only</td>
+                            <td>Private LAN socket only. Ephemeral session permissions.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -779,9 +786,11 @@
                 </p>
             </div>
             <ul>
-                <li>No video data ever leaves your physical Wi-Fi network or touches external routing servers.</li>
-                <li>Control signaling (Play, Pause, Seek, Speed Sync) is exchanged solely between local IP addresses on your subnet.</li>
-                <li>Clients cannot access the host device's file system outside of the single selected video stream.</li>
+                <li><strong>Zero Remote Footprint:</strong> No video data, audio data, or chat ever leaves your physical Wi-Fi network or touches external routing servers.</li>
+                <li><strong>Local Control Signaling:</strong> Real-time playback synchronization (Play, Pause, Seek, Speed Sync) and ephemeral floating reactions are exchanged exclusively between local IP addresses on your private subnet.</li>
+                <li><strong>Host Administration &amp; Client Permissions:</strong> Hosts maintain full granular authority over connected guests. Access rights for Play/Pause, Timeline Scrubbing, Volume Adjustment, Touch Gestures, Audio Track Selection, Subtitle Toggling, and Chat/Reactions are managed entirely in-memory per session.</li>
+                <li><strong>Ephemeral Identifiers:</strong> Connected guest device names and hardware-derived session identifiers exist solely in volatile RAM during active sessions and are permanently discarded when the room is closed.</li>
+                <li><strong>Filesystem Sandboxing:</strong> Guests can never access, browse, or query the host device's file system or personal directory structure outside of the single selected video stream.</li>
             </ul>
         </section>
 
@@ -865,16 +874,40 @@
                             <td>Bound strictly to active playback service.</td>
                         </tr>
                         <tr>
+                            <td><code>FOREGROUND_SERVICE_CONNECTED_DEVICE</code></td>
+                            <td>API 34+</td>
+                            <td>Maintain active local socket streaming to connected guest devices during Watch Party.</td>
+                            <td>Active Watch Party room streaming only.</td>
+                        </tr>
+                        <tr>
                             <td><code>INTERNET</code> &amp; <code>ACCESS_NETWORK_STATE</code></td>
                             <td>All</td>
                             <td>Delivery of Google AdMob ads and local Watch Party socket communication.</td>
                             <td>No cloud telemetry transmission.</td>
                         </tr>
                         <tr>
+                            <td><code>ACCESS_WIFI_STATE</code> &amp; <code>CHANGE_WIFI_STATE</code></td>
+                            <td>All</td>
+                            <td>Inspect local Wi-Fi connectivity and manage local P2P / Hotspot pairing for Watch Party.</td>
+                            <td>Local network status inspection only.</td>
+                        </tr>
+                        <tr>
+                            <td><code>ACCESS_FINE_LOCATION</code> &amp; <code>ACCESS_COARSE_LOCATION</code></td>
+                            <td>API 29-32</td>
+                            <td>Mandatory Android OS requirement to discover nearby Wi-Fi Direct and Hotspot peers for Watch Party.</td>
+                            <td>Local P2P discovery only. Zero GPS coordinates logged or tracked.</td>
+                        </tr>
+                        <tr>
+                            <td><code>CAMERA</code></td>
+                            <td>All</td>
+                            <td>Scan dynamic Watch Party QR code for instant, zero-configuration room joining.</td>
+                            <td>Volatile optical scanner only. Zero photos or videos recorded or stored.</td>
+                        </tr>
+                        <tr>
                             <td><code>POST_NOTIFICATIONS</code></td>
                             <td>API 33+</td>
-                            <td>Display media playback controls (Play, Pause, Skip) in system shade.</td>
-                            <td>Media session controls only.</td>
+                            <td>Display media playback controls (Play, Pause, Skip) in system shade and Watch Party alerts.</td>
+                            <td>Media session controls and room alerts only.</td>
                         </tr>
                         <tr>
                             <td><code>SYSTEM_ALERT_WINDOW</code></td>

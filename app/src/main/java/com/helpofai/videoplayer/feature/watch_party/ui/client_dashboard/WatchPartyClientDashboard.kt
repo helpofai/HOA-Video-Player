@@ -122,7 +122,79 @@ fun WatchPartyClientDashboard(
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Client Permissions Status Card
+        val localDev = remember(session) {
+            val devId = com.helpofai.videoplayer.feature.watch_party.session.WatchPartySessionManager.getInstance().getLocalDeviceId()
+            session.devices.firstOrNull { it.id == devId }
+        }
+        val canPlayPause = localDev?.hasPlayPausePermission ?: session.allowPlayPause
+        val canSeek = localDev?.hasSeekPermission ?: session.allowSeek
+        val canVolume = localDev?.hasVolumePermission ?: session.allowVolume
+        val canGestures = localDev?.hasGesturePermission ?: session.allowGestures
+        val canAudioTrack = localDev?.hasAudioTrackPermission ?: session.allowAudioTrack
+        val canSubtitle = localDev?.hasSubtitlePermission ?: session.allowSubtitleToggle
+        val canReactions = localDev?.hasReactionPermission ?: session.allowReactions
+
+        val roleLabel = localDev?.getRole()?.label ?: if (canPlayPause && canSeek) "Controller" else "Viewer"
+        val roleColor = when (roleLabel) {
+            "Co-Host" -> Color(0xFF8B5CF6)
+            "Controller" -> Color(0xFF00CEC9)
+            "Restricted" -> Color(0xFFEF4444)
+            else -> Color(0xFF00B894)
+        }
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF111520)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Default.Security, null, tint = roleColor, modifier = Modifier.size(16.dp))
+                        Text("Your Device Permissions", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = roleColor.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, roleColor.copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text = roleLabel,
+                            color = roleColor,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    PermissionBadgeItem(label = "Play/Pause", allowed = canPlayPause, modifier = Modifier.weight(1f))
+                    PermissionBadgeItem(label = "Seek/Scrub", allowed = canSeek, modifier = Modifier.weight(1f))
+                    PermissionBadgeItem(label = "Gestures", allowed = canGestures, modifier = Modifier.weight(1f))
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    PermissionBadgeItem(label = "Volume", allowed = canVolume, modifier = Modifier.weight(1f))
+                    PermissionBadgeItem(label = "Audio Track", allowed = canAudioTrack, modifier = Modifier.weight(1f))
+                    PermissionBadgeItem(label = "Reactions", allowed = canReactions, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
         
         // Video Header
         val sectionTitle = if (activeVideoFolder != null) "Folder: $activeVideoFolder" else "Available Videos"
@@ -212,3 +284,40 @@ fun WatchPartyClientDashboard(
         Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 80.dp))
     }
 }
+
+@Composable
+private fun PermissionBadgeItem(
+    label: String,
+    allowed: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val activeColor = if (allowed) Color(0xFF00B894) else Color(0xFF64748B)
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = activeColor.copy(alpha = if (allowed) 0.12f else 0.06f),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, activeColor.copy(alpha = if (allowed) 0.4f else 0.2f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = if (allowed) Icons.Default.Check else Icons.Default.Lock,
+                contentDescription = null,
+                tint = activeColor,
+                modifier = Modifier.size(10.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = label,
+                color = if (allowed) Color.White else Color(0xFF94A3B8),
+                fontSize = 9.sp,
+                fontWeight = if (allowed) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1
+            )
+        }
+    }
+}
+

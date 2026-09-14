@@ -81,15 +81,26 @@ class ExoPlayerImpl @Inject constructor(
 
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                15_000,     // minBufferMs (15 seconds)
-                50_000,     // maxBufferMs (50 seconds)
-                300,        // bufferForPlaybackMs (instant 300ms start)
-                1_000       // bufferForPlaybackAfterRebufferMs (1 second)
+                2_500,      // minBufferMs: 2.5s responsive, eliminates initial delay & starvation
+                40_000,     // maxBufferMs: up to 40s buffer
+                1_200,      // bufferForPlaybackMs: 1.2s start cushion to prevent immediate rebuffering
+                2_000       // bufferForPlaybackAfterRebufferMs: 2s after rebuffering for stable recovery
             )
+            .setBackBuffer(10_000, true)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
+        val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+            .setConnectTimeoutMs(10_000)
+            .setReadTimeoutMs(25_000)
+            .setAllowCrossProtocolRedirects(true)
+
+        val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context, httpDataSourceFactory)
+        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
+            .setDataSourceFactory(dataSourceFactory)
+
         val newPlayer = ExoPlayer.Builder(context, renderersFactory)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .build().apply {
             setAudioAttributes(
