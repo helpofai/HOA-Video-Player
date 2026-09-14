@@ -23,38 +23,55 @@
 package com.helpofai.videoplayer.feature.player.decoder
 
 import android.content.Context
-import android.os.BatteryManager
-import android.os.PowerManager
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 
 object SmartDecoderEngine {
     
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    fun getOptimalRenderersFactory(context: Context): DefaultRenderersFactory {
+    fun getOptimalRenderersFactory(context: Context, decoderMode: String = "HW"): DefaultRenderersFactory {
         val factory = DefaultRenderersFactory(context)
         
-        // 1. Check Battery and Power Save Mode
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-        val isPowerSaveMode = powerManager.isPowerSaveMode
-        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-        val batteryPct = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)?.toFloat() ?: 100f
-        
-        val isLowBattery = batteryPct < 20f
-
-        // 2. Decide Decoder Strategy
-        // Software decoders (Extension) consume more battery but support more formats.
-        // Hardware decoders (MediaCodec) are battery efficient.
-        val extensionMode = if (isPowerSaveMode || isLowBattery) {
-            // Force hardware decoders to save battery
-            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
-        } else {
-            // Default: Try MediaCodec first, fallback to extension if needed
-            DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+        when (decoderMode.uppercase()) {
+            "SW" -> {
+                // Software Decoder mode:
+                // 1. Prefer bundled software extensions (FFmpeg) over device MediaCodec
+                factory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+                factory.setEnableDecoderFallback(true)
+                // 2. Prioritize software MediaCodec codecs (Google, Android, FFmpeg)
+                factory.setMediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                    val decoders = MediaCodecSelector.DEFAULT.getDecoderInfos(
+                        mimeType, requiresSecureDecoder, requiresTunnelingDecoder
+                    )
+                    decoders.sortedWith(compareByDescending { info ->
+                        val name = info.name.lowercase()
+                        name.startsWith("c2.android.") || name.startsWith("omx.google.") || name.startsWith("omx.ffmpeg.")
+                    })
+                }
+            }
+            "HW+" -> {
+                // Hardware+ Decoder mode:
+                // High-performance hardware acceleration with full FFmpeg software extension fallback
+                factory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                factory.setEnableDecoderFallback(true)
+            }
+            else -> {
+                // Pure HW (Hardware) mode:
+                // Prioritize vendor hardware decoders (Qualcomm, MediaTek, Exynos, Mali)
+                factory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                factory.setEnableDecoderFallback(true)
+                factory.setMediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                    val decoders = MediaCodecSelector.DEFAULT.getDecoderInfos(
+                        mimeType, requiresSecureDecoder, requiresTunnelingDecoder
+                    )
+                    decoders.sortedWith(compareBy { info ->
+                        val name = info.name.lowercase()
+                        name.startsWith("c2.android.") || name.startsWith("omx.google.") || name.startsWith("omx.ffmpeg.")
+                    })
+                }
+            }
         }
-
-        factory.setExtensionRendererMode(extensionMode)
-        factory.setEnableDecoderFallback(true) // Media3 core fallback
         
         return factory
     }

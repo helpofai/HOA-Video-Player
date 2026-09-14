@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,17 +48,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DeveloperBoard
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Subtitles
+import com.helpofai.videoplayer.core.playback.headset.HeadsetCommand
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import com.helpofai.videoplayer.core.theme.ToolIconPalette
@@ -80,13 +91,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -201,6 +216,10 @@ fun PlayerScreen(
     var isMirrored by remember { mutableStateOf(false) }
     var isFlipped by remember { mutableStateOf(false) }
 
+    // Movable Watch Party Overlay Positions (supports long press & drag)
+    var syncBoxOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var monitoringBoxOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+
     // OSD Feedback State
     var feedbackEvent by remember { mutableStateOf<FeedbackEvent?>(null) }
     var seekAccumulation by remember { mutableIntStateOf(0) }
@@ -246,6 +265,7 @@ fun PlayerScreen(
     val isEqualizerOn = viewModel.audioEffectManager.isEqualizerEnabled
     // Live playback state (speed changes light the Speed icon)
     val livePlaybackState by viewModel.videoPlayer.playbackState.collectAsState()
+    val isFFmpegActive = livePlaybackState.isFFmpegActive || decoderMode.equals("SW", ignoreCase = true)
     val mediaSpecs = remember(livePlaybackState, mediaReport, decoderMode) {
         com.helpofai.videoplayer.feature.player.components.buildMediaStreamSpecs(
             playbackState = livePlaybackState,
@@ -366,20 +386,127 @@ fun PlayerScreen(
             audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (prefVol * maxVol).toInt(), 0)
         }
 
-        // Smart Pause on Headphone Disconnection
-        val headphoneReceiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
-                if (intent?.action == android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+        onDispose {
+            com.helpofai.videoplayer.MainActivity.isPlayerActive = false
+        }
+    }
+
+    // Advanced Handset (Bluetooth & Wired Headset) Button Controls listener
+    LaunchedEffect(Unit) {
+        viewModel.headsetControlManager.commands.collect { cmd ->
+            when (cmd) {
+                is HeadsetCommand.TogglePlayPause -> {
+                    if (isPlayPauseAllowed) {
+                        val isPlayingNow = viewModel.videoPlayer.player.isPlaying
+                        viewModel.togglePlayPause()
+                        feedbackEvent = FeedbackEvent(
+                            type = FeedbackType.INFO,
+                            icon = if (isPlayingNow) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            text = if (isPlayingNow) "Paused • Headset" else "Playing • Headset",
+                            color = if (isPlayingNow) Color(0xFFA78BFA) else Color(0xFF00FFCC)
+                        )
+                    }
+                }
+                is HeadsetCommand.Play -> {
+                    if (isPlayPauseAllowed) {
+                        viewModel.videoPlayer.play()
+                        feedbackEvent = FeedbackEvent(
+                            type = FeedbackType.INFO,
+                            icon = Icons.Default.PlayArrow,
+                            text = "Play • Headset",
+                            color = Color(0xFF00FFCC)
+                        )
+                    }
+                }
+                is HeadsetCommand.Pause -> {
+                    if (isPlayPauseAllowed) {
+                        viewModel.videoPlayer.pause()
+                        feedbackEvent = FeedbackEvent(
+                            type = FeedbackType.INFO,
+                            icon = Icons.Default.Pause,
+                            text = "Paused • Headset",
+                            color = Color(0xFFA78BFA)
+                        )
+                    }
+                }
+                is HeadsetCommand.FastForward -> {
+                    if (isSeekAllowed) {
+                        val current = viewModel.videoPlayer.player.currentPosition
+                        val dur = viewModel.videoPlayer.player.duration
+                        val target = (current + cmd.seconds * 1000L).coerceAtMost(if (dur > 0) dur else Long.MAX_VALUE)
+                        viewModel.seekTo(target)
+                        feedbackEvent = FeedbackEvent(
+                            type = FeedbackType.SEEK,
+                            icon = Icons.Default.FastForward,
+                            text = "+${cmd.seconds}s ${if (cmd.isDoubleTap) "• Double Press" else "• Headset"}",
+                            color = Color(0xFF00FFCC)
+                        )
+                    }
+                }
+                is HeadsetCommand.Rewind -> {
+                    if (isSeekAllowed) {
+                        val current = viewModel.videoPlayer.player.currentPosition
+                        val target = (current - cmd.seconds * 1000L).coerceAtLeast(0L)
+                        viewModel.seekTo(target)
+                        feedbackEvent = FeedbackEvent(
+                            type = FeedbackType.SEEK,
+                            icon = Icons.Default.FastRewind,
+                            text = "-${cmd.seconds}s ${if (cmd.isTripleTap) "• Triple Press" else "• Headset"}",
+                            color = Color(0xFF00FFCC)
+                        )
+                    }
+                }
+                is HeadsetCommand.NextTrack -> {
+                    viewModel.playNextVideo()
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.SkipNext,
+                        text = "Next Video • Headset",
+                        color = Color(0xFF00FFCC)
+                    )
+                }
+                is HeadsetCommand.PreviousTrack -> {
+                    val current = viewModel.videoPlayer.player.currentPosition
+                    if (current > 3000L) {
+                        viewModel.seekTo(0L)
+                    } else {
+                        viewModel.playPrevVideo()
+                    }
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.SkipPrevious,
+                        text = "Previous Video • Headset",
+                        color = Color(0xFF00FFCC)
+                    )
+                }
+                is HeadsetCommand.AudioBecomingNoisy -> {
                     viewModel.videoPlayer.pause()
+                    isControllerVisible = true
+                    autoHideTrigger++
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.Headphones,
+                        text = "Headset Disconnected • Paused",
+                        color = Color(0xFFF59E0B)
+                    )
+                }
+                is HeadsetCommand.HeadsetConnected -> {
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.Headphones,
+                        text = "🎧 ${cmd.name} Connected",
+                        color = Color(0xFF10B981)
+                    )
+                }
+                is HeadsetCommand.HeadsetDisconnected -> {
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.Headphones,
+                        text = "🎧 ${cmd.name} Disconnected",
+                        color = Color(0xFFF59E0B)
+                    )
                 }
             }
-        }
-        val noisyFilter = android.content.IntentFilter(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        context.registerReceiver(headphoneReceiver, noisyFilter)
-
-        onDispose {
-            try { context.unregisterReceiver(headphoneReceiver) } catch (e: Exception) {}
-            com.helpofai.videoplayer.MainActivity.isPlayerActive = false
         }
     }
 
@@ -635,6 +762,37 @@ fun PlayerScreen(
             PlayerTopToolbar(
                 isVisible = isControllerVisible,
                 title = currentVideoTitle,
+                decoderMode = decoderMode,
+                onDecoderClick = {
+                    activeDialog = com.helpofai.videoplayer.feature.player.components.PlayerDialogType.DECODER_SELECTOR
+                },
+                onDecoderLongClick = {
+                    val nextMode = when (decoderMode.uppercase()) {
+                        "HW" -> "HW+"
+                        "HW+" -> "SW"
+                        else -> "HW"
+                    }
+                    decoderMode = nextMode
+                    viewModel.switchDecoder(nextMode)
+                    val icon = when (nextMode) {
+                        "SW" -> Icons.Default.Code
+                        "HW+" -> Icons.Default.DeveloperBoard
+                        else -> Icons.Default.Memory
+                    }
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = icon,
+                        text = "Switched to $nextMode Decoder"
+                    )
+                },
+                isFFmpegActive = isFFmpegActive,
+                onFFmpegClick = {
+                    feedbackEvent = FeedbackEvent(
+                        type = FeedbackType.INFO,
+                        icon = Icons.Default.Bolt,
+                        text = "FFmpeg Active: Software Audio/Video Processing"
+                    )
+                },
                 onBackClick = handleBackPress,
                 onLockClick = {
                     isControlsLocked = true
@@ -799,7 +957,25 @@ fun PlayerScreen(
                 }
             }
 
-            // Interactive Synchronized Mode Overlay on Now Playing screen
+            // Clamping boundaries for movable Watch Party overlays
+            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+            val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+
+            // Safe drag clamps for Sync Mode box
+            val minSyncDragX = -with(density) { 10.dp.toPx() }
+            val maxSyncDragX = (screenWidthPx - with(density) { 300.dp.toPx() }).coerceAtLeast(0f)
+            val minSyncDragY = -with(density) { 60.dp.toPx() }
+            val maxSyncDragY = (screenHeightPx - with(density) { 140.dp.toPx() }).coerceAtLeast(0f)
+
+            // Safe drag clamps for Monitoring box
+            val minMonitoringDragX = -(screenWidthPx - with(density) { 280.dp.toPx() }).coerceAtLeast(0f)
+            val maxMonitoringDragX = with(density) { 10.dp.toPx() }
+            val minMonitoringDragY = -with(density) { 60.dp.toPx() }
+            val maxMonitoringDragY = (screenHeightPx - with(density) { 140.dp.toPx() }).coerceAtLeast(0f)
+
+            // Interactive Synchronized Mode Overlay on Now Playing screen (Movable with long press & drag)
             if (activeSession != null) {
                 com.helpofai.videoplayer.feature.player.components.WatchPartySyncModeOverlay(
                     session = activeSession!!,
@@ -807,6 +983,12 @@ fun PlayerScreen(
                     isSyncModeEnabled = isSyncModeEnabled,
                     isControllerVisible = isControllerVisible,
                     onToggleSyncMode = onToggleSyncMode,
+                    offset = syncBoxOffset,
+                    onOffsetChange = { newOffset ->
+                        val newX = newOffset.x.coerceIn(minSyncDragX, maxSyncDragX)
+                        val newY = newOffset.y.coerceIn(minSyncDragY, maxSyncDragY)
+                        syncBoxOffset = androidx.compose.ui.geometry.Offset(newX, newY)
+                    },
                     onShowControls = {
                         isControllerVisible = true
                         autoHideTrigger++
@@ -818,20 +1000,54 @@ fun PlayerScreen(
             }
 
             if (activeSession != null && !sessionManager.isClientMode && isControllerVisible) {
+                var isMonitoringDragging by remember { mutableStateOf(false) }
+                val monitoringScale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isMonitoringDragging) 1.03f else 1.0f,
+                    label = "monitoringScale"
+                )
+                val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = 76.dp, end = 16.dp)
-                        .width(260.dp),
+                        .width(260.dp)
+                        .offset {
+                            androidx.compose.ui.unit.IntOffset(
+                                monitoringBoxOffset.x.roundToInt(),
+                                monitoringBoxOffset.y.roundToInt()
+                            )
+                        }
+                        .scale(monitoringScale)
+                        .pointerInput(Unit) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    isMonitoringDragging = true
+                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val newX = (monitoringBoxOffset.x + dragAmount.x).coerceIn(minMonitoringDragX, maxMonitoringDragX)
+                                    val newY = (monitoringBoxOffset.y + dragAmount.y).coerceIn(minMonitoringDragY, maxMonitoringDragY)
+                                    monitoringBoxOffset = androidx.compose.ui.geometry.Offset(newX, newY)
+                                },
+                                onDragEnd = { isMonitoringDragging = false },
+                                onDragCancel = { isMonitoringDragging = false }
+                            )
+                        },
                     color = Color(0xEE0F172A),
                     shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF7C5CE7).copy(alpha = 0.35f)),
-                    shadowElevation = 8.dp
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (isMonitoringDragging) 1.5.dp else 1.dp,
+                        if (isMonitoringDragging) Color(0xFF7C5CE7) else Color(0xFF7C5CE7).copy(alpha = 0.35f)
+                    ),
+                    shadowElevation = if (isMonitoringDragging) 16.dp else 8.dp
                 ) {
                     com.helpofai.videoplayer.feature.watch_party.ui.host_dashboard.WatchPartyPlayerMonitoringView(
                         session = activeSession!!,
                         isSyncModeEnabled = isSyncModeEnabled,
-                        onToggleSyncMode = onToggleSyncMode
+                        onToggleSyncMode = onToggleSyncMode,
+                        isDragging = isMonitoringDragging
                     )
                 }
             }
@@ -1016,7 +1232,18 @@ fun PlayerScreen(
             decoderMode = decoderMode,
             onDecoderModeSelect = {
                 decoderMode = it
+                viewModel.switchDecoder(it)
                 activeDialog = null
+                val icon = when (it.uppercase()) {
+                    "SW" -> Icons.Default.Code
+                    "HW+" -> Icons.Default.DeveloperBoard
+                    else -> Icons.Default.Memory
+                }
+                feedbackEvent = FeedbackEvent(
+                    type = FeedbackType.INFO,
+                    icon = icon,
+                    text = "Switched to $it Decoder"
+                )
             },
 
             resizeMode = resizeMode,

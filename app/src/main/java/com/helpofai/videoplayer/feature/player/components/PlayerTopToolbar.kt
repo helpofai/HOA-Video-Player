@@ -58,6 +58,11 @@ import com.helpofai.videoplayer.core.theme.PaletteIconButton
 fun PlayerTopToolbar(
     isVisible: Boolean,
     title: String,
+    decoderMode: String = "HW",
+    onDecoderClick: () -> Unit = {},
+    onDecoderLongClick: () -> Unit = {},
+    isFFmpegActive: Boolean = false,
+    onFFmpegClick: () -> Unit = {},
     onBackClick: () -> Unit,
     onLockClick: () -> Unit,
     onSpeedClick: () -> Unit,
@@ -169,19 +174,19 @@ fun PlayerTopToolbar(
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(1f, fill = false)
                                 .basicMarquee(
                                     iterations = Int.MAX_VALUE,
                                     animationMode = androidx.compose.foundation.MarqueeAnimationMode.Immediately
                                 )
-                                .padding(end = 8.dp)
+                                .padding(end = 6.dp)
                         )
                         if (isStreaming) {
                             androidx.compose.material3.Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = (if (isHost) Color.Red else Color(0xFF00FFCC)).copy(alpha = 0.15f),
                                 border = androidx.compose.foundation.BorderStroke(0.5.dp, (if (isHost) Color.Red else Color(0xFF00FFCC)).copy(alpha = 0.5f)),
-                                modifier = Modifier.padding(end = 8.dp)
+                                modifier = Modifier.padding(end = 6.dp)
                             ) {
                                 Text(
                                     text = "LIVE STREAMING",
@@ -191,6 +196,24 @@ fun PlayerTopToolbar(
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
                             }
+                        }
+
+                        DecoderBadge(
+                            decoderMode = decoderMode,
+                            onClick = onDecoderClick,
+                            onLongClick = onDecoderLongClick,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+
+                        AnimatedVisibility(
+                            visible = isFFmpegActive,
+                            enter = fadeIn() + expandHorizontally(),
+                            exit = fadeOut() + shrinkHorizontally()
+                        ) {
+                            FFmpegBadge(
+                                onClick = onFFmpegClick,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
                         }
                     }
 
@@ -242,6 +265,23 @@ fun PlayerTopToolbar(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
+                        DecoderBadge(
+                            decoderMode = decoderMode,
+                            onClick = onDecoderClick,
+                            onLongClick = onDecoderLongClick,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+
+                        AnimatedVisibility(
+                            visible = isFFmpegActive,
+                            enter = fadeIn() + expandHorizontally(),
+                            exit = fadeOut() + shrinkHorizontally()
+                        ) {
+                            FFmpegBadge(
+                                onClick = onFFmpegClick,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                        }
                         PaletteIconButton(
                             onClick = onLockClick,
                             icon = Icons.Default.Lock,

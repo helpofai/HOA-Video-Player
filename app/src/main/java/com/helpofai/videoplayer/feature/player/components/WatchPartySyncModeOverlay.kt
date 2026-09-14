@@ -47,12 +47,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import com.helpofai.videoplayer.core.theme.HoaMiniSwitch
+import kotlin.math.roundToInt
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySession
 
 /**
  * Watch Party Synchronized Mode control and status overlay for the Now Playing screen.
  * Informs the room admin that Synchronized Mode is required for streaming video to guests
  * and provides direct enable/disable controls.
+ *
+ * Supports long-press and drag to reposition anywhere on the player screen.
  */
 @Composable
 fun WatchPartySyncModeOverlay(
@@ -62,8 +75,17 @@ fun WatchPartySyncModeOverlay(
     isControllerVisible: Boolean,
     onToggleSyncMode: (Boolean) -> Unit,
     onShowControls: () -> Unit,
+    offset: Offset = Offset.Zero,
+    onOffsetChange: (Offset) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var isDragging by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    val dragScale by animateFloatAsState(
+        targetValue = if (isDragging) 1.03f else 1.0f,
+        label = "syncDragScale"
+    )
+
     val infiniteTransition = rememberInfiniteTransition(label = "SyncStatusPulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.35f,
@@ -75,7 +97,25 @@ fun WatchPartySyncModeOverlay(
         label = "PulseAlpha"
     )
 
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier
+            .offset { IntOffset(offset.x.roundToInt(), offset.y.roundToInt()) }
+            .scale(dragScale)
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        isDragging = true
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onOffsetChange(offset + dragAmount)
+                    },
+                    onDragEnd = { isDragging = false },
+                    onDragCancel = { isDragging = false }
+                )
+            }
+    ) {
         if (isHost) {
             // Room Admin / Host view
             if (isControllerVisible) {
@@ -84,19 +124,33 @@ fun WatchPartySyncModeOverlay(
                     shape = RoundedCornerShape(14.dp),
                     color = Color(0xEE0F172A),
                     border = BorderStroke(
-                        1.dp,
-                        if (isSyncModeEnabled) Color(0xFF10B981).copy(alpha = 0.55f)
+                        if (isDragging) 1.5.dp else 1.dp,
+                        if (isDragging) Color(0xFF00FFCC)
+                        else if (isSyncModeEnabled) Color(0xFF10B981).copy(alpha = 0.55f)
                         else Color(0xFFF59E0B).copy(alpha = 0.45f)
                     ),
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.width(300.dp)
+                    shadowElevation = if (isDragging) 16.dp else 8.dp,
+                    modifier = Modifier.width(285.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp)
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
-                        // Header row: Icon, Title & Switch
+                        // Subtle drag handle pill at the top of the card
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(bottom = 6.dp)
+                                .size(width = 26.dp, height = 3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    if (isDragging) Color(0xFF00FFCC)
+                                    else Color.White.copy(alpha = 0.25f)
+                                )
+                        )
+
+                        // Header row: Compact Icon, Title & Sleek Mini Switch
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
@@ -104,68 +158,70 @@ fun WatchPartySyncModeOverlay(
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(26.dp)
                                     .clip(CircleShape)
                                     .background(
                                         if (isSyncModeEnabled) Color(0xFF10B981).copy(alpha = 0.2f)
                                         else Color(0xFFF59E0B).copy(alpha = 0.2f)
+                                    )
+                                    .border(
+                                        0.5.dp,
+                                        if (isSyncModeEnabled) Color(0xFF00FFCC).copy(alpha = 0.4f)
+                                        else Color(0xFFF59E0B).copy(alpha = 0.4f),
+                                        CircleShape
                                     )
                             ) {
                                 Icon(
                                     imageVector = if (isSyncModeEnabled) Icons.Default.CellTower else Icons.Default.SyncDisabled,
                                     contentDescription = "Sync Status",
                                     tint = if (isSyncModeEnabled) Color(0xFF00FFCC) else Color(0xFFF59E0B),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Synchronized Mode",
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
+                                    fontSize = 12.5.sp
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 2.dp)
+                                    modifier = Modifier.padding(top = 1.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(7.dp)
+                                            .size(6.dp)
                                             .clip(CircleShape)
                                             .background(
                                                 (if (isSyncModeEnabled) Color(0xFF00FFCC) else Color(0xFFF59E0B))
                                                     .copy(alpha = pulseAlpha)
-                                            )
+                                             )
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = if (isSyncModeEnabled) "STREAMING ACTIVE" else "NOT STREAMING",
                                         color = if (isSyncModeEnabled) Color(0xFF00FFCC) else Color(0xFFF59E0B),
-                                        fontSize = 9.5.sp,
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }
 
-                            // Enable / Disable Switch
-                            Switch(
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Sleek Mini Switch matching HOA app UI
+                            HoaMiniSwitch(
                                 checked = isSyncModeEnabled,
                                 onCheckedChange = onToggleSyncMode,
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF7C5CE7),
-                                    uncheckedThumbColor = Color.LightGray,
-                                    uncheckedTrackColor = Color(0x44FFFFFF)
-                                ),
-                                modifier = Modifier.height(28.dp)
+                                activeColor = Color(0xFF10B981)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // Educational explanation banner to guide the room admin
                         Surface(
@@ -183,19 +239,23 @@ fun WatchPartySyncModeOverlay(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.Top
                             ) {
-                                Text(
-                                    text = if (isSyncModeEnabled) "🟢" else "⚠️",
-                                    fontSize = 11.sp,
-                                    modifier = Modifier.padding(top = 1.dp, end = 6.dp)
+                                Icon(
+                                    imageVector = if (isSyncModeEnabled) Icons.Default.CheckCircle else Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = if (isSyncModeEnabled) Color(0xFF00FFCC) else Color(0xFFF59E0B),
+                                    modifier = Modifier
+                                        .size(13.dp)
+                                        .padding(top = 1.dp)
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = if (isSyncModeEnabled)
                                         "Streaming active: Currently playing video and playback controls are synced live with ${session.devices.size} member(s)."
                                     else
                                         "For streaming to guests, this needs to be enabled. Turn ON Synchronized Mode to broadcast video and sync playback.",
                                     color = if (isSyncModeEnabled) Color(0xFFD1FAE5) else Color(0xFFFEF3C7),
-                                    fontSize = 10.5.sp,
-                                    lineHeight = 14.sp
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.5.sp
                                 )
                             }
                         }
@@ -209,7 +269,7 @@ fun WatchPartySyncModeOverlay(
                         ) {
                             Text(
                                 text = "Room: ${session.name}",
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 color = Color.White.copy(alpha = 0.6f),
                                 maxLines = 1,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -217,7 +277,7 @@ fun WatchPartySyncModeOverlay(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "ID: ${session.id}",
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 color = Color(0xFFA78BFA),
                                 fontWeight = FontWeight.Bold
                             )
@@ -230,10 +290,12 @@ fun WatchPartySyncModeOverlay(
                     shape = RoundedCornerShape(20.dp),
                     color = Color.Black.copy(alpha = 0.75f),
                     border = BorderStroke(
-                        1.dp,
-                        if (isSyncModeEnabled) Color(0xFF10B981).copy(alpha = 0.5f)
+                        if (isDragging) 1.5.dp else 1.dp,
+                        if (isDragging) Color(0xFF00FFCC)
+                        else if (isSyncModeEnabled) Color(0xFF10B981).copy(alpha = 0.5f)
                         else Color(0xFFF59E0B).copy(alpha = 0.6f)
                     ),
+                    shadowElevation = if (isDragging) 12.dp else 4.dp,
                     modifier = Modifier.clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -243,23 +305,30 @@ fun WatchPartySyncModeOverlay(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.DragIndicator,
+                            contentDescription = "Hold to drag",
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
                         Box(
                             modifier = Modifier
-                                .size(7.dp)
+                                .size(6.5.dp)
                                 .clip(CircleShape)
                                 .background(
                                     (if (isSyncModeEnabled) Color(0xFF00FFCC) else Color(0xFFF59E0B))
                                         .copy(alpha = pulseAlpha)
                                 )
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = if (isSyncModeEnabled) "● LIVE SYNC (${session.devices.size})"
                             else "⚠️ SYNC OFF (Tap to Enable)",
                             color = if (isSyncModeEnabled) Color(0xFF00FFCC) else Color(0xFFFBBF24),
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }

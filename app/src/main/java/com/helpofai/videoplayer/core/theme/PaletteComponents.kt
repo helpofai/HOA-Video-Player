@@ -20,10 +20,16 @@
 */
 package com.helpofai.videoplayer.core.theme
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -32,9 +38,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -50,6 +58,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -363,3 +372,65 @@ fun PaletteBadge(
         )
     }
 }
+
+/**
+ * A sleek, modern compact toggle switch crafted for the HOA design language.
+ * Avoids the bulky Material 3 Switch dimensions, providing a crisp, responsive,
+ * and elegant toggle that perfectly matches video player overlays and sheets.
+ */
+@Composable
+fun HoaMiniSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    activeColor: Color = Color(0xFF7C5CE7),
+    inactiveColor: Color = Color.White.copy(alpha = 0.2f),
+    thumbColor: Color = Color.White,
+    enabled: Boolean = true
+) {
+    val trackWidth = 36.dp
+    val trackHeight = 20.dp
+    val thumbSize = 14.dp
+    val padding = 3.dp
+
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) trackWidth - thumbSize - padding else padding,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "miniSwitchThumb"
+    )
+
+    val currentTrackColor by animateColorAsState(
+        targetValue = if (checked) activeColor else inactiveColor,
+        animationSpec = tween(200),
+        label = "miniSwitchTrack"
+    )
+
+    Box(
+        modifier = modifier
+            .size(trackWidth, trackHeight)
+            .clip(RoundedCornerShape(10.dp))
+            .background(currentTrackColor)
+            .border(
+                1.dp,
+                if (checked) activeColor.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.15f),
+                RoundedCornerShape(10.dp)
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled
+            ) {
+                onCheckedChange(!checked)
+            },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(thumbSize)
+                .clip(CircleShape)
+                .background(thumbColor)
+        )
+    }
+}
+

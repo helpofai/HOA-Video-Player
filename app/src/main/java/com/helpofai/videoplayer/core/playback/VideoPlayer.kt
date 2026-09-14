@@ -40,4 +40,5 @@ interface VideoPlayer {
     fun seekBack()
     fun release()
     fun setPlaybackSpeed(speed: Float)
+    fun switchDecoder(mode: String)
 }

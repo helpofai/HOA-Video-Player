@@ -77,6 +77,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var videoPlayer: com.helpofai.videoplayer.core.playback.VideoPlayer
 
+    @Inject
+    lateinit var headsetControlManager: com.helpofai.videoplayer.core.playback.headset.HeadsetControlManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         super.onCreate(savedInstanceState)
@@ -423,6 +426,18 @@ class MainActivity : FragmentActivity() {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         com.helpofai.videoplayer.core.playback.GlobalMiniPlayerManager.getInstance()
             .setInPipMode(isInPictureInPictureMode)
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (headsetControlManager.handleKeyEvent(event)) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onDestroy() {
+        headsetControlManager.unregisterConnectionReceiver()
+        super.onDestroy()
     }
     
     companion object {

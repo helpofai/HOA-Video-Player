@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.helpofai.videoplayer.core.theme.HoaMiniSwitch
 import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySession
 
 /**
@@ -48,10 +49,21 @@ import com.helpofai.videoplayer.feature.watch_party.session.WatchPartySession
 fun WatchPartyPlayerMonitoringView(
     session: WatchPartySession,
     isSyncModeEnabled: Boolean = false,
-    onToggleSyncMode: ((Boolean) -> Unit)? = null
+    onToggleSyncMode: ((Boolean) -> Unit)? = null,
+    isDragging: Boolean = false
 ) {
-    Column(modifier = Modifier.padding(14.dp)) {
-        // Title and member count
+    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        // Subtle drag handle indicator at top
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(bottom = 6.dp)
+                .size(width = 26.dp, height = 3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (isDragging) Color(0xFF7C5CE7) else Color.White.copy(alpha = 0.25f))
+        )
+
+        // Title and member count + sleek mini switch
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -62,20 +74,14 @@ fun WatchPartyPlayerMonitoringView(
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 13.sp
             )
 
             if (onToggleSyncMode != null) {
-                Switch(
+                HoaMiniSwitch(
                     checked = isSyncModeEnabled,
                     onCheckedChange = onToggleSyncMode,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF7C5CE7),
-                        uncheckedThumbColor = Color.LightGray,
-                        uncheckedTrackColor = Color(0x44FFFFFF)
-                    ),
-                    modifier = Modifier.height(24.dp)
+                    activeColor = Color(0xFF10B981)
                 )
             }
         }

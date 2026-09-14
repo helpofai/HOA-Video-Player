@@ -128,6 +128,67 @@ class SettingsViewModel @Inject constructor(
         "auto"
     )
 
+    // Headset & Bluetooth Button Controls StateFlows
+    val headsetControlsEnabled = settingsRepository.headsetControlsEnabled.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
+    val headsetDoubleClickAction = settingsRepository.headsetDoubleClickAction.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "seek_forward"
+    )
+
+    val headsetTripleClickAction = settingsRepository.headsetTripleClickAction.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        "seek_backward"
+    )
+
+    val headsetPauseOnDisconnect = settingsRepository.headsetPauseOnDisconnect.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        true
+    )
+
+    val headsetResumeOnConnect = settingsRepository.headsetResumeOnConnect.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false
+    )
+
+    fun setHeadsetControlsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHeadsetControlsEnabled(enabled)
+        }
+    }
+
+    fun setHeadsetDoubleClickAction(action: String) {
+        viewModelScope.launch {
+            settingsRepository.setHeadsetDoubleClickAction(action)
+        }
+    }
+
+    fun setHeadsetTripleClickAction(action: String) {
+        viewModelScope.launch {
+            settingsRepository.setHeadsetTripleClickAction(action)
+        }
+    }
+
+    fun setHeadsetPauseOnDisconnect(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHeadsetPauseOnDisconnect(enabled)
+        }
+    }
+
+    fun setHeadsetResumeOnConnect(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHeadsetResumeOnConnect(enabled)
+        }
+    }
+
     fun setPlaybackSpeed(speed: Float) {
         viewModelScope.launch {
             settingsRepository.setDefaultPlaybackSpeed(speed)

@@ -22,7 +22,9 @@
 */
 package com.helpofai.videoplayer.feature.player.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,9 +32,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeveloperBoard
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -40,24 +43,50 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
-import androidx.compose.ui.platform.LocalView
 
 data class DecoderOption(
     val code: String,
     val title: String,
+    val tag: String,
     val description: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val accentColor: Color
 )
 
 val decoderOptions = listOf(
-    DecoderOption("HW", "Hardware Decoder", "Uses hardware for playback. Fast and battery efficient.", Icons.Default.Memory),
-    DecoderOption("HW+", "Hardware+ Decoder", "Advanced hardware decoder with better format support.", Icons.Default.DeveloperBoard),
-    DecoderOption("SW", "Software Decoder", "Uses CPU for playback. Slower, but supports all formats.", Icons.Default.Code)
+    DecoderOption(
+        code = "HW",
+        title = "Hardware Decoder",
+        tag = "Battery Efficient",
+        description = "Uses GPU hardware for decoding. Maximum power efficiency, smoothest 4K/60fps playback.",
+        icon = Icons.Default.Memory,
+        accentColor = Color(0xFF00E5FF) // Electric Cyan
+    ),
+    DecoderOption(
+        code = "HW+",
+        title = "Hardware+ Decoder",
+        tag = "Recommended",
+        description = "Hardware accelerated with automatic FFmpeg fallback for missing or corrupted vendor codecs.",
+        icon = Icons.Default.DeveloperBoard,
+        accentColor = Color(0xFFB388FF) // Neon Violet
+    ),
+    DecoderOption(
+        code = "SW",
+        title = "Software Decoder",
+        tag = "Universal Compatibility",
+        description = "Uses CPU & built-in FFmpeg. Plays all audio and video formats, resolving unsupported sound or black screens.",
+        icon = Icons.Default.Code,
+        accentColor = Color(0xFFFFB74D) // Cyber Amber
+    )
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,86 +108,188 @@ fun DecoderSelectorSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        containerColor = Color(0xF00D111A), // Frosted glass aesthetic
+        containerColor = Color(0xF20B0F19), // Dark Frosted Glass
         contentColor = Color.White,
-        scrimColor = Color.Black.copy(alpha = 0.55f),
+        scrimColor = Color.Black.copy(alpha = 0.65f),
         dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             // Compact Drag Handle
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 8.dp),
+                    .padding(top = 4.dp, bottom = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(width = 36.dp, height = 4.dp)
+                        .size(width = 40.dp, height = 4.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.35f))
+                        .background(Color.White.copy(alpha = 0.30f))
                 )
             }
 
-            Text(
-                text = "Video Decoder",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF00E5FF).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Memory,
+                        contentDescription = null,
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Playback Decoder Engine",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Hardware acceleration vs Software FFmpeg decoding",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.60f)
+                    )
+                }
+            }
 
+            // Decoder Option Cards
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(decoderOptions) { option ->
-                    val isSelected = option.code == currentDecoder
-                    
-                    Row(
+                    val isSelected = option.code.equals(currentDecoder, ignoreCase = true)
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isSelected) option.accentColor.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f),
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) option.accentColor else Color.White.copy(alpha = 0.08f)
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable {
                                 onDecoderSelect(option.code)
                                 onDismissRequest()
                             }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = option.icon,
-                            contentDescription = null,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${option.code} - ${option.title}",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White
-                            )
-                            Text(
-                                text = option.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else Color.Gray
-                            )
-                        }
-                        if (isSelected) {
-                            Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(option.accentColor.copy(alpha = if (isSelected) 0.25f else 0.10f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = option.icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) option.accentColor else Color.White.copy(alpha = 0.70f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "${option.code} - ${option.title}",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) option.accentColor else Color.White
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = option.accentColor.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = option.tag,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = option.accentColor,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = option.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.70f),
+                                    lineHeight = 16.sp
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Selected",
+                                    tint = option.accentColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Pro-Tip Card for Audio Troubleshooting
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF00E5FF).copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.20f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Tip: If a video plays without sound (e.g. AC-3, TrueHD 7.1, or DTS audio), switch to SW (Software Decoder) to force FFmpeg software decoding.",
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.85f),
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

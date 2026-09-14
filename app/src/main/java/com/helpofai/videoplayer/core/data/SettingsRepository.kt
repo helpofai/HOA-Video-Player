@@ -60,6 +60,13 @@ class SettingsRepository @Inject constructor(
         val SUBTITLE_POSITION = floatPreferencesKey("subtitle_position")           // 0.0 (bottom) to 1.0 (top), default 0.88
         val SUBTITLE_DELAY_MS = intPreferencesKey("subtitle_delay_ms")             // milliseconds, default 0
         val SUBTITLE_ENCODING = stringPreferencesKey("subtitle_encoding")          // "auto", "UTF-8", "ISO-8859-1", etc.
+
+        // Headset & Bluetooth Button Controls Preferences
+        val HEADSET_CONTROLS_ENABLED = booleanPreferencesKey("headset_controls_enabled")
+        val HEADSET_DOUBLE_CLICK_ACTION = stringPreferencesKey("headset_double_click_action") // "seek_forward" (+10s) or "next_video"
+        val HEADSET_TRIPLE_CLICK_ACTION = stringPreferencesKey("headset_triple_click_action") // "seek_backward" (-10s) or "prev_video"
+        val HEADSET_PAUSE_ON_DISCONNECT = booleanPreferencesKey("headset_pause_on_disconnect") // smart pause on unplug
+        val HEADSET_RESUME_ON_CONNECT = booleanPreferencesKey("headset_resume_on_connect") // auto-resume on re-plug
     }
 
     val defaultPlaybackSpeed: Flow<Float> = dataStore.data.map { preferences ->
@@ -225,6 +232,57 @@ class SettingsRepository @Inject constructor(
     suspend fun setSubtitleEncoding(encoding: String) {
         dataStore.edit { preferences ->
             preferences[SUBTITLE_ENCODING] = encoding
+        }
+    }
+
+    // Headset & Bluetooth Button Controls Flows
+    val headsetControlsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[HEADSET_CONTROLS_ENABLED] ?: true
+    }
+
+    val headsetDoubleClickAction: Flow<String> = dataStore.data.map { preferences ->
+        preferences[HEADSET_DOUBLE_CLICK_ACTION] ?: "seek_forward"
+    }
+
+    val headsetTripleClickAction: Flow<String> = dataStore.data.map { preferences ->
+        preferences[HEADSET_TRIPLE_CLICK_ACTION] ?: "seek_backward"
+    }
+
+    val headsetPauseOnDisconnect: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[HEADSET_PAUSE_ON_DISCONNECT] ?: true
+    }
+
+    val headsetResumeOnConnect: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[HEADSET_RESUME_ON_CONNECT] ?: false
+    }
+
+    suspend fun setHeadsetControlsEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HEADSET_CONTROLS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setHeadsetDoubleClickAction(action: String) {
+        dataStore.edit { preferences ->
+            preferences[HEADSET_DOUBLE_CLICK_ACTION] = action
+        }
+    }
+
+    suspend fun setHeadsetTripleClickAction(action: String) {
+        dataStore.edit { preferences ->
+            preferences[HEADSET_TRIPLE_CLICK_ACTION] = action
+        }
+    }
+
+    suspend fun setHeadsetPauseOnDisconnect(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HEADSET_PAUSE_ON_DISCONNECT] = enabled
+        }
+    }
+
+    suspend fun setHeadsetResumeOnConnect(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HEADSET_RESUME_ON_CONNECT] = enabled
         }
     }
 }

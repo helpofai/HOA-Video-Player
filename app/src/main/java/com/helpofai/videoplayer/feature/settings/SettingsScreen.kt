@@ -206,6 +206,65 @@ fun SettingsScreen(
             }
 
             item {
+                SettingsCategoryCard("Headset & Bluetooth Controls") {
+                    val headsetControlsEnabled by viewModel.headsetControlsEnabled.collectAsState()
+                    val pauseOnDisconnect by viewModel.headsetPauseOnDisconnect.collectAsState()
+                    val resumeOnConnect by viewModel.headsetResumeOnConnect.collectAsState()
+                    val doubleClickAction by viewModel.headsetDoubleClickAction.collectAsState()
+                    val tripleClickAction by viewModel.headsetTripleClickAction.collectAsState()
+
+                    SettingsSwitchItem(
+                        title = "Headphone Button Controls",
+                        subtitle = "Support wired & Bluetooth earphone button gestures.",
+                        checked = headsetControlsEnabled,
+                        onCheckedChange = { viewModel.setHeadsetControlsEnabled(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    SettingsSwitchItem(
+                        title = "Pause on Disconnect",
+                        subtitle = "Automatically pause when headphones are unplugged or Bluetooth disconnects.",
+                        checked = pauseOnDisconnect,
+                        onCheckedChange = { viewModel.setHeadsetPauseOnDisconnect(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    SettingsSwitchItem(
+                        title = "Resume on Connect",
+                        subtitle = "Automatically resume playback when headphones are plugged back in.",
+                        checked = resumeOnConnect,
+                        onCheckedChange = { viewModel.setHeadsetResumeOnConnect(it) }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    SettingsItem(
+                        title = "Double Press Action",
+                        subtitle = if (doubleClickAction == "next_video") "Next Video" else "Skip Forward 10s",
+                        onClick = {
+                            viewModel.setHeadsetDoubleClickAction(
+                                if (doubleClickAction == "seek_forward") "next_video" else "seek_forward"
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    SettingsItem(
+                        title = "Triple Press Action",
+                        subtitle = if (tripleClickAction == "prev_video") "Previous Video" else "Rewind 10s",
+                        onClick = {
+                            viewModel.setHeadsetTripleClickAction(
+                                if (tripleClickAction == "seek_backward") "prev_video" else "seek_backward"
+                            )
+                        }
+                    )
+                }
+            }
+
+            item {
                 SettingsCategoryCard("Appearance") {
                     val dynamicColorsEnabled by viewModel.dynamicColors.collectAsState()
                     SettingsSwitchItem(

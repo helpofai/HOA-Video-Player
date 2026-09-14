@@ -74,8 +74,10 @@ class ExoPlayerImpl @Inject constructor(
     private var progressJob: Job? = null
     private var enhancementJob: Job? = null
 
+    private var currentDecoderMode: String = "HW"
+
     private fun initializePlayer(): ExoPlayer {
-        val renderersFactory = com.helpofai.videoplayer.feature.player.decoder.SmartDecoderEngine.getOptimalRenderersFactory(context)
+        val renderersFactory = com.helpofai.videoplayer.feature.player.decoder.SmartDecoderEngine.getOptimalRenderersFactory(context, currentDecoderMode)
 
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -122,14 +124,34 @@ class ExoPlayerImpl @Inject constructor(
                     initializedDurationMs: Long,
                     initializationDurationMs: Long
                 ) {
-                    val isHw = !(decoderName.lowercase().startsWith("omx.google.") || 
-                                 decoderName.lowercase().startsWith("c2.android.") || 
-                                 decoderName.lowercase().startsWith("omx.ffmpeg."))
-                    _playbackState.update { 
-                        it.copy(
+                    val lower = decoderName.lowercase()
+                    val isHw = !(lower.startsWith("omx.google.") || 
+                                 lower.startsWith("c2.android.") || 
+                                 lower.startsWith("omx.ffmpeg.") ||
+                                 lower.contains("ffmpeg"))
+                    val isFfmpeg = lower.contains("ffmpeg") || currentDecoderMode == "SW"
+                    _playbackState.update { state ->
+                        state.copy(
                             currentDecoderName = decoderName,
-                            isHardwareDecoder = isHw
+                            isHardwareDecoder = isHw,
+                            isFFmpegActive = isFfmpeg || state.audioDecoderName.lowercase().contains("ffmpeg") || state.isFFmpegActive
                         ) 
+                    }
+                }
+
+                override fun onAudioDecoderInitialized(
+                    eventTime: AnalyticsListener.EventTime,
+                    decoderName: String,
+                    initializedDurationMs: Long,
+                    initializationDurationMs: Long
+                ) {
+                    val lower = decoderName.lowercase()
+                    val isFfmpeg = lower.contains("ffmpeg") || currentDecoderMode == "SW"
+                    _playbackState.update { state ->
+                        state.copy(
+                            audioDecoderName = decoderName,
+                            isFFmpegActive = isFfmpeg || state.currentDecoderName.lowercase().contains("ffmpeg") || currentDecoderMode == "SW"
+                        )
                     }
                 }
 
@@ -157,9 +179,22 @@ class ExoPlayerImpl @Inject constructor(
                     format: androidx.media3.common.Format,
                     decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
                 ) {
-                    _playbackState.update {
-                        it.copy(
-                            audioCodec = format.sampleMimeType ?: "Unknown"
+                    val mime = format.sampleMimeType?.lowercase() ?: ""
+                    // AC3, EAC3, DTS, TrueHD, FLAC often use bundled FFmpeg extension on Android
+                    val isFfmpegFormat = mime.contains("ac3") || 
+                                         mime.contains("eac3") || 
+                                         mime.contains("dts") || 
+                                         mime.contains("true-hd") || 
+                                         mime.contains("mlp")
+                    _playbackState.update { state ->
+                        val isFfmpeg = state.isFFmpegActive || 
+                                       isFfmpegFormat || 
+                                       state.audioDecoderName.lowercase().contains("ffmpeg") || 
+                                       state.currentDecoderName.lowercase().contains("ffmpeg") || 
+                                       currentDecoderMode == "SW"
+                        state.copy(
+                            audioCodec = format.sampleMimeType ?: "Unknown",
+                            isFFmpegActive = isFfmpeg
                         )
                     }
                 }
@@ -303,5 +338,31 @@ class ExoPlayerImpl @Inject constructor(
     
     override fun setPlaybackSpeed(speed: Float) {
         _player?.playbackParameters = PlaybackParameters(speed)
+    }
+
+    override fun switchDecoder(mode: String) {
+        if (currentDecoderMode.equals(mode, ignoreCase = true) && _player != null) return
+        currentDecoderMode = mode
+        val currentP = _player ?: return
+        val currentMedia = currentP.currentMediaItem ?: return
+        val currentPos = currentP.currentPosition
+        val wasPlaying = currentP.isPlaying
+        val currentSpeed = currentP.playbackParameters.speed
+        val currentVol = currentP.volume
+
+        stopProgressUpdate()
+        enhancementJob?.cancel()
+        enhancementJob = null
+        currentP.stop()
+        currentP.release()
+        _player = null
+
+        val newPlayer = initializePlayer()
+        newPlayer.setMediaItem(currentMedia)
+        newPlayer.prepare()
+        newPlayer.seekTo(currentPos)
+        newPlayer.playbackParameters = PlaybackParameters(currentSpeed)
+        newPlayer.volume = currentVol
+        newPlayer.playWhenReady = wasPlaying
     }
 }

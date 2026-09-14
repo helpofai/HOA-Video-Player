@@ -67,6 +67,7 @@ class PlayerViewModel @Inject constructor(
     val subtitleStyleManager: com.helpofai.videoplayer.core.media.SubtitleStyleManager,
     val videoEnhancementManager: com.helpofai.videoplayer.core.playback.diagnostics.VideoEnhancementManager,
     val autoAIEnhancementEngine: com.helpofai.videoplayer.core.playback.diagnostics.AutoAIEnhancementEngine,
+    val headsetControlManager: com.helpofai.videoplayer.core.playback.headset.HeadsetControlManager,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -94,6 +95,14 @@ class PlayerViewModel @Inject constructor(
         
     private val _playlist = MutableStateFlow<List<com.helpofai.videoplayer.core.model.Video>>(emptyList())
     val playlist = _playlist.asStateFlow()
+
+    var decoderMode by mutableStateOf("HW")
+        private set
+
+    fun switchDecoder(mode: String) {
+        decoderMode = mode
+        videoPlayer.switchDecoder(mode)
+    }
 
     // Watch Party Permissions Flow
     val isPlayPauseAllowed = watchPartySessionManager.activeSession.map { session ->

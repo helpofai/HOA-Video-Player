@@ -30,7 +30,9 @@ data class PlaybackState(
     val playbackState: Int = 1, // Player.STATE_IDLE
     val playbackSpeed: Float = 1f,
     val currentDecoderName: String = "Unknown",
+    val audioDecoderName: String = "Unknown",
     val isHardwareDecoder: Boolean = true,
+    val isFFmpegActive: Boolean = false,
     val videoCodec: String = "Unknown",
     val audioCodec: String = "Unknown",
     val videoWidth: Int = 0,
